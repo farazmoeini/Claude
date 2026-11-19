@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreamCut</title>
+<style>
+  :root { --bg:#0e0f13; --panel:#171920; --line:#262934; --text:#eceef3; --muted:#9097a6; --accent:#ffd60a; --ok:#3ddc97; --err:#ff5c5c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, -apple-system, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -.02em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; background: #0f1116; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 14px; }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; color: var(--muted); }
+  .drop.on { border-color: var(--accent); color: var(--text); }
+  button { background: var(--accent); color: #111; border: 0; border-radius: 10px; padding: 12px 20px; font: 600 15px/1 inherit; cursor: pointer; margin-top: 16px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .bar { height: 8px; background: #0f1116; border-radius: 99px; overflow: hidden; margin: 10px 0 4px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .clip { background: #0f1116; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .clip video { width: 100%; aspect-ratio: 9/16; background: #000; display: block; }
+  .clip .meta { padding: 12px; }
+  .clip h3 { font-size: 15px; margin: 0 0 6px; }
+  .tags { color: var(--accent); font-size: 13px; }
+  .small { color: var(--muted); font-size: 13px; }
+  .row { display:flex; gap:8px; align-items:center; justify-content: space-between; }
+  a.dl { color: var(--text); font-size: 13px; }
+  .copy { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 6px 10px; margin: 8px 0 0; font-size: 13px; }
+  .err { color: var(--err); }
+  #camfields { display: none; }
+  .hist a { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stream<span>Cut</span></h1>
+  <p class="sub">Stream-VOD hochladen → die besten Momente werden automatisch als 9:16-Clips mit Untertiteln geschnitten.</p>
+
+  <form class="card" id="form">
+    <div class="drop" id="drop">Video hierher ziehen oder <u>klicken</u> (MP4, MKV, MOV)</div>
+    <input type="file" id="file" accept="video/*,.mkv" hidden>
+    <div class="grid">
+      <div><label>Layout</label>
+        <select id="layout">
+          <option value="center">Mitte zuschneiden (Talk / Just Chatting)</option>
+          <option value="split">Facecam oben, Gameplay unten</option>
+          <option value="blur">Ganzes Bild + unscharfer Hintergrund</option>
+        </select></div>
+      <div><label>Anzahl Clips</label><input id="num" type="number" min="1" max="20" value="5"></div>
+      <div><label>Min. Länge (s)</label><input id="min" type="number" min="5" max="170" value="20"></div>
+      <div><label>Max. Länge (s)</label><input id="max" type="number" min="10" max="180" value="50"></div>
+      <div><label>Sprache</label>
+        <select id="lang"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="auto">Automatisch</option></select></div>
+      <div><label>Untertitel</label><select id="caps"><option value="true">An</option><option value="false">Aus</option></select></div>
+    </div>
+    <div id="camfields">
+      <p class="small" style="margin:16px 0 0">Position der Facecam im Originalvideo, in % der Breite/Höhe (z. B. oben links: X 0, Y 0, B 30, H 30).</p>
+      <div class="grid">
+        <div><label>X %</label><input id="cx" type="number" min="0" max="100" value="0"></div>
+        <div><label>Y %</label><input id="cy" type="number" min="0" max="100" value="0"></div>
+        <div><label>Breite %</label><input id="cw" type="number" min="5" max="100" value="30"></div>
+        <div><label>Höhe %</label><input id="ch" type="number" min="5" max="100" value="30"></div>
+      </div>
+    </div>
+    <button id="go" disabled>Clips erstellen</button>
+    <div id="up" class="small"></div>
+  </form>
+
+  <section class="card" id="status" hidden>
+    <div class="row"><strong id="stage">…</strong><span class="small" id="pct"></span></div>
+    <div class="bar"><div id="barfill"></div></div>
+    <p class="small" id="note"></p>
+    <div class="clips" id="clips"></div>
+  </section>
+
+  <section class="card hist"><strong>Letzte Jobs</strong><div id="hist" class="small"></div></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let file = null, timer = null;
+
+$("layout").onchange = () => $("camfields").style.display = $("layout").value === "split" ? "block" : "none";
+$("drop").onclick = () => $("file").click();
+$("file").onchange = e => pick(e.target.files[0]);
+["dragover","dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("on"); }));
+["dragleave","drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("on"); }));
+$("drop").addEventListener("drop", e => pick(e.dataTransfer.files[0]));
+
+function pick(f) {
+  if (!f) return;
+  file = f;
+  $("drop").textContent = `${f.name} (${(f.size/1e6).toFixed(1)} MB)`;
+  $("go").disabled = false;
+}
+
+$("form").onsubmit = e => {
+  e.preventDefault();
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("layout", $("layout").value);
+  fd.append("num_clips", $("num").value);
+  fd.append("min_len", $("min").value);
+  fd.append("max_len", $("max").value);
+  fd.append("language", $("lang").value);
+  fd.append("captions", $("caps").value);
+  fd.append("cam_x", $("cx").value / 100); fd.append("cam_y", $("cy").value / 100);
+  fd.append("cam_w", $("cw").value / 100); fd.append("cam_h", $("ch").value / 100);
+  $("go").disabled = true;
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/jobs");
+  xhr.upload.onprogress = ev => { if (ev.lengthComputable) $("up").textContent = `Upload: ${Math.round(ev.loaded/ev.total*100)} %`; };
+  xhr.onload = () => {
+    $("go").disabled = false;
+    if (xhr.status !== 200) { $("up").innerHTML = `<span class="err">Fehler: ${xhr.responseText}</span>`; return; }
+    $("up").textContent = "";
+    watch(JSON.parse(xhr.responseText).id);
+  };
+  xhr.onerror = () => { $("go").disabled = false; $("up").innerHTML = '<span class="err">Upload fehlgeschlagen</span>'; };
+  xhr.send(fd);
+};
+
+function watch(id) {
+  clearInterval(timer);
+  history.replaceState(null, "", "#" + id);
+  $("status").hidden = false; $("clips").innerHTML = ""; $("note").textContent = "";
+  const tick = async () => {
+    const r = await fetch(`/api/jobs/${id}`);
+    if (!r.ok) { clearInterval(timer); return; }
+    const j = await r.json();
+    $("stage").textContent = j.status === "error" ? "Fehler" : j.stage;
+    $("pct").textContent = Math.round((j.progress || 0) * 100) + " %";
+    $("barfill").style.width = (j.progress || 0) * 100 + "%";
+    if (j.status === "error") { $("note").innerHTML = `<span class="err">${esc(j.error)}</span>`; clearInterval(timer); }
+    if (j.status === "done") { clearInterval(timer); show(id, j.result); loadHist(); }
+  };
+  tick(); timer = setInterval(tick, 1500);
+}
+
+function show(id, res) {
+  $("note").textContent = res.note || "";
+  $("clips").innerHTML = res.clips.map((c, i) => {
+    const copy = `${c.title}\n\n${c.description || ""}\n\n${(c.hashtags||[]).join(" ")}`.trim();
+    return `<div class="clip">
+      <video src="/media/${id}/${c.file}" controls preload="metadata" poster="/media/${id}/${c.file.replace('.mp4','.jpg')}"></video>
+      <div class="meta">
+        <h3>${esc(c.title || "Clip " + (i+1))}</h3>
+        <div class="small">${fmt(c.start)}–${fmt(c.end)} · Score ${Math.round(c.score)}</div>
+        ${c.description ? `<p class="small">${esc(c.description)}</p>` : ""}
+        <div class="tags">${esc((c.hashtags||[]).join(" "))}</div>
+        <div class="row"><button class="copy" data-t="${encodeURIComponent(copy)}">Text kopieren</button>
+        <a class="dl" href="/media/${id}/${c.file}" download>Download</a></div>
+      </div></div>`;
+  }).join("");
+  document.querySelectorAll(".copy").forEach(b => b.onclick = e => { e.preventDefault(); navigator.clipboard.writeText(decodeURIComponent(b.dataset.t)); b.textContent = "Kopiert ✓"; });
+}
+
+async function loadHist() {
+  const r = await fetch("/api/jobs"); const js = await r.json();
+  $("hist").innerHTML = js.length ? js.slice(0, 10).map(j => `<div><a href="#${j.id}" onclick="watch('${j.id}')">${esc(j.filename || j.id)}</a> – ${j.status}</div>`).join("") : "Noch keine Jobs.";
+}
+const fmt = t => `${String(Math.floor(t/60)).padStart(2,"0")}:${String(Math.floor(t%60)).padStart(2,"0")}`;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+loadHist();
+if (location.hash.length > 1) watch(location.hash.slice(1));
+</script>
+</body>
+</html>
