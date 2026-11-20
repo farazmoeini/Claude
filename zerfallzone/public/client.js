@@ -531,13 +531,13 @@ function handleFx(f, s) {
         addTracer(from, to, col);
         if (t[3] >= 0) addSpark(to, t[3] ? 0xff3355 : col);
       }
-      if (mine) { G.recoil = 1; pitch = Math.min(1.5, pitch + (f.w === 'lanze' ? 0.03 : f.w === 'hagel' || f.w === 'moerser' ? 0.04 : f.w === 'dorn' ? 0.015 : 0.006)); }
+      if (mine) { rumble(0.25, f.w === 'hagel' || f.w === 'lanze' || f.w === 'moerser' ? 0.6 : 0.1, 60); G.recoil = 1; pitch = Math.min(1.5, pitch + (f.w === 'lanze' ? 0.03 : f.w === 'hagel' || f.w === 'moerser' ? 0.04 : f.w === 'dorn' ? 0.015 : 0.006)); }
       const dist = mine ? 0 : G.pred.pos.distanceTo(new THREE.Vector3(...f.from));
       sfxShot(f.w, mine ? 1 : clamp(1 - dist / 120, 0, 0.6));
       break;
     }
     case 'hit': hitmarker(f.head); break;
-    case 'dmg': G.vignette = Math.min(1, G.vignette + f.a / 30); break;
+    case 'dmg': G.vignette = Math.min(1, G.vignette + f.a / 30); rumble(0.4, Math.min(1, f.a / 25), 140); break;
     case 'boom': {
       const m = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: f.c, transparent: true, opacity: 0.7, depthWrite: false }));
       m.position.set(...f.p);
@@ -777,11 +777,72 @@ function renderEntities() {
   }
 }
 
+// ---------------------------------------------------------------- Controller (Gamepad-API)
+// Standard-Belegung (Xbox / PlayStation): A/✕ Sprung · B/○ Rutschen · X/□ Aufheben, sonst Nachladen · Y/△ Waffe wechseln
+// LB/L1 Fähigkeit 1 · RB/R1 Fähigkeit 2 · LT/L2 Zielen · RT/R2 Schießen · L3 Sprinten · Start/Options Menü
+const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, L3: 10, R3: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+const pad = { active: false, prev: [], sprint: false, navCd: 0, gp: null };
+addEventListener('gamepadconnected', (e) => {
+  pad.active = true;
+  if (game) pushFeed(`Controller verbunden: ${e.gamepad.id.split('(')[0].trim()}`, 'me');
+  else $('netErr').textContent = 'Controller verbunden – Steuerkreuz und A zum Auswählen.';
+});
+addEventListener('gamepaddisconnected', () => { pad.active = false; pad.gp = null; });
+function readPad(dt) {
+  const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find((g) => g && g.connected);
+  pad.gp = gp || null;
+  if (!gp) return null;
+  const now = gp.buttons.map((b) => !!b && (b.pressed || b.value > 0.5));
+  const prev = pad.prev;
+  pad.prev = now;
+  const dz = (v, d) => (Math.abs(v) < d ? 0 : (v - Math.sign(v) * d) / (1 - d));
+  const P = {
+    now, edge: (i) => now[i] && !prev[i],
+    lx: dz(gp.axes[0] || 0, 0.18), ly: dz(gp.axes[1] || 0, 0.18), rx: dz(gp.axes[2] || 0, 0.12), ry: dz(gp.axes[3] || 0, 0.12),
+  };
+  if (now.some(Boolean) || Math.hypot(P.lx, P.ly, P.rx, P.ry) > 0) pad.active = true;
+  pad.navCd = Math.max(0, pad.navCd - dt);
+  return P;
+}
+function rumble(weak, strong, ms) {
+  const a = pad.active && pad.gp && pad.gp.vibrationActuator;
+  if (a && a.playEffect) a.playEffect('dual-rumble', { duration: ms, weakMagnitude: weak, strongMagnitude: strong }).catch(() => {});
+}
+/** Steuerung der Menüs mit dem Controller: Steuerkreuz/Stick bewegt den Fokus, A klickt, B geht zurück */
+function padMenus(P) {
+  const screen = ['overlay', 'lobby', 'menu'].map($).find((el) => !el.classList.contains('hidden'));
+  if (!screen) return;
+  const items = [...screen.querySelectorAll('button:not(:disabled), input, summary')].filter((el) => el.offsetParent !== null && !el.closest('.readonly'));
+  if (!items.length) return;
+  let i = items.indexOf(document.activeElement);
+  const dir = P.edge(BTN.DOWN) || P.edge(BTN.RIGHT) || (pad.navCd <= 0 && (P.ly > 0.6 || P.lx > 0.6)) ? 1
+    : P.edge(BTN.UP) || P.edge(BTN.LEFT) || (pad.navCd <= 0 && (P.ly < -0.6 || P.lx < -0.6)) ? -1 : 0;
+  if (dir) { pad.navCd = 0.22; i = i < 0 ? 0 : (i + dir + items.length) % items.length; items[i].focus(); }
+  if (P.edge(BTN.A) && i >= 0) { initAudio(); items[i].click(); }
+  if (P.edge(BTN.B) && screen.id === 'overlay' && game && !game.over && !game.eliminatedPlace) $('ovResume').click();
+}
+/** leichte Zielhilfe: Blick wird langsamer, wenn ein Gegner nahe am Fadenkreuz ist */
+function aimAssistFactor() {
+  const G = game;
+  if (!G || !G.last) return 1;
+  const dir = aimDir(yaw, pitch);
+  const cp = camera.position;
+  for (const e of G.last.ents) {
+    if (e[0] === G.you || !(e[7] & 1) || G.meta.get(e[0]).team === G.myTeam || (e[7] & 4)) continue;
+    const dx = e[1] - cp.x, dy = e[2] + 1.1 - cp.y, dz = e[3] - cp.z;
+    const d = Math.hypot(dx, dy, dz);
+    if (d > 90 || d < 0.5) continue;
+    if ((dx * dir.x + dy * dir.y + dz * dir.z) / d > Math.cos(Math.max(0.035, 1.2 / d))) return 0.5;
+  }
+  return 1;
+}
+const keyLabel = (k) => (pad.active ? { F: 'X', Q: 'LB', E: 'RB' }[k] || k : k);
+
 // ---------------------------------------------------------------- Eingabe & Vorhersage
-function sendInput(dt) {
+function sendInput(dt, P) {
   const G = game;
   if (!G || !G.me) return null;
-  const locked = document.pointerLockElement === canvas || !conn.online && !paused;
+  const locked = document.pointerLockElement === canvas || pad.active || !conn.online && !paused;
   const k = (c) => (locked && !paused ? !!keys[c] : false);
   const inp = {
     t: 'in', seq: ++G.seq, dt, yaw, pitch,
@@ -793,6 +854,25 @@ function sendInput(dt) {
   };
   pressed = new Set();
   wheelSwap = false;
+  if (P && !paused && $('overlay').classList.contains('hidden')) {
+    const zoomed = P.now[BTN.LT] && G.me.weapons[G.me.cur] && WEAPONS[G.me.weapons[G.me.cur][0]].zoom;
+    const curve = (v) => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
+    const s = 3.2 * sens * dt * (zoomed ? 0.35 : P.now[BTN.LT] ? 0.6 : 1) * aimAssistFactor();
+    yaw -= curve(P.rx) * s;
+    pitch = clamp(pitch - curve(P.ry) * s * 0.75, -1.5, 1.5);
+    inp.yaw = yaw; inp.pitch = pitch;
+    inp.ax = +P.lx.toFixed(3); inp.az = +(-P.ly).toFixed(3);
+    if (P.edge(BTN.L3)) pad.sprint = !pad.sprint;
+    if (-P.ly < 0.3) pad.sprint = false;
+    const nearSomething = !!G.nearLoot || (G.me.ghost && G.me.nearBeacon);
+    inp.jump ||= P.edge(BTN.A); inp.jumpHeld ||= P.now[BTN.A];
+    inp.slide ||= P.now[BTN.B]; inp.sprint ||= pad.sprint;
+    inp.fire ||= P.now[BTN.RT]; inp.aim ||= P.now[BTN.LT];
+    inp.use ||= P.edge(BTN.X) && nearSomething; inp.useHeld ||= P.now[BTN.X];
+    inp.reload ||= P.edge(BTN.X) && !nearSomething;
+    inp.q ||= P.edge(BTN.LB); inp.e ||= P.edge(BTN.RB); inp.swap ||= P.edge(BTN.Y);
+    G.padAim = P.now[BTN.LT];
+  } else G.padAim = false;
   if (paused && !conn.online) return null;
   // eigene Bewegung sofort vorhersagen
   if (G.me.alive || G.me.ghost) {
@@ -814,6 +894,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 canvas.addEventListener('click', () => { if (game && !paused) canvas.requestPointerLock?.(); });
 document.addEventListener('mousemove', (e) => {
+  if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) pad.active = false;
   if (document.pointerLockElement !== canvas || !game) return;
   const zoomed = rightDown && game.me && game.me.weapons[game.me.cur] && WEAPONS[game.me.weapons[game.me.cur][0]].zoom;
   const s = 0.0022 * sens * (zoomed ? 0.4 : 1);
@@ -835,6 +916,7 @@ document.addEventListener('pointerlockchange', () => {
   if (!game) return;
   if (document.pointerLockElement !== canvas) {
     mouseDown = false; rightDown = false;
+    if (pad.active) return; // mit Controller weiterspielen
     if (!$('overlay').classList.contains('hidden')) return;
     if (game.over || game.eliminatedPlace) return;
     paused = !conn.online;
@@ -935,7 +1017,7 @@ function updateHud(dt) {
   }
   for (let i = 0; i < 2; i++) {
     const a = me.abilities[i], el = $('ab' + i);
-    const key = i ? 'E' : 'Q';
+    const key = keyLabel(i ? 'E' : 'Q');
     el.classList.toggle('empty', !a);
     if (!a) { el.innerHTML = `<span class="key">${key}</span> leer`; continue; }
     const A = ABILITIES[a[0]];
@@ -946,7 +1028,7 @@ function updateHud(dt) {
   if (me.ghost) {
     $('ghostInfo').classList.remove('hidden');
     $('ghostInfo').innerHTML = me.soloGhost
-      ? (me.nearBeacon ? `Halte <b>F</b>: Rückkehr ${Math.floor(me.reviveHold / 3 * 100)} %` : `Geist · ${fmt(me.ghostT)} · Erreiche eine grüne Rückkehrsäule`)
+      ? (me.nearBeacon ? `Halte <b>${keyLabel('F')}</b>: Rückkehr ${Math.floor(me.reviveHold / 3 * 100)} %` : `Geist · ${fmt(me.ghostT)} · Erreiche eine grüne Rückkehrsäule`)
       : 'Geist · Dein Team holt dich mit dem nächsten Kill zurück';
   } else $('ghostInfo').classList.add('hidden');
   // Aufheben-Hinweis
@@ -956,15 +1038,17 @@ function updateHud(dt) {
     const d = Math.hypot(l.x - G.pred.pos.x, l.base - 0.7 - G.pred.pos.y, l.z - G.pred.pos.z);
     if (d < nd) { nd = d; near = l; }
   }
+  G.nearLoot = near;
+  const KF = keyLabel('F');
   if (near) {
     if (near.type === 'weapon') {
       const W = WEAPONS[near.wid];
       const fuse = me.weapons.some((w) => w && w[0] === near.wid && w[1] < 4);
-      $('prompt').innerHTML = `<b>F</b> ${W.name} ${LEVEL_NAMES[near.level]} (${W.desc})${fuse ? ' · <b>verschmelzen</b>' : ''}`;
+      $('prompt').innerHTML = `<b>${KF}</b> ${W.name} ${LEVEL_NAMES[near.level]} (${W.desc})${fuse ? ' · <b>verschmelzen</b>' : ''}`;
     } else {
       const A = ABILITIES[near.wid];
       const fuse = me.abilities.some((a) => a && a[0] === near.wid && a[1] < 4);
-      $('prompt').innerHTML = `<b>F</b> Fähigkeit ${A.name}: ${A.desc}${fuse ? ' · <b>verschmelzen</b>' : ''}`;
+      $('prompt').innerHTML = `<b>${KF}</b> Fähigkeit ${A.name}: ${A.desc}${fuse ? ' · <b>verschmelzen</b>' : ''}`;
     }
   } else $('prompt').innerHTML = '';
   // Team-Liste
@@ -988,8 +1072,22 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
+  const P = readPad(dt);
+  const menuOpen = ['menu', 'lobby', 'overlay'].some((id) => !$(id).classList.contains('hidden'));
+  if (P && game && P.edge(BTN.START)) {
+    if (!$('overlay').classList.contains('hidden')) { if (!game.over && !game.eliminatedPlace) $('ovResume').click(); }
+    else {
+      paused = !conn.online;
+      $('ovTitle').textContent = conn.online ? 'Menü (Runde läuft weiter)' : 'Pause';
+      $('ovText').textContent = '';
+      $('ovResume').textContent = 'Weiter';
+      showScreen('overlay');
+      $('hud').classList.remove('hidden');
+      document.exitPointerLock?.();
+    }
+  } else if (P && menuOpen) padMenus(P);
   if (game && conn) {
-    sendInput(dt);
+    sendInput(dt, P);
     if (!conn.online && !paused) conn.update(dt);
     if (conn.online) { pingTimer -= dt; if (pingTimer <= 0) { pingTimer = 2; conn.send({ t: 'ping', at: performance.now() }); } }
     if (game) {
@@ -1014,9 +1112,10 @@ function updateCamera(dt) {
   camera.position.set(G.pred.pos.x + G.camOffset.x, G.pred.pos.y + eye + G.camOffset.y, G.pred.pos.z + G.camOffset.z);
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
   const w = me.weapons && me.weapons[me.cur];
-  const zoomed = rightDown && w && WEAPONS[w[0]].zoom;
-  const sprint = keys.ShiftLeft && keys.KeyW && !rightDown;
-  const target = zoomed ? 28 : rightDown ? 62 : sprint ? 84 : 78;
+  const aiming = rightDown || G.padAim;
+  const zoomed = aiming && w && WEAPONS[w[0]].zoom;
+  const sprint = (keys.ShiftLeft && keys.KeyW || pad.sprint) && !aiming;
+  const target = zoomed ? 28 : aiming ? 62 : sprint ? 84 : 78;
   camera.fov += (target - camera.fov) * Math.min(1, 12 * dt);
   camera.updateProjectionMatrix();
   G.recoil = Math.max(0, G.recoil - dt * 8);
@@ -1033,5 +1132,5 @@ requestAnimationFrame(frame);
 // Für automatisierte Tests
 window.__zz = {
   get game() { return game; }, get conn() { return conn; }, get lobby() { return lobby; },
-  keys, setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
+  keys, pad, setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
 };

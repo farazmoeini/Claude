@@ -44,6 +44,28 @@ Zulassung im PlayStation-Partners-Programm von Sony, ein Dev-Kit und eine Engine
 Konsolen-Unterstützung (Unity, Unreal). Das wäre ein eigener Port. Die Spiellogik in
 `shared/sim.js` und das Netzwerkprotokoll sind dafür als Vorlage nutzbar.
 
+## Controller
+
+Xbox-, PlayStation- und die meisten USB- oder Bluetooth-Controller funktionieren in der
+PC-App und im Browser über die Gamepad-API. Einfach einstecken, der Controller wird
+sofort erkannt. Bewegt man die Maus, schaltet die Anzeige wieder auf Tastatur um.
+
+| Taste | Aktion |
+|---|---|
+| Linker Stick | Laufen (analog), drücken (L3): Sprinten |
+| Rechter Stick | Umsehen, mit leichter Zielhilfe in der Nähe von Gegnern |
+| RT / R2 · LT / L2 | Schießen · Zielen / Zoom |
+| A / ✕ | Sprung, Doppelsprung, Klettern |
+| B / ○ | Rutschen |
+| X / □ | Aufheben, an der Säule halten für die Rückkehr, sonst Nachladen |
+| Y / △ | Waffe wechseln |
+| LB / RB (L1 / R1) | Fähigkeit 1 / 2 |
+| Start / Options | Menü (B schließt es) |
+| Steuerkreuz + A | Menüs, Lobby und Einstellungen bedienen |
+
+Vibration bei Schüssen und Treffern, wenn der Controller das unterstützt. Die
+Empfindlichkeit gilt für Maus und Stick gleichermaßen.
+
 ## Teams: Solo, Duos, Trios
 
 - Kein Eigenbeschuss unter Teamkameraden. Teamkameraden haben eine grüne Raute mit Namen über dem Kopf, auf der Minimap einen grünen Punkt und links im Teampanel ihre Lebensanzeige.
@@ -135,5 +157,5 @@ ein Start der Linux-App.
 ## Ideen für danach
 
 Accounts und Bestenlisten, Spielersuche über einen zentralen Server, Sprachchat,
-Controller-Unterstützung (Gamepad-API), Bots, die Dächer gezielt erklettern,
+frei belegbare Controller-Tasten, Bots, die Dächer gezielt erklettern,
 App-Symbol und Code-Signatur für Steam oder itch.io.

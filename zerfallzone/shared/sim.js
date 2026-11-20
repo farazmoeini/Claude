@@ -254,9 +254,13 @@ export function movePlayer(p, inp, dt, ctx) {
   if (inp.b) { wx += sy; wz += cy; }
   if (inp.r) { wx += cy; wz -= sy; }
   if (inp.l) { wx -= cy; wz += sy; }
+  // Analoger Stick (Controller): ax = rechts, az = vorwärts, jeweils −1…1
+  const ax = clamp(+inp.ax || 0, -1, 1), az = clamp(+inp.az || 0, -1, 1);
+  if (ax || az) { wx += -sy * az + cy * ax; wz += -cy * az - sy * ax; }
   const wl = Math.hypot(wx, wz);
-  if (wl) { wx /= wl; wz /= wl; }
-  const sprint = inp.sprint && inp.f && !inp.aim;
+  if (wl > 1) { wx /= wl; wz /= wl; }
+  const fwdHeld = inp.f || az > 0.5;
+  const sprint = inp.sprint && fwdHeld && !inp.aim;
   const speed = (p.ghost ? 12 : sprint ? 12.5 : 8.5) * ctx.speedMul;
   if (inp.slide && p.onGround && sprint && !(p.slideT > 0) && !(p.slideCd > 0) && !p.ghost) {
     p.slideT = 0.8; p.slideCd = 1.2;
@@ -279,7 +283,7 @@ export function movePlayer(p, inp, dt, ctx) {
     else if (p.jumps < 2 && !p.lastWall) { p.vel.y = 9; p.jumps = 2; out.dj = true; }
   }
   p.vel.y -= GRAV * ctx.gravMul * dt;
-  if (p.lastWall && inp.jumpHeld && inp.f && p.climb > 0 && !p.onGround) {
+  if (p.lastWall && inp.jumpHeld && fwdHeld && p.climb > 0 && !p.onGround) {
     p.vel.y = Math.max(p.vel.y, 7);
     p.climb -= dt;
   }
@@ -287,7 +291,7 @@ export function movePlayer(p, inp, dt, ctx) {
   if (p.slamming && p.onGround) { p.slamming = false; out.slam = true; }
   if (p.onGround) { p.jumps = 0; p.climb = 1.1; }
   p.lastWall = !!p.wallBox;
-  if (p.wallBox && inp.f && !p.onGround) {
+  if (p.wallBox && fwdHeld && !p.onGround) {
     const top = p.wallBox.mx[1];
     if (top - p.pos.y < 1.9 && top - p.pos.y > 0) {
       p.pos.y = top + 0.02; p.vel.y = 1;

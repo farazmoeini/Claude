@@ -116,3 +116,5 @@ button { font-family: inherit; }
 #lobbyPlayers .pl { background: #05060d88; border-radius: 4px; padding: 6px 10px; margin-bottom: 4px; display: flex; justify-content: space-between; }
 #lobbyPlayers .teamhdr { color: #9fb4d0; font-size: 12px; margin: 8px 0 4px; }
 #lobbyStatus { color: #ffd34d; min-height: 1.2em; }
+
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #ffd34d; outline-offset: 2px; }
