@@ -31,7 +31,7 @@
 <div id="menu">
   <div class="panel">
     <h1>ZERFALL<span>ZONE</span></h1>
-    <p class="sub">Vertikaler Arena-Battle-Royale · 1 gegen 15 Bots</p>
+    <p class="sub">Vertikaler Arena-Battle-Royale · bis zu 40 Bots in 4 Schwierigkeitsstufen</p>
     <div class="cols">
       <div>
         <h3>Steuerung</h3>
@@ -49,13 +49,22 @@
       <div>
         <h3>Regeln</h3>
         <ul>
-          <li>Die Stadt zerfällt Sektor für Sektor. Orange heißt Warnung, rot heißt Schaden.</li>
+          <li>Die Stadt zerfällt dynamisch: Der Zerfall frisst sich von außen nach innen, die sichere Zone wandert. Orange heißt Warnung, rot heißt Schaden, und die Gebäude lösen sich auf.</li><li>Je weniger Spieler übrig sind, desto schneller zerfällt die Stadt.</li>
           <li>Hebst du eine Waffe auf, die du schon hast, verschmilzt sie eine Stufe höher (max. IV).</li>
           <li>Leuchtende Rauten sind Fähigkeiten. Doppelte verkürzen die Abklingzeit.</li>
-          <li>Ist nur noch ein Sektor übrig, erscheint der Kern. Halte ihn 30 s oder sei der Letzte.</li>
+          <li>Ist nur noch ein Sektor übrig, erscheint dort der Kern. Halte ihn 30 s oder sei der Letzte.</li>
           <li>Blaue Felder auf der Straße schleudern dich aufs Dach.</li>
         </ul>
       </div>
+    </div>
+    <div id="botsetup">
+      <h3>Gegner</h3>
+      <div class="presets">
+        <button data-preset="training">Training</button><button data-preset="normal">Normal</button>
+        <button data-preset="hart">Hart</button><button data-preset="albtraum">Albtraum</button>
+      </div>
+      <div id="botcfg"></div>
+      <div id="botTotal"></div>
     </div>
     <button id="play">Spielen</button>
     <p id="result"></p>

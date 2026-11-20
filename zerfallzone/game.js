@@ -8,7 +8,18 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 const HALF = 200, SECTOR = 50, NS = 8, GRAV = 24, EYE = 1.6, BODY_H = 1.8;
-const BOT_COUNT = 15;
+// Bot-Schwierigkeiten: Streuung (acc), Reaktionszeit, Feuerrate-Faktor, Sichtweite, Fähigkeiten
+const DIFFS = {
+  leicht: { label: 'Leicht', short: 'L', color: 0x3dff9a, acc: 2.4, react: [1.0, 1.5], fire: 1.9, view: 50, strafe: 0.4, abil: false, jump: 0.005, head: 0.0 },
+  mittel: { label: 'Mittel', short: 'M', color: 0xffd34d, acc: 1.4, react: [0.55, 0.9], fire: 1.45, view: 70, strafe: 0.7, abil: false, jump: 0.015, head: 0.1 },
+  schwer: { label: 'Schwer', short: 'S', color: 0xff9b2c, acc: 0.85, react: [0.3, 0.5], fire: 1.15, view: 95, strafe: 0.9, abil: true, jump: 0.025, head: 0.25 },
+  elite: { label: 'Elite', short: 'E', color: 0xff3355, acc: 0.5, react: [0.15, 0.28], fire: 1.0, view: 120, strafe: 1.0, abil: true, jump: 0.035, head: 0.45 },
+};
+const DIFF_IDS = Object.keys(DIFFS);
+const BOT_LIMIT = 40;
+let botConfig = { leicht: 4, mittel: 7, schwer: 3, elite: 1 };
+try { const c = JSON.parse(localStorage.getItem('zz-bots')); if (c) for (const k of DIFF_IDS) if (Number.isInteger(c[k])) botConfig[k] = clamp(c[k], 0, BOT_LIMIT); } catch { /* ohne Speicher */ }
+const totalBots = () => DIFF_IDS.reduce((s, k) => s + botConfig[k], 0);
 
 // ---------------------------------------------------------------- Daten
 const WEAPONS = {
@@ -390,10 +401,12 @@ const botHeadGeo = new THREE.SphereGeometry(0.3, 12, 10);
 const botVisorGeo = new THREE.BoxGeometry(0.42, 0.12, 0.2);
 const ghostGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.9, 10);
 
-function createBot(i) {
-  const e = makeEntity(BOT_NAMES[i % BOT_NAMES.length], false);
-  const hue = i / BOT_COUNT;
-  const color = new THREE.Color().setHSL(hue, 0.7, 0.55);
+function createBot(i, diffId) {
+  const D = DIFFS[diffId];
+  const base = BOT_NAMES[i % BOT_NAMES.length] + (i >= BOT_NAMES.length ? ' ' + (Math.floor(i / BOT_NAMES.length) + 1) : '');
+  const e = makeEntity(`${base} [${D.short}]`, false);
+  e.diff = D;
+  const color = new THREE.Color(D.color);
   const g = new THREE.Group();
   const body = new THREE.Mesh(botBodyGeo, new THREE.MeshStandardMaterial({ color: 0x1c2240, emissive: color, emissiveIntensity: 0.35 }));
   body.position.y = 0.95;
@@ -408,9 +421,10 @@ function createBot(i) {
   g.add(body, head, visor, gun, ghost);
   scene.add(g);
   e.mesh = g; e.ghost = ghost; e.gunMesh = gun;
-  e.ai = { path: [], goal: null, scanCd: rand(0, 0.3), target: null, strafe: 1, strafeCd: 0, stuckT: 0, lastPos: new THREE.Vector3(), skill: rand(0.7, 1.3), jumpCd: 0, abilityCd: rand(5, 15) };
-  e.weapons[0] = newWeapon(pick(WEAPON_IDS), randi(1, 2));
-  e.armor = randi(0, 2) * 25;
+  e.ai = { path: [], goal: null, scanCd: rand(0, 0.3), target: null, strafe: 1, strafeCd: 0, stuckT: 0, lastPos: new THREE.Vector3(), jumpCd: 0, abilityCd: rand(5, 15) };
+  const lvlBonus = diffId === 'elite' ? 1 : diffId === 'schwer' && Math.random() < 0.5 ? 1 : 0;
+  e.weapons[0] = newWeapon(pick(WEAPON_IDS), Math.min(4, randi(1, 2) + lvlBonus));
+  e.armor = clamp(randi(0, 2) * 25 + (diffId === 'elite' ? 50 : diffId === 'schwer' ? 25 : 0), 0, 100);
   return e;
 }
 
@@ -418,7 +432,7 @@ const NODE = 25;
 const snapNode = (v) => clamp(Math.round(v / NODE) * NODE, -HALF + NODE, HALF - NODE);
 function randomSafeNode() {
   const safe = sectors.map((s, i) => (s.state === 0 ? i : -1)).filter((i) => i >= 0);
-  const si = safe.length ? pick(safe) : decay.finalSector;
+  const si = safe.length ? pick(safe) : Math.max(0, decay.finalSector);
   const c = sectorCenter(si);
   return { x: c.x + pick([-25, 0, 0]), z: c.z + pick([-25, 0, 0]) };
 }
@@ -434,14 +448,15 @@ function updateBot(b, dt) {
   ai.scanCd -= dt;
   if (ai.scanCd <= 0) {
     ai.scanCd = 0.3;
-    let best = null, bestD = 75;
+    const D = b.diff;
+    let best = null, bestD = D.view;
     const eye = { x: b.pos.x, y: b.pos.y + EYE, z: b.pos.z };
     for (const e of entities) {
       if (e === b || !e.alive) continue;
       const d = b.pos.distanceTo(e.pos);
       if (d < bestD && hasLOS(eye, { x: e.pos.x, y: e.pos.y + 1.2, z: e.pos.z })) { best = e; bestD = d; }
     }
-    if (best && best !== ai.target) b.fireCd = Math.max(b.fireCd, rand(0.5, 0.9)); // Reaktionszeit
+    if (best && best !== ai.target) b.fireCd = Math.max(b.fireCd, rand(...b.diff.react)); // Reaktionszeit
     ai.target = best;
   }
   // Pfad neu planen, wenn Ziel zerfällt
@@ -471,7 +486,7 @@ function updateBot(b, dt) {
     const dx = t.pos.x - b.pos.x, dz = t.pos.z - b.pos.z;
     const d = Math.hypot(dx, dz) || 1;
     ai.strafeCd -= dt;
-    if (ai.strafeCd <= 0) { ai.strafe = Math.random() < 0.5 ? -1 : 1; ai.strafeCd = rand(0.5, 1.5); }
+    if (ai.strafeCd <= 0) { ai.strafe = (Math.random() < 0.5 ? -1 : 1) * b.diff.strafe; ai.strafeCd = rand(0.4, 1.4) / b.diff.strafe; }
     const sx = -dz / d * ai.strafe, sz = dx / d * ai.strafe;
     // im Kampf: halb Pfad, halb seitwärts
     mx = mx * 0.35 + sx * 0.8; mz = mz * 0.35 + sz * 0.8;
@@ -483,7 +498,7 @@ function updateBot(b, dt) {
   b.vel.z += (mz * speed - b.vel.z) * Math.min(1, accel * dt);
   b.vel.y -= GRAV * dt;
   ai.jumpCd -= dt;
-  if (b.onGround && ai.jumpCd <= 0 && (t ? Math.random() < 0.02 : b.wallBox)) { b.vel.y = 9; ai.jumpCd = 1.2; }
+  if (b.onGround && ai.jumpCd <= 0 && (t ? Math.random() < b.diff.jump : b.wallBox)) { b.vel.y = 9; ai.jumpCd = 1.2; }
   moveEntity(b, dt);
   checkJumpPad(b);
 
@@ -496,7 +511,10 @@ function updateBot(b, dt) {
 
   // Fähigkeit: Heilung, wenn verletzt
   ai.abilityCd -= dt;
-  if (ai.abilityCd <= 0 && b.hp < 50) { b.healLeft = 40; ai.abilityCd = 20; }
+  if (b.diff.abil && ai.abilityCd <= 0) {
+    if (b.hp < 55) { b.healLeft = 50; ai.abilityCd = 18; }
+    else if (sectors[sectorOf(b.pos.x, b.pos.z)].state === 2 && b.onGround) { b.vel.y = 24; ai.abilityCd = 12; } // Katapult raus
+  }
 
   // Schießen
   const w = b.weapons[0];
@@ -511,14 +529,14 @@ function updateBot(b, dt) {
       if (w.ammo <= 0) { b.reloading = W.reload * 1.2; }
       else {
         const o = new THREE.Vector3(b.pos.x, b.pos.y + 1.3, b.pos.z);
-        const aim = new THREE.Vector3(t.pos.x, t.pos.y + rand(0.8, 1.6), t.pos.z);
+        const aim = new THREE.Vector3(t.pos.x, t.pos.y + (Math.random() < b.diff.head ? 1.62 : rand(0.8, 1.5)), t.pos.z);
         // Vorhalt + Fehler abhängig von Distanz, Bewegung und Skill
         aim.addScaledVector(t.vel, dist / 120 * rand(0, 1));
-        const err = (0.5 + dist * 0.045) / ai.skill * (t.isPlayer ? 1.1 : 1.5);
+        const err = (0.35 + dist * 0.04) * b.diff.acc * (t.isPlayer ? 1 : 1.4);
         aim.x += rand(-err, err); aim.y += rand(-err, err) * 0.6; aim.z += rand(-err, err);
         const shots = W.burst || 1;
         fireWeapon(b, o, aim.sub(o).normalize(), w, shots);
-        b.fireCd = W.rate * rand(1.1, 1.8);
+        b.fireCd = W.rate * b.diff.fire * rand(1, 1.3);
       }
     }
   }
@@ -907,39 +925,104 @@ function shootPlayer(w) {
 }
 
 // ---------------------------------------------------------------- Zerfall & Kern
-const WAVES = [10, 10, 10, 10, 8, 8, 5, 2];
-const FIRST_WAVE = 50, WAVE_GAP = 32, WARN = 12;
+const WAVES = [8, 9, 9, 9, 8, 7, 6, 4, 3];
+const FIRST_WAVE = 45, WARN = 12;
+const neighbors = (i) => {
+  const x = i % NS, z = Math.floor(i / NS), out = [];
+  if (x > 0) out.push(i - 1); if (x < NS - 1) out.push(i + 1);
+  if (z > 0) out.push(i - NS); if (z < NS - 1) out.push(i + NS);
+  return out;
+};
 function initDecay() {
-  const final = randi(0, NS * NS - 1);
-  decay = { finalSector: final, wave: 0, nextAt: FIRST_WAVE, warning: [] };
+  // Der „Schwerpunkt“ der sicheren Zone wandert im Spielverlauf. Der letzte Sektor steht nicht vorher fest.
+  decay = { finalSector: -1, wave: 0, nextAt: FIRST_WAVE, warning: [], attractor: { x: rand(-120, 120), z: rand(-120, 120) }, dissolving: [] };
+}
+/** Wählt die nächsten zerfallenden Sektoren: Fäulnis breitet sich vom Rand und von zerfallenen Sektoren aus,
+ *  fern vom wandernden Schwerpunkt, mit Zufall. Die sichere Zone bleibt dabei zusammenhängend. */
+function chooseDecay(count) {
+  // Schwerpunkt springt zu einem zufälligen noch sicheren Sektor in der Nähe
+  const safe = sectors.map((s, i) => i).filter((i) => sectors[i].state === 0);
+  const near = safe.filter((i) => { const c = sectorCenter(i); return Math.hypot(c.x - decay.attractor.x, c.z - decay.attractor.z) < 140; });
+  const tgt = sectorCenter(pick(near.length ? near : safe));
+  decay.attractor.x += (tgt.x - decay.attractor.x) * 0.6;
+  decay.attractor.z += (tgt.z - decay.attractor.z) * 0.6;
+  const chosen = [];
+  for (let k = 0; k < count; k++) {
+    const cand = sectors.map((s, i) => i).filter((i) => sectors[i].state === 0 && !chosen.includes(i));
+    if (cand.length <= 1) break;
+    let best = -1, bestScore = -Infinity;
+    for (const i of cand) {
+      const nb = neighbors(i);
+      const edge = nb.length < 4 ? 1 : 0;
+      const rotten = nb.filter((n) => sectors[n].state > 0 || chosen.includes(n)).length;
+      if (!edge && !rotten) continue; // nur an der Front
+      const c = sectorCenter(i);
+      const score = Math.hypot(c.x - decay.attractor.x, c.z - decay.attractor.z) + rotten * 18 + rand(0, 70);
+      if (score > bestScore && keepsConnected(i, chosen)) { bestScore = score; best = i; }
+    }
+    if (best < 0) break;
+    chosen.push(best);
+  }
+  return chosen;
+}
+function keepsConnected(removeIdx, chosen) {
+  const safe = sectors.map((s, i) => i).filter((i) => sectors[i].state === 0 && i !== removeIdx && !chosen.includes(i));
+  if (safe.length <= 1) return true;
+  const set = new Set(safe), seen = new Set([safe[0]]), stack = [safe[0]];
+  while (stack.length) for (const n of neighbors(stack.pop())) if (set.has(n) && !seen.has(n)) { seen.add(n); stack.push(n); }
+  return seen.size === safe.length;
+}
+function startDissolve(i) {
+  for (const b of buildingsBySector[i]) {
+    b.mesh.material.emissiveIntensity = 0.12;
+    if (b.edges) b.edges.material.color.set(0xff2040);
+    decay.dissolving.push({ b, h0: b.mx[1] - b.mn[1], y0: b.mn[1], t: rand(0, 1.5) });
+  }
+  // Beute auf Dächern fällt auf die Straße
+  for (const it of loot) if (sectorOf(it.mesh.position.x, it.mesh.position.z) === i) it.base = 0.7;
+}
+function updateDissolve(dt) {
+  for (let k = decay.dissolving.length - 1; k >= 0; k--) {
+    const d = decay.dissolving[k];
+    d.t += dt;
+    const f = clamp(1 - (d.t - 1.5) / 5, 0, 1); // nach 1,5 s Flackern 5 s Versinken
+    const b = d.b;
+    if (d.t < 1.5) { b.mesh.visible = Math.random() > 0.15; continue; }
+    b.mesh.visible = true;
+    const h = Math.max(0.001, d.h0 * f);
+    b.mesh.scale.y = h / d.h0;
+    b.mesh.position.y = d.y0 * f + h / 2;
+    b.mn[1] = d.y0 * f; b.mx[1] = b.mn[1] + h;
+    if (f <= 0) {
+      worldGroup.remove(b.mesh);
+      const idx = boxes.indexOf(b);
+      if (idx >= 0) boxes.splice(idx, 1);
+      decay.dissolving.splice(k, 1);
+    }
+  }
 }
 function updateDecay(dt) {
-  if (decay.wave < WAVES.length) {
+  updateDissolve(dt);
+  if (!core) {
     // Warnphase starten
     if (!decay.warning.length && gameTime >= decay.nextAt - WARN) {
-      const fc = sectorCenter(decay.finalSector);
-      const cands = sectors.map((s, i) => i).filter((i) => sectors[i].state === 0 && i !== decay.finalSector);
-      // von außen nach innen (relativ zum letzten Sektor), mit etwas Zufall
-      cands.sort((a, b) => {
-        const ca = sectorCenter(a), cb = sectorCenter(b);
-        return (Math.hypot(cb.x - fc.x, cb.z - fc.z) + rand(0, 60)) - (Math.hypot(ca.x - fc.x, ca.z - fc.z) + rand(0, 60));
-      });
-      decay.warning = cands.slice(0, WAVES[decay.wave]);
+      decay.warning = chooseDecay(WAVES[Math.min(decay.wave, WAVES.length - 1)]);
       for (const i of decay.warning) sectors[i].state = 1;
       sfxTone(600, 400, 0.6, 0.15, 'sawtooth');
+      if (decay.warning.includes(sectorOf(player.pos.x, player.pos.z))) pushFeed('Dein Sektor zerfällt gleich!', true);
     }
     if (gameTime >= decay.nextAt) {
-      for (const i of decay.warning) {
-        sectors[i].state = 2;
-        for (const b of buildingsBySector[i]) {
-          b.mesh.material.emissiveIntensity = 0.12;
-          if (b.edges) b.edges.material.color.set(0xff2040);
-        }
-      }
+      for (const i of decay.warning) { sectors[i].state = 2; startDissolve(i); }
       decay.warning = [];
       decay.wave++;
-      decay.nextAt = gameTime + WAVE_GAP;
-      if (decay.wave >= WAVES.length) spawnCore();
+      // Dynamisch: je weniger Spieler übrig sind, desto schneller zerfällt die Stadt
+      const aliveFrac = entities.filter((e) => e.alive).length / entities.length;
+      decay.nextAt = gameTime + 20 + 16 * aliveFrac;
+      const safeLeft = sectors.filter((s) => s.state === 0).length;
+      if (safeLeft <= 1) {
+        decay.finalSector = sectors.findIndex((s) => s.state === 0);
+        spawnCore();
+      }
     }
   }
   // Säulen darstellen
@@ -952,7 +1035,7 @@ function updateDecay(dt) {
   // Schaden im Zerfall
   for (const e of entities) {
     if (!e.alive) continue;
-    if (sectors[sectorOf(e.pos.x, e.pos.z)].state === 2) damage(e, 9 * dt, null);
+    if (sectors[sectorOf(e.pos.x, e.pos.z)].state === 2) damage(e, (5 + decay.wave * 1.5) * dt, null);
   }
 }
 function spawnCore() {
@@ -1062,7 +1145,7 @@ function updateHud(dt) {
   const ph = $('phase');
   if (core) { $('phaseTitle').textContent = 'Finale'; $('phaseTimer').textContent = 'Kern halten'; ph.classList.remove('warn'); }
   else if (decay.warning.length) { $('phaseTitle').textContent = `Zerfall: ${decay.warning.length} Sektoren`; $('phaseTimer').textContent = fmt(decay.nextAt - gameTime); ph.classList.add('warn'); }
-  else { $('phaseTitle').textContent = `Nächster Zerfall (Welle ${decay.wave + 1}/${WAVES.length})`; $('phaseTimer').textContent = fmt(decay.nextAt - WARN - gameTime); ph.classList.remove('warn'); }
+  else { $('phaseTitle').textContent = `Nächster Zerfall · Welle ${decay.wave + 1}`; $('phaseTimer').textContent = fmt(decay.nextAt - WARN - gameTime); ph.classList.remove('warn'); }
 
   for (let i = 0; i < 2; i++) {
     const w = player.weapons[i], el = $('wp' + i);
@@ -1112,8 +1195,9 @@ function startGame() {
   // Landung: zufällige Position hoch über der Stadt
   player.pos.set(rand(-150, 150), 90, rand(-150, 150));
   entities.push(player);
-  for (let i = 0; i < BOT_COUNT; i++) {
-    const b = createBot(i);
+  const diffList = DIFF_IDS.flatMap((k) => Array(botConfig[k]).fill(k));
+  for (let i = 0; i < diffList.length; i++) {
+    const b = createBot(i, diffList[i]);
     const n = { x: snapNode(rand(-HALF, HALF)), z: snapNode(rand(-HALF, HALF)) };
     b.pos.set(n.x, 60 + rand(0, 30), n.z);
     bots.push(b); entities.push(b);
@@ -1139,9 +1223,10 @@ function endGame(won) {
   document.exitPointerLock?.();
   $('menu').classList.remove('hidden');
   $('play').textContent = 'Neue Runde';
+  $('botsetup').classList.remove('hidden');
   $('result').innerHTML = won
     ? `🏆 Sieg! ${player.kills} Kills in ${fmt(gameTime)}`
-    : `Ausgeschieden: Platz ${placement} von ${BOT_COUNT + 1} · ${player.kills} Kills · ${fmt(gameTime)}`;
+    : `Ausgeschieden: Platz ${placement} von ${bots.length + 1} · ${player.kills} Kills · ${fmt(gameTime)}`;
   sfxTone(won ? 400 : 300, won ? 1200 : 100, 1, 0.2, 'triangle');
 }
 
@@ -1184,6 +1269,7 @@ document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement !== canvas && state === 'play') {
     paused = true;
     $('play').textContent = 'Fortsetzen';
+    $('botsetup').classList.add('hidden');
     $('result').textContent = 'Pausiert';
     $('menu').classList.remove('hidden');
   } else if (document.pointerLockElement === canvas) {
@@ -1223,6 +1309,42 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF') { const it = nearestLoot(2.6); if (it) pickUp(it); }
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+// Bot-Auswahl im Menü
+function renderBotConfig() {
+  const box = $('botcfg');
+  box.innerHTML = '';
+  for (const k of DIFF_IDS) {
+    const D = DIFFS[k];
+    const row = document.createElement('div');
+    row.className = 'botrow';
+    row.innerHTML = `<span class="dot" style="background:#${D.color.toString(16).padStart(6, '0')}"></span><span class="dl">${D.label}</span>`
+      + `<button data-k="${k}" data-d="-1">−</button><span class="cnt">${botConfig[k]}</span><button data-k="${k}" data-d="1">+</button>`;
+    box.appendChild(row);
+  }
+  $('botTotal').textContent = `${totalBots()} Bots · ${totalBots() + 1} Spieler`;
+  $('play').disabled = totalBots() === 0;
+  try { localStorage.setItem('zz-bots', JSON.stringify(botConfig)); } catch { /* egal */ }
+}
+$('botcfg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const k = btn.dataset.k, d = +btn.dataset.d;
+  if (d > 0 && totalBots() >= BOT_LIMIT) return;
+  botConfig[k] = clamp(botConfig[k] + d, 0, BOT_LIMIT);
+  renderBotConfig();
+});
+const PRESETS = {
+  training: { leicht: 8, mittel: 0, schwer: 0, elite: 0 },
+  normal: { leicht: 4, mittel: 7, schwer: 3, elite: 1 },
+  hart: { leicht: 0, mittel: 5, schwer: 8, elite: 4 },
+  albtraum: { leicht: 0, mittel: 0, schwer: 10, elite: 15 },
+};
+document.querySelectorAll('[data-preset]').forEach((b) => b.addEventListener('click', () => {
+  botConfig = { ...PRESETS[b.dataset.preset] };
+  renderBotConfig();
+}));
+renderBotConfig();
 
 // Szene im Menü zeigen
 sectors = Array.from({ length: NS * NS }, () => ({ state: 0, column: null }));

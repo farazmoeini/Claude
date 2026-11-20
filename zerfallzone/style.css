@@ -71,3 +71,16 @@ ul { padding-left: 18px; margin: 0; } li { margin-bottom: 4px; }
   padding: 12px 42px; border-radius: 6px; cursor: pointer; letter-spacing: 2px; }
 #play:hover { background: #8ff8ff; }
 #result { font-size: 18px; color: #ffd34d; }
+
+#botsetup { margin-top: 18px; border-top: 1px solid #2cf3ff33; padding-top: 4px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.presets button, .botrow button { background: #14204a; color: #e8f1ff; border: 1px solid #2cf3ff55; border-radius: 4px;
+  padding: 5px 12px; cursor: pointer; font-size: 14px; }
+.presets button:hover, .botrow button:hover { background: #1f3170; }
+#botcfg { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.botrow { display: flex; align-items: center; gap: 8px; background: #05060d88; padding: 6px 10px; border-radius: 6px; }
+.botrow .dl { flex: 1; } .botrow .cnt { width: 24px; text-align: center; font-weight: 700; }
+.botrow button { padding: 2px 10px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+#botTotal { margin-top: 6px; color: #9fb4d0; font-size: 13px; }
+#play:disabled { opacity: .4; cursor: not-allowed; }
