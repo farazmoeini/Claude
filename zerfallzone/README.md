@@ -132,7 +132,7 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
   - Steuerung: Zielhilfe für Controller (*Aus / Niedrig / Standard / Stark*) und Wandlauf-Modus.
 - **Zielhilfe (nur Controller):** Der rechte Stick wird langsamer, solange das Fadenkreuz auf einem Gegner liegt; beim Bewegen, Zielen oder Schießen folgt der Blick einem nahen Gegner ein Stück; beim Drücken von LT springt der Blick kurz Richtung Gegner. Nur bei freier Sicht, nie durch Wände, nie auf Teammitglieder. Maus und Tastatur bekommen keine Hilfe.
   - Alles wirkt sofort, außer den mit * markierten Optionen (laden beim Verlassen des Menüs neu). 1k-Texturen liegen im Repository; 2k und 4k lädt `npm run assets -- 2k 4k` von Poly Haven (rund 310 MB, jede Datei per Prüfsumme geprüft). Der GitHub-Build der PC-App lädt sie automatisch mit. Fehlt eine Auflösung, nimmt das Spiel die nächstkleinere.
-  - Bildschirmfoto: `docs/grafik.png`.
+  - Bildschirmfoto: `docs/grafik.png`. Stadt und Karte: `docs/stadt.jpg`, `docs/karte.jpg`.
 - **Glänzende Scheiben:** Fassaden haben eine eigene Rauheits- und Metallkarte. Fensterscheiben spiegeln Himmel und Stadt, Wände bleiben matt.
 - **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Mit der Voreinstellung *Niedrig* sind Schatten, Umgebungsverdeckung und Leuchteffekte aus und die Auflösung auf 75 % skaliert.
 
@@ -175,6 +175,9 @@ Empfindlichkeit gilt für Maus und Stick gleichermaßen.
 
 ## Teams: Solo, Duos, Trios
 
+- **Minimap:** rund, um dich zentriert (wahlweise *Norden oben* oder *dreht mit*, in den Einstellungen), mit Stadtplan in Viertelfarben (höhere Gebäude heller), Ortsnamen, Seilbahnen, Sprungfeldern, Aufwinden, Blickkegel, Teamkameraden mit Blickrichtung, Zerfall (rot schraffiert) und blinkender Warnung. Schüsse von Gegnern in bis zu 140 m erscheinen 3 s als roter Ring. Darunter steht, wo du gerade bist (Ort · Viertel).
+- **Große Karte:** Taste **M** oder die **View-Taste** am Controller.
+- **Gegner hervorheben** (Einstellungen, standardmäßig an): Gegner haben einen roten Randschimmer und heben sich so vor jeder Fassade ab.
 - Kein Eigenbeschuss unter Teamkameraden. Teamkameraden haben eine grüne Raute mit Namen über dem Kopf, auf der Minimap einen grünen Punkt und links im Teampanel ihre Lebensanzeige.
 - **Geist im Team:** Wer fällt, während noch jemand aus dem Team lebt, wird zum Geist. Schaltet ein Teamkamerad einen Gegner aus, kehrt der Geist an dessen Position zurück (60 HP, Funke I). Ein Team ist erst raus, wenn niemand mehr lebt.
 - **Solo:** einmal pro Runde Rückkehr über eine grüne Säule (45 s Zeit, 3 s F halten).
@@ -205,7 +208,16 @@ Figuren, Grafik, Sounds und Code sind komplett eigen.
 
 ## Dynamische Zone
 
-- Die Stadt besteht aus 8×8 Sektoren. Der Zerfall breitet sich wie Fäulnis aus: Betroffen sind nur Sektoren am Kartenrand oder neben schon zerfallenen.
+- Die Stadt ist 560 × 560 m groß und besteht aus 8×8 Sektoren zu je 70 m. Zwischen den Sektoren verlaufen 18 m breite Hauptstraßen mit Fahrstreifen und Zebrastreifen, durch jede Sektormitte eine 7 m breite Gasse. Jeder Sektor hat vier Grundstücke mit Gebäuden bis 22 × 22 m Grundfläche.
+- **Vier Stadtviertel** mit eigener Farbe (Ziegel, Türkis, Ocker, Blau) an Fassaden, Leuchtstreifen und auf der Karte, damit man sich schnell orientiert.
+- **Sechs Orte (POIs)**, je Runde neu verteilt (mindestens zwei Sektoren auseinander, der Zentralplatz immer in der Mitte):
+  - *Zentralplatz*: Denkmal mit 22 m hohem Obelisk, Pflanzkübel als Deckung, Kioske.
+  - *Containerhof*: gestapelte Container mit Gassen und ein begehbarer Portalkran.
+  - *Markthallen*: zwei Hallen mit Toren auf allen Seiten, Ständen innen und begehbarem Dach (Sprungfelder hinauf).
+  - *Funkturm*: 78 m hohes Wahrzeichen mit zwei Aussichtsplattformen, Sprungfelder zur ersten Plattform, Seilbahnen bevorzugt zum Turm.
+  - *Baustelle*: Rohbauten mit offenen Geschossdecken, Treppenstufen, Kran.
+  - *Stadtpark*: Rasen, Bäume, Hecken als Deckung, Pavillon.
+- Der Zerfall breitet sich wie Fäulnis aus: Betroffen sind nur Sektoren am Kartenrand oder neben schon zerfallenen.
 - Ein unsichtbarer Schwerpunkt der sicheren Zone wandert in jeder Welle zu einem zufälligen sicheren Sektor in seiner Nähe. Welcher Sektor am Ende übrig bleibt, steht deshalb erst ganz zum Schluss fest.
 - Die sichere Zone bleibt immer zusammenhängend (Flood-Fill-Prüfung), es entstehen also keine abgeschnittenen Inseln.
 - Ablauf einer Welle: 12 s orange Warnung, dann wird der Sektor rot. Die Gebäude darin flackern und versinken danach in 5 s im Boden. Wer auf dem Dach steht, fällt mit, und Beute auf den Dächern landet auf der Straße.

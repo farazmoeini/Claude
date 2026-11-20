@@ -3,7 +3,12 @@
 import * as THREE from 'three';
 
 const V = THREE.Vector3;
-export const HALF = 200, SECTOR = 50, NS = 8, GRAV = 24, EYE = 1.6, BODY_H = 1.8, NODE = 25;
+export const HALF = 280, SECTOR = 70, NS = 8, GRAV = 24, EYE = 1.6, BODY_H = 1.8, NODE = 35;
+// Straßennetz: breite Hauptstraßen auf den Sektorgrenzen, schmalere Gassen durch die Sektormitte, dazwischen vier Grundstücke
+export const ROAD = 9, ALLEY = 3.5, LOT = SECTOR / 2 - ALLEY - ROAD, LOT_OFF = [ROAD, SECTOR / 2 + ALLEY];
+/** Stadtviertel (vier Quadranten) mit eigener Farbe – zur Orientierung */
+export const districtOf = (sx, sz) => (sx < NS / 2 ? 0 : 1) + (sz < NS / 2 ? 0 : 2);
+export const POI_TYPES = ['platz', 'hafen', 'halle', 'turm', 'baustelle', 'park'];
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
@@ -113,48 +118,174 @@ export function generateWorld(seed) {
     if (kind !== 'crate' && kind !== 'car') bySector[b.sector].push(b);
     return b;
   };
+  // Orte (POIs): je einer pro Art, mindestens zwei Sektoren auseinander; der Platz liegt in der Mitte
+  const poiAt = new Map();
+  const pois = [];
+  {
+    const center = pk([NS * (NS / 2 - 1) + NS / 2 - 1, NS * (NS / 2 - 1) + NS / 2, NS * (NS / 2) + NS / 2 - 1, NS * (NS / 2) + NS / 2]);
+    const chosen = [center];
+    const order = Array.from({ length: NS * NS }, (_, i) => i).sort(() => R() - 0.5);
+    for (const i of order) {
+      if (chosen.length >= POI_TYPES.length) break;
+      if (chosen.every((j) => Math.max(Math.abs((i % NS) - (j % NS)), Math.abs(Math.floor(i / NS) - Math.floor(j / NS))) >= 2)) chosen.push(i);
+    }
+    chosen.forEach((i, k) => { const c0 = sectorCenter(i); poiAt.set(i, POI_TYPES[k]); pois.push({ type: POI_TYPES[k], sector: i, x: c0.x, z: c0.z }); });
+  }
+  const lotsOf = (x0, z0) => [0, 1].flatMap((lx) => [0, 1].map((lz) => [x0 + LOT_OFF[lx], z0 + LOT_OFF[lz], lx, lz]));
+  const building = (bx, bz, w, d, h, district) => {
+    const bb = add(bx, bx + w, 0, h, bz, bz + d, 'building', pk(edgeColors));
+    // Glastürme nur noch vereinzelt; sonst Putz, Beton oder Wellblech, die die Viertelfarbe gut tragen
+    bb.style = h > 40 && R() < 0.35 ? 0 : 1 + Math.floor(R() * 3); bb.tint = R(); bb.district = district;
+    if (w > 12 && d > 12 && R() < 0.5) {
+      const cx = bx + r(2, w - 6), cz = bz + r(2, d - 6);
+      add(cx, cx + 4, h, h + r(1.2, 3.5), cz, cz + 4, 'roof', 0x2cf3ff);
+    }
+    return bb;
+  };
+  /** Baut einen Ort. Die Gassen durch die Sektormitte bleiben frei (Laufwege der Bots). */
+  function buildPoi(type, x0, z0, district) {
+    const L = lotsOf(x0, z0);
+    const slab = (ax, bx, y, az, bz, t = 0.45) => add(ax, bx, y - t, y, az, bz, 'slab', 0);
+    const block = (ax, bx, y0, y1, az, bz, kind = 'block') => add(ax, bx, y0, y1, az, bz, kind, 0);
+    const pillar = (x, z, y1, s = 0.8) => block(x - s / 2, x + s / 2, 0, y1, z - s / 2, z + s / 2);
+    if (type === 'platz') {
+      // Denkmal auf Stufensockel, Pflanzkübel als Deckung, Kioske, ringsum niedrige Bauten
+      const [mx, mz] = [L[0][0] + LOT / 2, L[0][1] + LOT / 2];
+      block(mx - 6, mx + 6, 0, 1.0, mz - 6, mz + 6);
+      block(mx - 4, mx + 4, 1.0, 2.2, mz - 4, mz + 4);
+      const ob = block(mx - 1.2, mx + 1.2, 2.2, 22, mz - 1.2, mz + 1.2, 'monument'); ob.landmark = true;
+      for (const [lx, lz] of [L[3]]) for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2, cx = lx + LOT / 2 + Math.cos(ang) * 7.5, cz = lz + LOT / 2 + Math.sin(ang) * 7.5;
+        block(cx - 1.4, cx + 1.4, 0, 1.1, cz - 1.4, cz + 1.4, 'planter');
+      }
+      for (const [lx, lz] of [L[1], L[2]]) {
+        for (let k = 0; k < 3; k++) { const cx = lx + 3 + k * 7.5, cz = lz + 4 + (k % 2) * 12; block(cx, cx + 3.2, 0, 2.8, cz, cz + 3.2, 'kiosk'); }
+        block(lx + 2, lx + LOT - 2, 0, 1.0, lz + LOT / 2 - 0.6, lz + LOT / 2 + 0.6, 'planter');
+      }
+    } else if (type === 'hafen') {
+      // Containerlager mit Gassen dazwischen und einem begehbaren Portalkran
+      for (const [lx, lz, i] of L.map((l, i) => [l[0], l[1], i])) {
+        if (i === 3) {
+          const h = 17;
+          for (const [cx, cz] of [[lx + 1, lz + 2], [lx + LOT - 1, lz + 2], [lx + 1, lz + LOT - 2], [lx + LOT - 1, lz + LOT - 2]]) block(cx - 0.6, cx + 0.6, 0, h - 1.2, cz - 0.6, cz + 0.6, 'steel');
+          add(lx, lx + LOT, h - 1.2, h, lz + 0.8, lz + 3.2, 'steel', 0);
+          add(lx, lx + LOT, h - 1.2, h, lz + LOT - 3.2, lz + LOT - 0.8, 'steel', 0);
+          add(lx + LOT / 2 - 1.5, lx + LOT / 2 + 1.5, h - 1.2, h, lz + 3.2, lz + LOT - 3.2, 'steel', 0);
+        }
+        for (const zz of [0.5, 6.4, 12.3, 18.2]) for (const xx of [0.4, 8.2]) {
+          if (R() < 0.25) continue;
+          if (i === 3 && (zz < 3.5 || zz > 15)) continue;
+          const n = 1 + Math.floor(R() * (i === 3 ? 1.6 : 3));
+          for (let s = 0; s < n; s++) {
+            const cb = add(lx + xx, lx + xx + 6.1, s * 2.6, (s + 1) * 2.6, lz + zz, lz + zz + 2.45, 'container', 0);
+            cb.paint = Math.floor(R() * 6);
+          }
+        }
+      }
+      pads.push({ x: L[3][0] + LOT / 2, z: L[3][1] - ALLEY + 1.2, poi: true });
+    } else if (type === 'halle') {
+      // Zwei Markthallen mit Toren auf allen Seiten, begehbarem Dach und Ständen innen
+      for (const [lx, lz, i] of L.map((l, i) => [l[0], l[1], i])) {
+        if (i === 0 || i === 3) {
+          const ax = lx + 0.5, bx = lx + LOT - 0.5, az = lz + 0.5, bz = lz + LOT - 0.5, H = 9, t = 0.6, gate = 2.6;
+          const midX = (ax + bx) / 2, midZ = (az + bz) / 2;
+          for (const [z0w, z1w] of [[az, az + t], [bz - t, bz]]) { block(ax, midX - gate, 0, H, z0w, z1w, 'hall'); block(midX + gate, bx, 0, H, z0w, z1w, 'hall'); block(midX - gate, midX + gate, 5, H, z0w, z1w, 'hall'); }
+          for (const [x0w, x1w] of [[ax, ax + t], [bx - t, bx]]) { block(x0w, x1w, 0, H, az + t, midZ - gate, 'hall'); block(x0w, x1w, 0, H, midZ + gate, bz - t, 'hall'); block(x0w, x1w, 5, H, midZ - gate, midZ + gate, 'hall'); }
+          const roofB = add(ax, bx, H, H + 0.5, az, bz, 'slab', 0); roofB.padTarget = true;
+          for (let k = 0; k < 4; k++) { const cx = ax + 3 + (k % 2) * 9, cz = az + 3.5 + Math.floor(k / 2) * 9; add(cx, cx + 3, 0, 1.1, cz, cz + 1.6, 'crate', 0); }
+          pads.push({ x: i ? ax - ALLEY + 1 : bx + ALLEY - 1, z: midZ + (i ? 4 : -4), poi: true });
+        } else {
+          for (let k = 0; k < 6; k++) {
+            const cx = lx + 2 + (k % 3) * 7, cz = lz + 3 + Math.floor(k / 3) * 10;
+            block(cx, cx + 4, 0, 1.1, cz, cz + 2, 'stall');
+            slab(cx - 0.3, cx + 4.3, 3.0, cz - 0.6, cz + 2.6, 0.15);
+          }
+        }
+      }
+    } else if (type === 'turm') {
+      // Funkturm als Wahrzeichen: Schaft mit Aussichtsplattformen, Seilbahnen führen hin
+      const [lx, lz] = L[0];
+      const cx = lx + LOT / 2, cz = lz + LOT / 2;
+      const tw = building(cx - 4, cz - 4, 8, 8, 78, district); tw.style = 0; tw.landmark = true;
+      const decks = [26, 50].map((y) => add(cx - 8, cx + 8, y - 0.6, y, cz - 8, cz + 8, 'slab', 0));
+      for (const [px, pz] of [[cx - 4, cz + LOT / 2 + ALLEY - 1], [cx + LOT / 2 + ALLEY - 1, cz + 4], [cx - 4, cz - LOT / 2 - ROAD + 2]]) pads.push({ x: px, z: pz, t: [cx + (px < cx ? -6 : 6), 26.2, cz + (pz > cz ? 6 : -6)], tb: decks[0] });
+      for (const l of [L[1], L[2], L[3]]) building(l[0] + r(0, 4), l[1] + r(0, 4), r(12, 18), r(12, 18), r(10, 24), district);
+    } else if (type === 'baustelle') {
+      // Rohbau: offene Geschossdecken auf Stützen, Treppenstufen, Kran
+      for (const [lx, lz, i] of L.map((l, i) => [l[0], l[1], i])) {
+        if (i === 1) { // Kran
+          const kx = lx + LOT / 2, kz = lz + LOT / 2;
+          block(kx - 1, kx + 1, 0, 34, kz - 1, kz + 1, 'steel').landmark = true;
+          add(kx - 18, kx + 6, 34, 35.2, kz - 0.8, kz + 0.8, 'steel', 0);
+          for (let k = 0; k < 3; k++) add(lx + 1 + k * 7, lx + 5 + k * 7, 0, 1.4, lz + 1, lz + 2.2, 'block', 0);
+          continue;
+        }
+        const levels = i === 2 ? 5 : 3, ax = lx + 0.5, bx = lx + LOT - 0.5, az = lz + 0.5, bz = lz + LOT - 0.5;
+        for (const px of [ax + 0.4, (ax + bx) / 2, bx - 0.4]) for (const pz of [az + 0.4, (az + bz) / 2, bz - 0.4]) pillar(px, pz, levels * 4.5 - 0.45);
+        for (let lv = 1; lv <= levels; lv++) {
+          const hole = lv < levels; // Treppenloch in jeder Decke außer der obersten
+          if (hole) { slab(ax, bx, lv * 4.5, az, bz - 4); slab(ax + 6, bx, lv * 4.5, bz - 4, bz); }
+          else slab(ax, bx, lv * 4.5, az, bz).padTarget = true;
+        }
+        if (i === 2) pads.push({ x: bx + ALLEY - 0.5, z: (az + bz) / 2, poi: true });
+        // Stufen (je 0,9 m) zur ersten Decke, im Treppenloch
+        for (let s = 0; s < 5; s++) block(ax + 0.2 + s * 1.15, ax + 1.35 + s * 1.15, 0, (s + 1) * 0.9 - 0.45, bz - 3.8, bz - 0.4, 'block');
+      }
+    } else if (type === 'park') {
+      // Park: Hecken als Deckung, Pavillon, freie Sicht – Bäume setzt die Grafik dazu
+      for (const [lx, lz, i] of L.map((l, i) => [l[0], l[1], i])) {
+        if (i === 0) {
+          const cx = lx + LOT / 2, cz = lz + LOT / 2;
+          for (const [px, pz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) pillar(cx + px, cz + pz, 4.2, 0.5);
+          slab(cx - 6.5, cx + 6.5, 4.6, cz - 6.5, cz + 6.5, 0.4).pavilion = true;
+          continue;
+        }
+        for (let k = 0; k < 4; k++) {
+          const alongX = R() < 0.5, len = r(5, 10), hx = lx + r(1, LOT - (alongX ? len : 1) - 1), hz = lz + r(1, LOT - (alongX ? 1 : len) - 1);
+          block(hx, hx + (alongX ? len : 1.2), 0, 1.3, hz, hz + (alongX ? 1.2 : len), 'hedge');
+        }
+      }
+    }
+  }
   for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) {
     const x0 = -HALF + sx * SECTOR, z0 = -HALF + sz * SECTOR;
     const centrality = 1 - Math.hypot(sx - 3.5, sz - 3.5) / 5;
-    for (let lx = 0; lx < 2; lx++) for (let lz = 0; lz < 2; lz++) {
-      const lotX = x0 + (lx ? 27 : 4), lotZ = z0 + (lz ? 27 : 4), LOT = 19;
+    const district = districtOf(sx, sz);
+    const poi = poiAt.get(sz * NS + sx);
+    if (poi) { buildPoi(poi, x0, z0, district); }
+    else for (const [lotX, lotZ] of lotsOf(x0, z0)) {
       const roll = R();
-      if (roll < 0.12) continue;
-      const n = roll < 0.75 ? 1 : 2;
+      if (roll < 0.08) continue;
+      const n = roll < 0.72 ? 1 : 2;
       for (let k = 0; k < n; k++) {
-        const w = n === 1 ? r(9, LOT) : r(6, 9), d = n === 1 ? r(9, LOT) : r(6, LOT);
+        const w = n === 1 ? r(13, LOT) : r(8, 10.5), d = n === 1 ? r(13, LOT) : r(9, LOT);
         const bx = n === 1 ? lotX + r(0, LOT - w) : lotX + (k ? LOT - w : 0);
         const bz = lotZ + r(0, LOT - d);
-        const h = 4 + Math.pow(R(), 1.6) * (22 + 26 * Math.max(0, centrality));
-        const bb = add(bx, bx + w, 0, h, bz, bz + d, 'building', pk(edgeColors));
-        bb.style = h > 30 && R() < 0.6 ? 0 : Math.floor(R() * 4); bb.tint = R();
-        if (w > 10 && d > 10 && R() < 0.5) {
-          const cx = bx + r(2, w - 6), cz = bz + r(2, d - 6);
-          add(cx, cx + 4, h, h + r(1.2, 3.5), cz, cz + 4, 'roof', 0x2cf3ff);
-        }
+        const h = 6 + Math.pow(R(), 1.5) * (26 + 30 * Math.max(0, centrality));
+        building(bx, bz, w, d, h, district);
       }
     }
     for (let i = 0; i < 2; i++) {
       const alongX = R() < 0.5;
-      const line = (alongX ? z0 : x0) + (R() < 0.5 ? 0 : 25);
+      const line = (alongX ? z0 : x0) + (R() < 0.5 ? 0 : SECTOR / 2);
       const off = R() < 0.5 ? 2.6 : -2.6;
-      const t = (alongX ? x0 : z0) + r(6, 44);
+      const t = (alongX ? x0 : z0) + r(ROAD + 2, SECTOR - ROAD - 2);
       const px = alongX ? t : line + off, pz = alongX ? line + off : t;
       if (Math.abs(px) > HALF - 3 || Math.abs(pz) > HALF - 3) continue;
       pads.push({ x: px, z: pz });
     }
   }
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 240; i++) {
     const alongX = R() < 0.5;
     const line = -HALF + Math.floor(r(1, NS)) * SECTOR;
-    const off = (R() < 0.5 ? 1 : -1) * 3.0;
+    const off = (R() < 0.5 ? 1 : -1) * (ROAD - 2.6);
     const t = r(-HALF + 5, HALF - 5);
     const cx = alongX ? t : line + off, cz = alongX ? line + off : t;
     // etwa die Hälfte als geparkte Autos (parallel zur Straße), nicht auf Kreuzungen oder Sprungfeldern
-    const nearCross = Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR) < 8 || Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR - SECTOR) < 8;
+    const nearCross = Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR) < ROAD + 4 || Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR - SECTOR) < ROAD + 4;
     const onPad = pads.some((p) => Math.hypot(p.x - cx, p.z - cz) < 3.5);
     if (R() < 0.5 && !nearCross && !onPad) {
-      const hl = 2.2, hw = 0.92, coff = Math.sign(off) * 2.9;
+      const hl = 2.2, hw = 0.92, coff = Math.sign(off) * (ROAD - 1.7);
       const ccx = alongX ? t : line + coff, ccz = alongX ? line + coff : t;
       const car = add(alongX ? ccx - hl : ccx - hw, alongX ? ccx + hl : ccx + hw, 0, 1.42, alongX ? ccz - hw : ccz - hl, alongX ? ccz + hw : ccz + hl, 'car', 0);
       car.paint = Math.floor(R() * 8); car.alongX = alongX; car.flip = R() < 0.5;
@@ -177,11 +308,13 @@ export function generateWorld(seed) {
     }
     return true;
   };
+  const padTargets = boxes.filter((b) => b.kind === 'building' || (b.padTarget && b.mx[1] > 8));
   for (const pd of pads) {
-    if (R() < 0.5) continue;
-    const cands = buildings.filter((b) => {
+    if (pd.t) { if (!arcClear(pd, pd.tb, pd.t)) delete pd.t; delete pd.tb; continue; }
+    if (R() < 0.5 && !pd.poi) continue;
+    const cands = padTargets.filter((b) => {
       const cx = (b.mn[0] + b.mx[0]) / 2, cz = (b.mn[2] + b.mx[2]) / 2, d = Math.hypot(cx - pd.x, cz - pd.z);
-      return d > 10 && d < 32 && b.h0 > 8 && b.h0 < 42;
+      return d > 12 && d < 38 && b.h0 > 8 && b.h0 < 46;
     });
     for (let tries = 0; tries < 4 && cands.length; tries++) {
       const b = cands.splice(Math.floor(R() * cands.length), 1)[0];
@@ -191,12 +324,12 @@ export function generateWorld(seed) {
   }
   // Seilbahnen zwischen hohen Dächern
   const ziplines = [];
-  const tall = buildings.filter((b) => b.h0 > 16);
+  const tall = buildings.filter((b) => b.h0 > 16).sort((a, b) => (b.landmark ? 1 : 0) - (a.landmark ? 1 : 0));
   const top = (b) => [(b.mn[0] + b.mx[0]) / 2, b.mx[1] + 3, (b.mn[2] + b.mx[2]) / 2];
   for (const A of tall) {
-    if (ziplines.length >= 30 || R() > 0.4) continue;
+    if (ziplines.length >= 44 || (R() > 0.4 && !A.landmark)) continue;
     const pa = top(A);
-    const cands = buildings.filter((B) => B !== A && B.h0 > 10 && (() => { const d = Math.hypot((B.mn[0] + B.mx[0]) / 2 - pa[0], (B.mn[2] + B.mx[2]) / 2 - pa[2]); return d > 22 && d < 70; })());
+    const cands = buildings.filter((B) => B !== A && B.h0 > 10 && (() => { const d = Math.hypot((B.mn[0] + B.mx[0]) / 2 - pa[0], (B.mn[2] + B.mx[2]) / 2 - pa[2]); return d > 24 && d < 85; })());
     if (!cands.length) continue;
     const B = cands[Math.floor(R() * cands.length)];
     if (ziplines.some((z) => (z.a === A && z.b === B) || (z.a === B && z.b === A))) continue;
@@ -243,12 +376,12 @@ export function generateWorld(seed) {
     const line = alongX ? -HALF + sz * SECTOR : -HALF + sx * SECTOR;
     if (line <= -HALF) continue;
     const off = R() < 0.5 ? 2.6 : -2.6;
-    const t = (alongX ? -HALF + sx * SECTOR : -HALF + sz * SECTOR) + r(8, 42);
+    const t = (alongX ? -HALF + sx * SECTOR : -HALF + sz * SECTOR) + r(ROAD + 3, SECTOR - ROAD - 3);
     const ux = alongX ? t : line + off, uz = alongX ? line + off : t;
     if (boxes.some((q) => (q.kind === 'car' || q.kind === 'crate') && ux > q.mn[0] - 2.2 && ux < q.mx[0] + 2.2 && uz > q.mn[2] - 2.2 && uz < q.mx[2] + 2.2)) continue;
     updrafts.push({ x: alongX ? t : line + off, z: alongX ? line + off : t, r: 1.8, h: 55 });
   }
-  return { seed, boxes, pads, bySector, ziplines, updrafts };
+  return { seed, boxes, pads, bySector, ziplines, updrafts, pois };
 }
 
 /** Gebäude in zerfallenen Sektoren versinken – reine Funktion der Zeit, damit Client und Server übereinstimmen. */
@@ -1114,7 +1247,7 @@ export class Sim {
     const roofs = this.world.boxes.filter((b) => (b.mx[0] - b.mn[0]) > 5 && b.mx[1] > 3);
     const roofSpot = () => { const b = pick(roofs); return [rand(b.mn[0] + 1, b.mx[0] - 1), b.mx[1], rand(b.mn[2] + 1, b.mx[2] - 1)]; };
     const streetSpot = () => {
-      const line = -HALF + randi(1, 15) * 25, t = rand(-HALF + 5, HALF - 5);
+      const line = -HALF + randi(1, 2 * NS - 1) * NODE, t = rand(-HALF + 5, HALF - 5);
       return Math.random() < 0.5 ? [t, 0, line + rand(-1, 1)] : [line + rand(-1, 1), 0, t];
     };
     const spot = () => {
@@ -1190,7 +1323,7 @@ export class Sim {
   randomSafeNode() {
     const safe = this.sectors.map((s, i) => (s === 0 ? i : -1)).filter((i) => i >= 0);
     const c = sectorCenter(safe.length ? pick(safe) : 0);
-    return { x: c.x + pick([-25, 0, 0]), z: c.z + pick([-25, 0, 0]) };
+    return { x: c.x + pick([-NODE, 0, 0]), z: c.z + pick([-NODE, 0, 0]) };
   }
   planPath(bot, goal) {
     const nx = snapNode(bot.pos.x), nz = snapNode(bot.pos.z);

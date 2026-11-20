@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import {
-  Sim, generateWorld, applyDissolve, movePlayer, rayWorld, nearZipline, aimDir, MOVE_FIELDS, MOVE_DEFAULTS, DASH_MAX, DASH_REGEN, sectorOf,
+  Sim, generateWorld, applyDissolve, movePlayer, rayWorld, nearZipline, aimDir, MOVE_FIELDS, MOVE_DEFAULTS, DASH_MAX, DASH_REGEN, sectorOf, LOT, LOT_OFF, districtOf,
   WEAPONS, ABILITIES, DIFFS, DIFF_IDS, MODES, LEVEL_NAMES, EVENTS, TEAM_COLORS, BOT_LIMIT, CORE_TIME, WARN,
   HALF, SECTOR, NS, EYE, lvlMag, abilityCd, clamp,
 } from './shared/sim.js';
@@ -22,7 +22,7 @@ const GFX_PRESETS = {
   hoch: { scale: 1, tex: '2k', shadows: 2, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1, effects: 1 },
   ultra: { scale: 1.25, tex: '4k', shadows: 3, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1.3, effects: 1 },
 };
-const GFX_FREE = { fov: 78, brightness: 1, fpsCap: 0, showFps: false, shake: true, audioOut: 'default', audioMode: 'hp', assist: 2, wallrun: 1 };
+const GFX_FREE = { fov: 78, brightness: 1, fpsCap: 0, showFps: false, shake: true, audioOut: 'default', audioMode: 'hp', assist: 2, wallrun: 1, mapRotate: false, enemyRim: true };
 const gfx = (() => {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('zz-gfx')); } catch { /* ohne Speicher */ }
@@ -639,7 +639,7 @@ function createEntityMesh(meta) {
   const mate = meta.team === game.myTeam;
   const teamCol = mate ? 0x3dd68c : TEAM_COLORS[meta.team % TEAM_COLORS.length];
   const accent = mate ? 0x7dff6b : meta.bot ? DIFFS[meta.diff].color : 0xffffff;
-  const rig = MODELS.character ? makeModelCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410) : makeCharacter(teamCol, accent);
+  const rig = MODELS.character ? makeModelCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410) : makeCharacter(teamCol, accent, !mate && gfx.enemyRim ? 0xff2a2a : null);
   const g = rig.group;
   const outline = new THREE.Mesh(outlineGeo, new THREE.MeshBasicMaterial({ color: mate ? 0x7dff6b : 0xff3355, transparent: true, opacity: 0.45, depthTest: false }));
   outline.position.y = 0.95; outline.visible = false; outline.renderOrder = 10;
@@ -783,6 +783,7 @@ function handleFx(f, s) {
   switch (f.k) {
     case 'shot': {
       const mine = f.id === G.you;
+      if (!mine && G.meta.get(f.id)?.team !== G.myTeam && f.from && Math.hypot(f.from[0] - G.pred.pos.x, f.from[2] - G.pred.pos.z) < 140) (G.pings ||= []).push({ x: f.from[0], z: f.from[2], t: performance.now() / 1000 });
       const from = mine ? camera.localToWorld(new THREE.Vector3(0.26, -0.22, -0.8)) : new THREE.Vector3(...f.from);
       const col = WEAPONS[f.w].color;
       for (const t of f.tos) {
@@ -1369,6 +1370,7 @@ document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
   keys[e.code] = true;
   if (!e.repeat) pressed.add(e.code);
+  if (!e.repeat && e.code === 'KeyM' && game) toggleBigMap();
   if (game && ['Space', 'Tab'].includes(e.code)) e.preventDefault();
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -1410,38 +1412,134 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 // ---------------------------------------------------------------- HUD
+// Minimap: um den Spieler zentriert (wahlweise mitdrehend), mit vorgezeichnetem Stadtplan,
+// Vierteln in eigener Farbe, Orten, Seilbahnen, Sprungfeldern, Zerfall und Schusspings. M / View-Taste = große Karte.
 const mm = $('minimap').getContext('2d');
-function drawMinimap(s) {
-  const G = game, S = 200 / (HALF * 2), t = performance.now() / 1000;
-  mm.clearRect(0, 0, 200, 200);
+const bm = $('bigmap').getContext('2d');
+const MM_PX = 2; // Pixel je Meter im Plan
+const DIST_HEX = ['#c8735a', '#3fb5a8', '#c9a64a', '#6f8fd6'];
+function buildMapBase(world) {
+  const N = HALF * 2 * MM_PX, cv = document.createElement('canvas');
+  cv.width = cv.height = N;
+  const g = cv.getContext('2d'), P = (v) => (v + HALF) * MM_PX;
+  g.fillStyle = '#16181c'; g.fillRect(0, 0, N, N);
+  // Grundstücke
+  const poiOf = new Map((world.pois || []).map((p) => [p.sector, p.type]));
+  for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) for (const lx of LOT_OFF) for (const lz of LOT_OFF) {
+    const poi = poiOf.get(sz * NS + sx);
+    g.fillStyle = poi === 'park' ? '#28402a' : poi === 'baustelle' ? '#3a3226' : poi === 'hafen' ? '#26292e' : '#24272c';
+    g.fillRect(P(-HALF + sx * SECTOR + lx - 1.6), P(-HALF + sz * SECTOR + lz - 1.6), (LOT + 3.2) * MM_PX, (LOT + 3.2) * MM_PX);
+  }
+  // Straßen (Mittellinien angedeutet)
+  g.strokeStyle = '#ffffff10'; g.lineWidth = 1;
+  for (let i = 1; i < NS; i++) { const L = P(-HALF + i * SECTOR); g.beginPath(); g.moveTo(L, 0); g.lineTo(L, N); g.moveTo(0, L); g.lineTo(N, L); g.stroke(); }
+  // Gebäude: Viertelfarbe, je höher desto heller
+  const COL = { container: '#8a5a3a', steel: '#d9a441', hedge: '#4f7a3c', planter: '#4f7a3c', monument: '#e8e2d0', hall: null, slab: '#8d8a83', block: '#6c6a66', kiosk: '#9a9a96', stall: '#7a6450' };
+  for (const b of world.boxes) {
+    if (b.kind === 'crate' || b.kind === 'roof' || b.kind === 'prop') continue;
+    let col = COL[b.kind];
+    if (b.kind === 'car') col = '#3a3d42';
+    if (b.kind === 'building' || b.kind === 'hall' || col === undefined) {
+      const d = b.district ?? districtOf(b.sector % NS, Math.floor(b.sector / NS));
+      const k = clamp(0.45 + b.mx[1] / 90, 0.45, 1);
+      const hex = DIST_HEX[d], rr = parseInt(hex.slice(1, 3), 16) * k, gg = parseInt(hex.slice(3, 5), 16) * k, bb = parseInt(hex.slice(5, 7), 16) * k;
+      col = `rgb(${rr | 0},${gg | 0},${bb | 0})`;
+    }
+    g.fillStyle = col;
+    g.fillRect(P(b.mn[0]), P(b.mn[2]), (b.mx[0] - b.mn[0]) * MM_PX, (b.mx[2] - b.mn[2]) * MM_PX);
+    if (b.kind === 'building') { g.strokeStyle = '#00000066'; g.strokeRect(P(b.mn[0]) + 0.5, P(b.mn[2]) + 0.5, (b.mx[0] - b.mn[0]) * MM_PX - 1, (b.mx[2] - b.mn[2]) * MM_PX - 1); }
+  }
+  // Seilbahnen und Sprungfelder
+  g.strokeStyle = '#7fe0ff99'; g.lineWidth = 1.5; g.setLineDash([4, 3]);
+  for (const z of world.ziplines) { g.beginPath(); g.moveTo(P(z.p0[0]), P(z.p0[2])); g.lineTo(P(z.p1[0]), P(z.p1[2])); g.stroke(); }
+  g.setLineDash([]);
+  for (const p of world.pads) { g.fillStyle = p.t ? '#ffd34d' : '#ffd34d99'; g.beginPath(); g.arc(P(p.x), P(p.z), 2.5, 0, 7); g.fill(); }
+  for (const u of world.updrafts) { g.strokeStyle = '#a0f0ff99'; g.beginPath(); g.arc(P(u.x), P(u.z), 3, 0, 7); g.stroke(); }
+  return cv;
+}
+const poiName = (p) => t('poi.' + p.type);
+/** Kartenausschnitt zeichnen. ctx-Größe W, Mittelpunkt (cx, cz) in Metern, Maßstab sc (Pixel je Meter), rot = Drehung */
+function drawMap(ctx, W, cx, cz, sc, rot, s, big) {
+  const G = game;
+  const tnow = performance.now() / 1000;
+  ctx.save();
+  ctx.clearRect(0, 0, W, W);
+  ctx.fillStyle = '#101114'; ctx.fillRect(0, 0, W, W);
+  ctx.translate(W / 2, W / 2);
+  ctx.rotate(rot);
+  ctx.scale(sc / MM_PX, sc / MM_PX);
+  ctx.translate(-(cx + HALF) * MM_PX, -(cz + HALF) * MM_PX);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(G.mapBase, 0, 0);
+  const P = (v) => (v + HALF) * MM_PX;
+  // Zerfall: rot schraffiert, Warnung blinkt bernsteinfarben
   for (let i = 0; i < NS * NS; i++) {
-    const sx = (i % NS) * SECTOR * S, sz = Math.floor(i / NS) * SECTOR * S;
     const st = s.sectors[i];
-    mm.fillStyle = st === '2' ? '#e5484d55' : st === '1' ? (Math.sin(t * 6) > 0 ? '#d9a44155' : '#d9a44128') : '#ffffff06';
-    mm.fillRect(sx, sz, SECTOR * S, SECTOR * S);
-    mm.strokeStyle = '#ffffff12';
-    mm.strokeRect(sx, sz, SECTOR * S, SECTOR * S);
+    if (st !== '1' && st !== '2') continue;
+    const x = P(-HALF + (i % NS) * SECTOR), z = P(-HALF + Math.floor(i / NS) * SECTOR), w = SECTOR * MM_PX;
+    if (st === '2') {
+      ctx.fillStyle = '#e5484d40'; ctx.fillRect(x, z, w, w);
+      ctx.strokeStyle = '#e5484d55'; ctx.lineWidth = 3;
+      ctx.beginPath(); for (let k = -w; k < w; k += 18) { ctx.moveTo(x + Math.max(0, k), z + Math.max(0, -k)); ctx.lineTo(x + Math.min(w, k + w), z + Math.min(w, w - k)); } ctx.stroke();
+    } else {
+      ctx.fillStyle = Math.sin(tnow * 6) > 0 ? '#d9a44150' : '#d9a44120'; ctx.fillRect(x, z, w, w);
+      ctx.strokeStyle = '#d9a441'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, z + 1.5, w - 3, w - 3);
+    }
   }
-  mm.fillStyle = '#c8ccd240';
-  for (const b of G.world.boxes) {
-    if (b.gone || b.kind !== 'building') continue;
-    mm.fillRect((b.mn[0] + HALF) * S, (b.mn[2] + HALF) * S, (b.mx[0] - b.mn[0]) * S, (b.mx[2] - b.mn[2]) * S);
-  }
-  if (s.me && s.me.ghost) for (const b of s.me.beacons) { mm.fillStyle = '#46b98a'; mm.beginPath(); mm.arc((b[0] + HALF) * S, (b[1] + HALF) * S, 4, 0, 7); mm.fill(); }
-  if (s.core) { mm.fillStyle = '#d9a441'; mm.beginPath(); mm.arc((s.core.x + HALF) * S, (s.core.z + HALF) * S, 5, 0, 7); mm.fill(); }
+  const inv = MM_PX / sc; // Symbole in Bildschirm-Pixeln
+  const dot = (x, z, rad, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(P(x), P(z), rad * inv, 0, 7); ctx.fill(); };
+  if (s.me && s.me.ghost) for (const b of s.me.beacons) dot(b[0], b[1], 5, '#46b98a');
+  if (s.core) { dot(s.core.x, s.core.z, 6, '#d9a441'); ctx.strokeStyle = '#d9a441'; ctx.lineWidth = 2 * inv; ctx.beginPath(); ctx.arc(P(s.core.x), P(s.core.z), (10 + (tnow * 12) % 10) * inv, 0, 7); ctx.stroke(); }
+  // Schüsse von Gegnern als kurz aufleuchtende Ringe
+  G.pings = (G.pings || []).filter((p) => tnow - p.t < 3);
+  for (const p of G.pings) { const a = 1 - (tnow - p.t) / 3; ctx.strokeStyle = `rgba(229,72,77,${a})`; ctx.lineWidth = 2 * inv; ctx.beginPath(); ctx.arc(P(p.x), P(p.z), (4 + (1 - a) * 10) * inv, 0, 7); ctx.stroke(); dot(p.x, p.z, 2.5, `rgba(229,72,77,${a})`); }
   for (const e of s.ents) {
     if (e[0] === G.you) continue;
     const meta = G.meta.get(e[0]);
+    if (!meta) continue;
     const mate = meta.team === G.myTeam;
-    if (mate && (e[7] & 3)) { mm.fillStyle = e[7] & 1 ? '#46b98a' : '#46b98a66'; mm.beginPath(); mm.arc((e[1] + HALF) * S, (e[3] + HALF) * S, 3.5, 0, 7); mm.fill(); }
-    else if (!mate && (e[7] & 1) && (e[7] & 16)) { mm.fillStyle = '#e5484d'; mm.fillRect((e[1] + HALF) * S - 2, (e[3] + HALF) * S - 2, 4, 4); }
+    if (mate && (e[7] & 3)) {
+      ctx.save(); ctx.translate(P(e[1]), P(e[3])); ctx.rotate(-(e[4] || 0)); ctx.scale(inv, inv);
+      ctx.fillStyle = e[7] & 1 ? '#46b98a' : '#46b98a77'; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4.5, 5); ctx.lineTo(-4.5, 5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if (!mate && (e[7] & 1) && (e[7] & 16)) { ctx.fillStyle = '#e5484d'; ctx.fillRect(P(e[1]) - 3 * inv, P(e[3]) - 3 * inv, 6 * inv, 6 * inv); }
   }
-  const px = (G.pred.pos.x + HALF) * S, pz = (G.pred.pos.z + HALF) * S;
-  mm.save(); mm.translate(px, pz); mm.rotate(-yaw);
-  mm.fillStyle = '#e7e6e1';
-  mm.beginPath(); mm.moveTo(0, -6); mm.lineTo(4, 5); mm.lineTo(-4, 5); mm.closePath(); mm.fill();
-  mm.restore();
+  // Orte beschriften (Schrift bleibt aufrecht)
+  for (const p of G.world.pois || []) {
+    ctx.save(); ctx.translate(P(p.x), P(p.z)); ctx.rotate(-rot); ctx.scale(inv, inv);
+    ctx.font = `600 ${big ? 13 : 10}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center';
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000000cc'; ctx.fillStyle = '#f2efe6';
+    const nm = poiName(p).toUpperCase();
+    ctx.strokeText(nm, 0, 4); ctx.fillText(nm, 0, 4);
+    ctx.restore();
+  }
+  // Spieler
+  ctx.save(); ctx.translate(P(G.pred.pos.x), P(G.pred.pos.z)); ctx.rotate(-yaw); ctx.scale(inv, inv);
+  ctx.fillStyle = '#ffffff22'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, big ? 0 : 60, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55); ctx.closePath(); ctx.fill(); // Blickkegel
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5.5, 6); ctx.lineTo(0, 3); ctx.lineTo(-5.5, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+  // Rand-Hinweis: Richtung zum nächsten sicheren Bereich, wenn man im Zerfall steht
+  if (!big) {
+    ctx.fillStyle = '#e7e6e1aa'; ctx.font = '600 10px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+    if (gfx.mapRotate) { ctx.save(); ctx.translate(W / 2, W / 2); ctx.rotate(rot); ctx.fillText('N', 0, -W / 2 + 12); ctx.restore(); }
+    else ctx.fillText('N', W / 2, 12);
+  }
 }
+function drawMinimap(s) {
+  const G = game;
+  if (!G.mapBase) G.mapBase = buildMapBase(G.world);
+  const W = $('minimap').width;
+  drawMap(mm, W, G.pred.pos.x, G.pred.pos.z, W / 240, gfx.mapRotate ? yaw : 0, s, false);
+  if (bigMapOpen) drawMap(bm, $('bigmap').width, 0, 0, $('bigmap').width / (HALF * 2), 0, s, true);
+  // Ortsname unter der Karte
+  const sec = sectorOf(G.pred.pos.x, G.pred.pos.z), poi = (G.world.pois || []).find((p) => p.sector === sec);
+  const loc = (poi ? poiName(poi) + ' · ' : '') + t('dist.' + districtOf(sec % NS, Math.floor(sec / NS)));
+  if (loc !== G.locText) { G.locText = loc; $('loc').textContent = loc; if (poi && poi !== G.lastPoi) { $('loc').classList.remove('flash'); void $('loc').offsetWidth; $('loc').classList.add('flash'); } G.lastPoi = poi; }
+}
+let bigMapOpen = false;
+function toggleBigMap(on = !bigMapOpen) { bigMapOpen = on && !!game; $('bigmapWrap').classList.toggle('hidden', !bigMapOpen); }
 let hudCd = 0;
 function updateHud(dt) {
   const G = game, s = G.last, me = G.me;
@@ -1607,6 +1705,7 @@ function frame(now) {
       document.exitPointerLock?.();
     }
   } else if (P && menuOpen) padMenus(P);
+  if (P && game && P.edge(BTN.BACK)) toggleBigMap();
   if (game && conn) {
     sendInput(dt, P);
     if (!conn.online && !paused) conn.update(dt);
@@ -1726,6 +1825,8 @@ const GFX_ROWS = [
   { k: 'effects', vals: [0, 1], fmt: (v) => t(v ? 'gq.high' : 'gq.low'), preset: true },
   { group: 'gfx.g.comfort' },
   { k: 'shake', vals: [true, false], fmt: onoff },
+  { k: 'enemyRim', vals: [true, false], fmt: onoff },
+  { k: 'mapRotate', vals: [false, true], fmt: (v) => t(v ? 'gq.mapRot' : 'gq.mapNorth') },
   { group: 'gfx.g.audio' },
   { k: 'audioOut', vals: () => audioDevices.map((d) => d.id), fmt: (v) => audioDevices.find((d) => d.id === v)?.label || t('gq.default') },
   { k: 'audioMode', vals: ['hp', 'stereo', 'mono'], fmt: (v) => t('gq.am.' + v) },

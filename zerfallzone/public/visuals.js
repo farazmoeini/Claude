@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { HALF, SECTOR, NS } from './shared/sim.js';
+import { HALF, SECTOR, NS, NODE, ROAD, ALLEY, LOT, LOT_OFF, districtOf } from './shared/sim.js';
 
 // ---------------------------------------------------------------- Farbabstimmung (letzter Bildschritt)
 export const GradeShader = {
@@ -411,8 +411,12 @@ function makeSigns() {
   return tex(c, false);
 }
 /** Boden der ganzen Stadt: Asphalt, Gehwege, Plätze, Markierungen, Zebrastreifen */
-function makeGround() {
-  const N = 2048, s = N / (HALF * 2), P = (v) => (v + HALF) * s;
+// Stadtviertel-Farben (Fassaden, Neon, Minimap): Ziegelrot, Petrol, Ocker, Kühlblau
+export const DISTRICT_COLORS = [[1.3, 0.68, 0.5], [0.5, 1.02, 0.96], [1.25, 1.02, 0.45], [0.64, 0.8, 1.3]];
+export const DISTRICT_NEON = [[1, 0.42, 0.25], [0.17, 0.95, 0.85], [1, 0.8, 0.25], [0.45, 0.6, 1]];
+function makeGround(world) {
+  const N = 3072, s = N / (HALF * 2), P = (v) => (v + HALF) * s;
+  const poiOf = new Map((world.pois || []).map((p) => [p.sector, p.type]));
   const [c, g] = canvas(N, N);
   g.fillStyle = '#3b3e44'; g.fillRect(0, 0, N, N);
   grain(g, N, N, 90000, 0.09);
@@ -421,28 +425,38 @@ function makeGround() {
   g.strokeStyle = 'rgba(20,20,22,0.55)'; g.lineWidth = 1;
   for (let i = 0; i < 420; i++) { let x = Math.random() * N, y = Math.random() * N; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (Math.random() - 0.5) * 14; y += (Math.random() - 0.5) * 14; g.lineTo(x, y); } g.stroke(); } // Risse
   for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) for (let lx = 0; lx < 2; lx++) for (let lz = 0; lz < 2; lz++) {
-    const x0 = -HALF + sx * SECTOR + (lx ? 27 : 4), z0 = -HALF + sz * SECTOR + (lz ? 27 : 4);
-    g.fillStyle = '#a19d96'; g.fillRect(P(x0 - 1.4), P(z0 - 1.4), 21.8 * s, 21.8 * s);   // Bordstein/Gehweg
-    g.fillStyle = '#8f8b84'; g.fillRect(P(x0), P(z0), 19 * s, 19 * s);                  // Platz
+    const x0 = -HALF + sx * SECTOR + LOT_OFF[lx], z0 = -HALF + sz * SECTOR + LOT_OFF[lz];
+    const poi = poiOf.get(sz * NS + sx);
+    g.fillStyle = '#a19d96'; g.fillRect(P(x0 - 1.6), P(z0 - 1.6), (LOT + 3.2) * s, (LOT + 3.2) * s);   // Bordstein/Gehweg
+    if (poi === 'park') { g.fillStyle = '#4c6a37'; g.fillRect(P(x0), P(z0), LOT * s, LOT * s); grain(g, 0, 0, 0, 0); for (let k = 0; k < 220; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '90,120,60' : '50,75,38'},0.5)`; g.fillRect(P(x0 + Math.random() * LOT), P(z0 + Math.random() * LOT), 3, 3); } continue; }
+    if (poi === 'baustelle') { g.fillStyle = '#7a6650'; g.fillRect(P(x0), P(z0), LOT * s, LOT * s); for (let k = 0; k < 160; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '110,92,70' : '84,70,54'},0.6)`; g.fillRect(P(x0 + Math.random() * LOT), P(z0 + Math.random() * LOT), 5, 4); } continue; }
+    if (poi === 'hafen') { g.fillStyle = '#56585c'; g.fillRect(P(x0), P(z0), LOT * s, LOT * s); g.fillStyle = '#d9b23a'; for (let k = 0; k < LOT; k += 5.9) g.fillRect(P(x0), P(z0 + k + 0.1), LOT * s, 0.18 * s); continue; }
+    g.fillStyle = poi === 'platz' ? '#a39c90' : '#8f8b84'; g.fillRect(P(x0), P(z0), LOT * s, LOT * s);   // Platz
     g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 1;
-    for (let k = 0; k <= 19; k += 1.5) { g.beginPath(); g.moveTo(P(x0 + k), P(z0)); g.lineTo(P(x0 + k), P(z0 + 19)); g.stroke(); g.beginPath(); g.moveTo(P(x0), P(z0 + k)); g.lineTo(P(x0 + 19), P(z0 + k)); g.stroke(); }
+    for (let k = 0; k <= LOT; k += 1.5) { g.beginPath(); g.moveTo(P(x0 + k), P(z0)); g.lineTo(P(x0 + k), P(z0 + LOT)); g.stroke(); g.beginPath(); g.moveTo(P(x0), P(z0 + k)); g.lineTo(P(x0 + LOT), P(z0 + k)); g.stroke(); }
   }
-  // Mittellinien und Zebrastreifen auf den breiten Straßen
-  g.fillStyle = '#e9e6dc';
+  // Hauptstraßen: doppelte Mittellinie, gestrichelte Fahrstreifen, Zebrastreifen; Gassen: einfache Mittellinie
+  const near = (t, w) => { const m = ((t + HALF) % SECTOR + SECTOR) % SECTOR; return m < w || m > SECTOR - w; };
   for (let i = 1; i < NS; i++) {
     const L = -HALF + i * SECTOR;
-    for (let t = -HALF; t < HALF; t += 6) {
-      const near = Math.abs(((t + 3 + HALF) % SECTOR) - 0) < 7 || Math.abs(((t + 3 + HALF) % SECTOR) - SECTOR) < 7;
-      if (near) continue;
-      g.fillRect(P(L - 0.12), P(t), 0.24 * s, 3 * s);
-      g.fillRect(P(t), P(L - 0.12), 3 * s, 0.24 * s);
+    for (let t = -HALF; t < HALF; t += 1) {
+      if (near(t, ROAD + 3.2)) continue;
+      g.fillStyle = '#e2c46a';
+      for (const o of [-0.3, 0.12]) { g.fillRect(P(L + o), P(t), 0.18 * s, 1.05 * s); g.fillRect(P(t), P(L + o), 1.05 * s, 0.18 * s); }
+      if (((t % 6) + 6) % 6 < 3) { g.fillStyle = '#e9e6dc'; for (const o of [-4.6, 4.4]) { g.fillRect(P(L + o), P(t), 0.2 * s, 1.05 * s); g.fillRect(P(t), P(L + o), 1.05 * s, 0.2 * s); } }
     }
   }
+  g.fillStyle = 'rgba(233,230,220,0.75)';
+  for (let i = 0; i < NS; i++) {
+    const L = -HALF + i * SECTOR + SECTOR / 2;
+    for (let t = -HALF; t < HALF; t += 5) { if (near(t, ROAD + 2)) continue; g.fillRect(P(L - 0.1), P(t), 0.2 * s, 2.4 * s); g.fillRect(P(t), P(L - 0.1), 2.4 * s, 0.2 * s); }
+  }
+  g.fillStyle = '#e9e6dc';
   for (let i = 1; i < NS; i++) for (let j = 1; j < NS; j++) {
     const X = -HALF + i * SECTOR, Z = -HALF + j * SECTOR;
-    for (let k = -3.4; k <= 3; k += 1.1) {
-      g.fillRect(P(X + k), P(Z - 6.5), 0.6 * s, 2.2 * s); g.fillRect(P(X + k), P(Z + 4.3), 0.6 * s, 2.2 * s);
-      g.fillRect(P(X - 6.5), P(Z + k), 2.2 * s, 0.6 * s); g.fillRect(P(X + 4.3), P(Z + k), 2.2 * s, 0.6 * s);
+    for (let k = -ROAD + 0.8; k <= ROAD - 1.2; k += 1.15) {
+      g.fillRect(P(X + k), P(Z - ROAD - 3), 0.65 * s, 2.6 * s); g.fillRect(P(X + k), P(Z + ROAD + 0.4), 0.65 * s, 2.6 * s);
+      g.fillRect(P(X - ROAD - 3), P(Z + k), 2.6 * s, 0.65 * s); g.fillRect(P(X + ROAD + 0.4), P(Z + k), 2.6 * s, 0.65 * s);
     }
   }
   const t = tex(c, false);
@@ -513,6 +527,21 @@ class Geo {
 
 // ---------------------------------------------------------------- Materialien (einmal, für alle Runden)
 let M = null;
+/** Boden einer Welt: Straßenplan als Textur, Foto-Asphalt als Detail */
+function groundMaterial(world) {
+  const t = makeGround(world);
+  const det = photoTex('asphalt_02', 'diff');
+  const mat = new THREE.MeshStandardMaterial({ map: t, normalMap: photoTex('asphalt_02', 'nor', 112) || t.userData.nrm, normalScale: new THREE.Vector2(0.7, 0.7), roughnessMap: photoTex('asphalt_02', 'rough', 112), roughness: 1 });
+  if (det) {
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.detailMap = { value: det };
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n  vec3 det = texture2D(detailMap, vMapUv * 112.0).rgb;\n  diffuseColor.rgb *= det * 2.1;');
+    };
+    mat.customProgramCacheKey = () => 'ground-detail';
+  }
+  return envMat(mat, 0.3);
+}
 function materials() {
   if (M) return M;
   const fac = [0, 1, 2, 3].map(makeFacade);
@@ -531,21 +560,10 @@ function materials() {
     signs: new THREE.MeshStandardMaterial({ map: makeSigns(), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 1, roughness: 0.5 }),
     barrier: new THREE.MeshStandardMaterial({ map: makeBarrier(), normalMap: photoTex('rough_concrete', 'nor', 1), roughness: 0.85 }),
     pavers: new THREE.MeshStandardMaterial({ map: photoTex('concrete_pavers_02', 'diff'), normalMap: photoTex('concrete_pavers_02', 'nor'), roughnessMap: photoTex('concrete_pavers_02', 'rough'), roughness: 1, color: 0xd8d6d0 }),
-    ground: (() => {
-      const t = makeGround();
-      const det = photoTex('asphalt_02', 'diff');
-      const mat = new THREE.MeshStandardMaterial({ map: t, normalMap: photoTex('asphalt_02', 'nor', 80) || t.userData.nrm, normalScale: new THREE.Vector2(0.7, 0.7), roughnessMap: photoTex('asphalt_02', 'rough', 80), roughness: 1 });
-      if (det) { // Foto-Asphalt als Detail (alle 5 m) unter Markierungen und Rissen
-        mat.onBeforeCompile = (sh) => {
-          sh.uniforms.detailMap = { value: det };
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;')
-            .replace('#include <map_fragment>', '#include <map_fragment>\n  vec3 det = texture2D(detailMap, vMapUv * 80.0).rgb;\n  diffuseColor.rgb *= det * 2.1;');
-        };
-        mat.customProgramCacheKey = () => 'ground-detail';
-      }
-      return mat;
-    })(),
+    ground: null, // je Welt, siehe groundMaterial()
     outer: new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 1 }),
+    cont: std({ map: photoTex('worn_corrugated_iron', 'diff', 1), normalMap: photoTex('worn_corrugated_iron', 'nor', 1), roughness: 0.7, metalness: 0.35 }),
+    hedge: std({ color: 0x9ec27a, roughness: 1, map: photoTex('gravel_concrete', 'diff', 1) }),
     lampPole: new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.5, metalness: 0.6 }),
     lampHead: new THREE.MeshBasicMaterial({ color: 0xfff1c8, toneMapped: false }),
     trunk: new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 1 }),
@@ -554,7 +572,7 @@ function materials() {
   };
   M.signs.emissiveMap = M.signs.map;
   M.facade.forEach((f, i) => envMat(f, i === 0 ? 1.6 : 1.1));
-  envMat(M.carPaint, 1.2); if (M.pavers.map) envMat(M.pavers, 0.3); envMat(M.carGlass, 1.6); envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.ground, 0.3); envMat(M.lampPole, 0.9);
+  envMat(M.carPaint, 1.2); if (M.pavers.map) envMat(M.pavers, 0.3); envMat(M.carGlass, 1.6); envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.lampPole, 0.9);
   // Zerfallene Sektoren: rot getönte Kopien
   M.decayed = {};
   for (const k of ['roof', 'trim', 'prop']) { M.decayed[k] = M[k].clone(); M.decayed[k].color.set(0xff5a6a); M.decayed[k].emissive = new THREE.Color(0x400008); }
@@ -594,13 +612,17 @@ export function buildCity(world, root, tod) {
   const P = TODS[tod] || TODS.tag;
   const R = mulberry(world.seed ^ 0x5bd1e995);
   // Boden
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), m.ground);
+  if (buildCity.ground) { buildCity.ground.map?.dispose(); buildCity.ground.dispose(); }
+  const groundMat = buildCity.ground = groundMaterial(world);
+  const poiOf = new Map((world.pois || []).map((p) => [p.sector, p.type]));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
   root.add(ground);
   if (m.pavers.map) {
     const pv = new Geo();
     for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) for (let lx = 0; lx < 2; lx++) for (let lz = 0; lz < 2; lz++) {
-      const x0 = -HALF + sx * SECTOR + (lx ? 27 : 4) - 1.4, z0 = -HALF + sz * SECTOR + (lz ? 27 : 4) - 1.4, x1 = x0 + 21.8, z1 = z0 + 21.8, y = 0.012, k = 1 / 3;
+      if (['park', 'baustelle', 'hafen'].includes(poiOf.get(sz * NS + sx))) continue;
+      const x0 = -HALF + sx * SECTOR + LOT_OFF[lx] - 1.6, z0 = -HALF + sz * SECTOR + LOT_OFF[lz] - 1.6, x1 = x0 + LOT + 3.2, z1 = z0 + LOT + 3.2, y = 0.012, k = 1 / 3;
       pv.plane([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [[x0 * k, -z1 * k], [x1 * k, -z1 * k], [x1 * k, -z0 * k], [x0 * k, -z0 * k]]);
     }
     const pm = new THREE.Mesh(pv.build(), m.pavers);
@@ -616,7 +638,7 @@ export function buildCity(world, root, tod) {
 
   // Sektoren: je Material ein Baukasten
   const sectors = [];
-  for (let i = 0; i < NS * NS; i++) sectors.push({ geos: { f0: new Geo(), f1: new Geo(), f2: new Geo(), f3: new Geo(), roof: new Geo(), trim: new Geo(), prop: new Geo(), neon: new Geo(), signs: new Geo(), beacon: new Geo() }, meshes: [], decayed: false });
+  for (let i = 0; i < NS * NS; i++) sectors.push({ geos: { f0: new Geo(), f1: new Geo(), f2: new Geo(), f3: new Geo(), roof: new Geo(), trim: new Geo(), prop: new Geo(), neon: new Geo(), signs: new Geo(), beacon: new Geo(), cont: new Geo(), hedge: new Geo() }, meshes: [], decayed: false });
   const crates = new Geo();
   const cars = { paint: new Geo(), glass: new Geo(), tire: new Geo(), light: new Geo() };
   const PAINT = [[0.11, 0.12, 0.13], [0.85, 0.85, 0.86], [0.54, 0.56, 0.59], [0.23, 0.29, 0.36], [0.42, 0.12, 0.12], [0.18, 0.23, 0.18], [0.35, 0.31, 0.28], [0.24, 0.25, 0.27]];
@@ -628,7 +650,9 @@ export function buildCity(world, root, tod) {
     if (b.kind === 'building') {
       const style = b.style ?? 1;
       const tints = TINTS[style];
-      const col = tints[Math.floor((b.tint ?? R()) * tints.length)];
+      const base = tints[Math.floor((b.tint ?? R()) * tints.length)];
+      const dc = DISTRICT_COLORS[b.district ?? 0], mixK = style === 0 ? 0.55 : 1;
+      const col = base.map((v, k) => v * (1 + (dc[k] - 1) * mixK));
       S['f' + style].box(x0, x1, y0, y1, z0, z1, { col, top: false });
       S.roof.box(x0, x1, y1 - 0.01, y1, z0, z1, { col: [1, 1, 1], sx: 8, sy: 8 });
       // Gesimse alle 4 Stockwerke (außer bei Glastürmen), außen vor der Fassade
@@ -639,7 +663,7 @@ export function buildCity(world, root, tod) {
       S.trim.box(x0 - t, x1 + t, y1, y1 + ph, z1, z1 + t, { col: [0.85, 0.85, 0.85] });
       S.trim.box(x0 - t, x0, y1, y1 + ph, z0, z1, { col: [0.85, 0.85, 0.85] });
       S.trim.box(x1, x1 + t, y1, y1 + ph, z0, z1, { col: [0.85, 0.85, 0.85] });
-      const nc = NEON[Math.floor(R() * NEON.length)];
+      const nc = R() < 0.65 ? DISTRICT_NEON[b.district ?? 0] : NEON[Math.floor(R() * NEON.length)];
       if (R() < 0.7) {
         S.neon.box(x0 - t - 0.02, x1 + t + 0.02, y1 + ph - 0.08, y1 + ph, z0 - t - 0.02, z0 - t, { col: nc, top: false });
         S.neon.box(x0 - t - 0.02, x1 + t + 0.02, y1 + ph - 0.08, y1 + ph, z1 + t, z1 + t + 0.02, { col: nc, top: false });
@@ -686,6 +710,29 @@ export function buildCity(world, root, tod) {
           else S.signs.plane([cx + sw / 2, ys, zz], [cx - sw / 2, ys, zz], [cx - sw / 2, ys + sh, zz], [cx + sw / 2, ys + sh, zz], [0, 0, -1], uvs);
         }
       }
+    } else if (b.kind === 'container') {
+      const CP = [[0.62, 0.2, 0.14], [0.16, 0.32, 0.55], [0.2, 0.45, 0.28], [0.85, 0.45, 0.12], [0.78, 0.78, 0.74], [0.75, 0.62, 0.15]];
+      S.cont.box(x0, x1, y0, y1, z0, z1, { col: CP[(b.paint ?? 0) % CP.length], sx: 2.6, sy: 2.6, topScale: 3 });
+      S.prop.box(x0 - 0.04, x0 + 0.15, y0, y1, z0 - 0.04, z1 + 0.04, { col: [0.25, 0.26, 0.27] }); // Türende
+    } else if (b.kind === 'steel') {
+      S.prop.box(x0, x1, y0, y1, z0, z1, { col: [0.95, 0.68, 0.08] });
+    } else if (b.kind === 'hedge') {
+      S.hedge.box(x0, x1, y0, y1, z0, z1, { col: [0.36, 0.52, 0.26], sx: 2, sy: 2, topScale: 2 });
+    } else if (b.kind === 'planter') {
+      S.trim.box(x0, x1, y0, y1, z0, z1, { col: [0.82, 0.8, 0.76], top: false });
+      S.hedge.box(x0 + 0.15, x1 - 0.15, y1 - 0.05, y1 + 0.35, z0 + 0.15, z1 - 0.15, { col: [0.4, 0.58, 0.28], sx: 2, sy: 2, topScale: 2 });
+    } else if (b.kind === 'kiosk' || b.kind === 'stall') {
+      const dc = DISTRICT_NEON[districtOf(Math.floor(b.sector % NS), Math.floor(b.sector / NS))];
+      S.prop.box(x0, x1, y0, y1, z0, z1, { col: b.kind === 'kiosk' ? [0.86, 0.86, 0.84] : [0.55, 0.42, 0.3] });
+      if (b.kind === 'kiosk') S.neon.box(x0 - 0.05, x1 + 0.05, y1 - 0.35, y1 - 0.2, z0 - 0.05, z1 + 0.05, { col: dc, top: false });
+    } else if (b.kind === 'monument') {
+      S.trim.box(x0, x1, y0, y1, z0, z1, { col: [0.95, 0.93, 0.88], sx: 3, sy: 3 });
+      S.beacon.box(x0 - 0.05, x1 + 0.05, y1 - 0.6, y1, z0 - 0.05, z1 + 0.05, { col: [1, 0.75, 0.3] });
+    } else if (b.kind === 'hall') {
+      const dc = DISTRICT_COLORS[districtOf(b.sector % NS, Math.floor(b.sector / NS))];
+      S.f3.box(x0, x1, y0, y1, z0, z1, { col: dc.map((v) => v * 0.85), top: true, sx: 6, sy: 9 });
+    } else if (b.kind === 'slab' || b.kind === 'block') {
+      S.trim.box(x0, x1, y0, y1, z0, z1, { col: b.kind === 'slab' ? [0.78, 0.77, 0.74] : [0.7, 0.69, 0.66], sx: 4, sy: 4, topScale: 4, bottom: b.kind === 'slab' });
     } else if (b.kind === 'roof') { // Treppenhaus auf dem Dach
       S.f1.box(x0, x1, y0, y1, z0, z1, { col: [0.82, 0.82, 0.86], top: false, sx: 4, sy: 3.5 });
       S.roof.box(x0 - 0.15, x1 + 0.15, y1, y1 + 0.15, z0 - 0.15, z1 + 0.15, {});
@@ -704,8 +751,8 @@ export function buildCity(world, root, tod) {
       }
     }
   }
-  const matFor = { f0: m.facade[0], f1: m.facade[1], f2: m.facade[2], f3: m.facade[3], roof: m.roof, trim: m.trim, prop: m.prop, neon: m.neon, signs: m.signs, beacon: m.beacon };
-  const decayFor = { f0: m.decayed.facade[0], f1: m.decayed.facade[1], f2: m.decayed.facade[2], f3: m.decayed.facade[3], roof: m.decayed.roof, trim: m.decayed.trim, prop: m.decayed.prop };
+  const matFor = { f0: m.facade[0], f1: m.facade[1], f2: m.facade[2], f3: m.facade[3], roof: m.roof, trim: m.trim, prop: m.prop, neon: m.neon, signs: m.signs, beacon: m.beacon, cont: m.cont, hedge: m.hedge };
+  const decayFor = { f0: m.decayed.facade[0], f1: m.decayed.facade[1], f2: m.decayed.facade[2], f3: m.decayed.facade[3], roof: m.decayed.roof, trim: m.decayed.trim, prop: m.decayed.prop, cont: m.decayed.prop, hedge: m.decayed.trim };
   for (const s of sectors) {
     const group = new THREE.Group();
     for (const [k, g] of Object.entries(s.geos)) {
@@ -734,9 +781,11 @@ export function buildCity(world, root, tod) {
   const occupied = (x, z, pad) => world.boxes.some((b) => b.kind !== 'crate' && x > b.mn[0] - pad && x < b.mx[0] + pad && z > b.mn[2] - pad && z < b.mx[2] + pad);
   const lamps = [], trees = [];
   for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) for (let lx = 0; lx < 2; lx++) for (let lz = 0; lz < 2; lz++) {
-    const x0 = -HALF + sx * SECTOR + (lx ? 27 : 4), z0 = -HALF + sz * SECTOR + (lz ? 27 : 4);
-    for (const [cx, cz] of [[x0 - 0.7, z0 - 0.7], [x0 + 19.7, z0 + 19.7]]) if (!occupied(cx, cz, 0.6)) lamps.push([cx, cz]);
-    for (const [cx, cz] of [[x0 + 9.5, z0 - 0.6], [x0 - 0.6, z0 + 9.5], [x0 + 19.6, z0 + 9.5], [x0 + 9.5, z0 + 19.6]]) if (R() < 0.55 && !occupied(cx, cz, 1.2)) trees.push([cx, cz]);
+    const x0 = -HALF + sx * SECTOR + LOT_OFF[lx], z0 = -HALF + sz * SECTOR + LOT_OFF[lz];
+    const poi = poiOf.get(sz * NS + sx);
+    for (const [cx, cz] of [[x0 - 0.8, z0 - 0.8], [x0 + LOT + 0.8, z0 + LOT + 0.8], [x0 + LOT / 2, z0 - 0.8]]) if (!occupied(cx, cz, 0.6)) lamps.push([cx, cz]);
+    for (const [cx, cz] of [[x0 + 6, z0 - 0.7], [x0 + LOT - 6, z0 - 0.7], [x0 - 0.7, z0 + LOT / 2], [x0 + LOT + 0.7, z0 + LOT / 2], [x0 + LOT / 2, z0 + LOT + 0.7]]) if (R() < 0.55 && !occupied(cx, cz, 1.2)) trees.push([cx, cz]);
+    if (poi === 'park' || poi === 'platz') for (let k = 0; k < (poi === 'park' ? 14 : 4); k++) { const cx = x0 + 1.5 + R() * (LOT - 3), cz = z0 + 1.5 + R() * (LOT - 3); if (!occupied(cx, cz, 1.4)) trees.push([cx, cz]); }
   }
   const dummy = new THREE.Object3D();
   const inst = (geo, mat, list, place, shadow = true) => {
@@ -747,12 +796,12 @@ export function buildCity(world, root, tod) {
     return im;
   };
   inst(new THREE.CylinderGeometry(0.07, 0.1, 6, 6).translate(0, 3, 0), m.lampPole, lamps, (d, [x, z]) => { d.position.set(x, 0, z); d.scale.set(1, 1, 1); d.rotation.set(0, 0, 0); });
-  inst(new THREE.BoxGeometry(1.2, 0.08, 0.12).translate(0.55, 6, 0), m.lampPole, lamps, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, Math.atan2(-(Math.round(z / 25) * 25 - z), Math.round(x / 25) * 25 - x), 0); });
-  const heads = inst(new THREE.BoxGeometry(0.5, 0.12, 0.3).translate(1.05, 5.92, 0), m.lampHead, lamps, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, Math.atan2(-(Math.round(z / 25) * 25 - z), Math.round(x / 25) * 25 - x), 0); }, false);
+  inst(new THREE.BoxGeometry(1.2, 0.08, 0.12).translate(0.55, 6, 0), m.lampPole, lamps, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, Math.atan2(-(Math.round(z / NODE) * NODE - z), Math.round(x / NODE) * NODE - x), 0); });
+  const heads = inst(new THREE.BoxGeometry(0.5, 0.12, 0.3).translate(1.05, 5.92, 0), m.lampHead, lamps, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, Math.atan2(-(Math.round(z / NODE) * NODE - z), Math.round(x / NODE) * NODE - x), 0); }, false);
   // Lichtkegel der Laternen als weiche Leuchtflächen am Boden (bei Nacht)
   const pools = inst(new THREE.PlaneGeometry(7, 7).rotateX(-Math.PI / 2).translate(0, 0.03, 0),
     new THREE.MeshBasicMaterial({ map: m.lampGlow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5, toneMapped: false }), lamps,
-    (d, [x, z]) => { const a = Math.atan2(-(Math.round(z / 25) * 25 - z), Math.round(x / 25) * 25 - x); d.rotation.set(0, 0, 0); d.position.set(x + Math.cos(a) * 1.05, 0, z - Math.sin(a) * 1.05); }, false);
+    (d, [x, z]) => { const a = Math.atan2(-(Math.round(z / NODE) * NODE - z), Math.round(x / NODE) * NODE - x); d.rotation.set(0, 0, 0); d.position.set(x + Math.cos(a) * 1.05, 0, z - Math.sin(a) * 1.05); }, false);
   inst(new THREE.CylinderGeometry(0.12, 0.18, 2.6, 6).translate(0, 1.3, 0), m.trunk, trees, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); });
   const crowns = inst(new THREE.IcosahedronGeometry(1.6, 3).translate(0, 3.6, 0), m.crown, trees, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, R() * 6, 0); const s = 0.8 + R() * 0.45; d.scale.set(s, s * 1.1, s); });
   const crowns2 = inst(new THREE.IcosahedronGeometry(1.1, 3).translate(0, 4.9, 0), m.crown, trees, (d, [x, z]) => { d.position.set(x + (R() - 0.5) * 0.6, 0, z + (R() - 0.5) * 0.6); d.rotation.set(0, R() * 6, 0); const s = 0.75 + R() * 0.4; d.scale.set(s, s, s); });
@@ -767,7 +816,7 @@ export function buildCity(world, root, tod) {
   // Skyline am Horizont (unerreichbar, nur Kulisse)
   const sky = [];
   for (let i = 0; i < 160; i++) {
-    const a = R() * Math.PI * 2, r = 330 + R() * 260;
+    const a = R() * Math.PI * 2, r = HALF * 1.65 + R() * 300;
     sky.push([Math.cos(a) * r, Math.sin(a) * r, 15 + Math.pow(R(), 1.8) * 130, 12 + R() * 22]);
   }
   const skyline = inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ map: makeFacade(1).map, emissive: 0xffffff, emissiveMap: makeFacade(0).emi, emissiveIntensity: 0, roughness: 0.9 }), sky,
@@ -926,9 +975,20 @@ export function makeWeapon(id, accent = 0x2cf3ff) {
 // ---------------------------------------------------------------- Figuren: Soldat in realistischer Ausrüstung (eigener Entwurf)
 /** Kampfanzug, Plattenträger, Gefechtshelm mit Nachtsichthalterung, Sturmhaube und Schutzbrille.
  *  Teamzugehörigkeit: farbige Armbinde und ein kleines Blinklicht am Helm. Gliedmaßen an Gelenken für die Animation. */
-export function makeCharacter(teamCol, accent) {
+/** Randlicht (Fresnel): Kanten der Figur leuchten in einer Farbe – macht Gegner vor jedem Hintergrund sichtbar */
+export function addRim(mat, color, strength = 1) {
+  const rc = new THREE.Color(color);
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.rimCol = { value: rc.multiplyScalar(strength) };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 rimCol;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  float rimF = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 2.6);\n  totalEmissiveRadiance += rimCol * rimF;');
+  };
+  mat.customProgramCacheKey = () => 'rim';
+  return mat;
+}
+export function makeCharacter(teamCol, accent, rim = null) {
   const g = new THREE.Group();
-  const std = (color, rough, metal = 0, env = 0.3) => envMat(new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, transparent: true }), env);
+  const std = (color, rough, metal = 0, env = 0.3) => { const m0 = envMat(new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, transparent: true }), env); return rim ? addRim(m0, rim, 0.9) : m0; };
   const uniform = std(0x59604c, 0.92), pants = std(0x4e5444, 0.92), carrier = std(0x4d5141, 0.85), pouch = std(0x454838, 0.88);
   const helmet = std(0x50553f, 0.6, 0.05, 0.5), dark = std(0x1d1e1f, 0.8), boot = std(0x2c2621, 0.75), glove = std(0x232323, 0.8);
   const lens = std(0x0b0c0d, 0.08, 0.9, 1.5);
