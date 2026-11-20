@@ -81,6 +81,9 @@ export function mulberry32(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+/** Tageszeit einer Runde – aus dem Seed, damit online alle dieselbe sehen */
+export const TIMES_OF_DAY = ['tag', 'abend', 'nacht'];
+export const timeOfDay = (seed) => TIMES_OF_DAY[Math.abs(seed | 0) % 3];
 export const sectorOf = (x, z) => {
   const sx = clamp(Math.floor((x + HALF) / SECTOR), 0, NS - 1);
   const sz = clamp(Math.floor((z + HALF) / SECTOR), 0, NS - 1);
@@ -123,7 +126,8 @@ export function generateWorld(seed) {
         const bx = n === 1 ? lotX + r(0, LOT - w) : lotX + (k ? LOT - w : 0);
         const bz = lotZ + r(0, LOT - d);
         const h = 4 + Math.pow(R(), 1.6) * (22 + 26 * Math.max(0, centrality));
-        add(bx, bx + w, 0, h, bz, bz + d, 'building', pk(edgeColors));
+        const bb = add(bx, bx + w, 0, h, bz, bz + d, 'building', pk(edgeColors));
+        bb.style = h > 30 && R() < 0.6 ? 0 : Math.floor(R() * 4); bb.tint = R();
         if (w > 10 && d > 10 && R() < 0.5) {
           const cx = bx + r(2, w - 6), cz = bz + r(2, d - 6);
           add(cx, cx + 4, h, h + r(1.2, 3.5), cz, cz + 4, 'roof', 0x2cf3ff);
@@ -197,6 +201,31 @@ export function generateWorld(seed) {
     if (blocked) continue;
     ziplines.push({ id: ziplines.length, p0: pa, p1: pb, a: A, b: B, ha: A.mx[1], hb: B.mx[1], len, n });
   }
+  // Dachaufbauten (Klimageräte, Wassertanks, Lüfter) als echte Deckung.
+  // Nicht in der Dachmitte (Ziel der Sprungfelder, Seilbahnmasten) und nicht unter Seilen.
+  const PROPS = { ac: [2.2, 1.3, 1.6], tank: [2.2, 2.4, 2.2], vent: [1.1, 0.9, 1.1] };
+  for (const b of buildings) {
+    const w = b.mx[0] - b.mn[0], d = b.mx[2] - b.mn[2];
+    if (w < 9 || d < 9) continue;
+    const n = Math.floor(R() * 3.2);
+    const cx = (b.mn[0] + b.mx[0]) / 2, cz = (b.mn[2] + b.mx[2]) / 2;
+    for (let k = 0; k < n; k++) {
+      const type = ['ac', 'ac', 'vent', 'tank'][Math.floor(R() * 4)];
+      const [pw, ph, pd] = PROPS[type];
+      const px = b.mn[0] + 0.8 + R() * (w - pw - 1.6), pz = b.mn[2] + 0.8 + R() * (d - pd - 1.6);
+      const mx = px + pw / 2, mz = pz + pd / 2;
+      if (Math.hypot(mx - cx, mz - cz) < 4) continue;
+      const box2 = { mn: [px, b.mx[1], pz], mx: [px + pw, b.mx[1] + ph, pz + pd] };
+      if (boxes.some((q) => q !== b && q.mn[0] < box2.mx[0] + 0.5 && q.mx[0] > box2.mn[0] - 0.5 && q.mn[2] < box2.mx[2] + 0.5 && q.mx[2] > box2.mn[2] - 0.5 && q.mx[1] > box2.mn[1] && q.mn[1] < box2.mx[1])) continue;
+      const underCable = ziplines.some((zl) => {
+        const t = clamp(((mx - zl.p0[0]) * zl.n[0] + (mz - zl.p0[2]) * zl.n[2]) / (zl.len * Math.hypot(zl.n[0], zl.n[2]) ** 2 || 1), 0, 1);
+        return Math.hypot(mx - (zl.p0[0] + (zl.p1[0] - zl.p0[0]) * t), mz - (zl.p0[2] + (zl.p1[2] - zl.p0[2]) * t)) < 3;
+      });
+      if (underCable) continue;
+      const pb = add(px, px + pw, b.mx[1], b.mx[1] + ph, pz, pz + pd, 'prop', 0);
+      pb.prop = type;
+    }
+  }
   // Aufwind-Säulen an den breiten Straßen (neben den Laufwegen der Bots)
   const updrafts = [];
   for (let i = 0; i < NS * NS; i++) {
@@ -219,7 +248,7 @@ export function applyDissolve(world, decayAt, time) {
     if (decayAt[i] < 0) continue;
     for (const b of world.bySector[i]) {
       if (b.gone) continue;
-      const d = time - decayAt[i] - b.off;
+      const d = time - decayAt[i];
       if (d < 1.5) { b.flicker = d >= 0; continue; }
       b.flicker = false;
       const f = clamp(1 - (d - 1.5) / 5, 0, 1);
@@ -1361,7 +1390,7 @@ export class Sim {
   // ------------------------------------------------ Netz: Startpaket & Snapshots
   startPacket(forId) {
     return {
-      t: 'start', seed: this.seed, mode: this.modeId, you: forId, teamCount: this.teamCount,
+      t: 'start', seed: this.seed, tod: timeOfDay(this.seed), mode: this.modeId, you: forId, teamCount: this.teamCount,
       ents: this.entities.map((e) => ({ id: e.id, name: e.name, team: e.team, bot: e.isBot, diff: e.diff })),
       loot: this.loot.map(lootArr),
     };

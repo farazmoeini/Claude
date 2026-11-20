@@ -1,6 +1,8 @@
 # Zerfallzone
 
-![Zerfallzone im Spiel](docs/zerfallzone.png)
+| Mittag | Abend | Nacht |
+|---|---|---|
+| ![Mittag](docs/mittag.png) | ![Abend](docs/abend.png) | ![Nacht](docs/nacht.png) |
 
 Ein eigener, vertikaler Arena-Battle-Royale: Solo, Duos oder Trios in einer prozedural
 erzeugten Neon-Stadt, die dynamisch Sektor für Sektor zerfällt. Spielbar **offline gegen
@@ -85,9 +87,17 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 
 ## Grafik
 
-Abendhimmel mit Farbverlauf und Sternen, eigene Dachflächen, Figuren mit Rüstung und
-leuchtenden Teamfarben, detaillierte Waffenmodelle je Waffe und ein Leuchteffekt (Bloom)
-für die Neonstadt. Den Leuchteffekt kann man im Hauptmenü für schwächere Rechner abschalten.
+Eigener Stil, komplett prozedural erzeugt (`public/visuals.js`). Die Kollision kommt
+unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
+
+- **Tageszeit je Runde:** Mittag, Abend oder Nacht, abhängig vom Seed der Runde, damit online alle dieselbe sehen. Jede Tageszeit hat eigenes Licht, eigenen Himmel (Wolken, Sonnenscheibe, Abendrot, Sterne und Mond), eigenen Nebel, eigene Belichtung und Leuchtstärke.
+- **Licht:** Sonne bzw. Mond mit Schattenwurf rund um den Spieler, filmisches Tonemapping (ACES), Leuchteffekt für Fenster, Werbung und Laternen.
+- **Architektur:** vier Fassadenarten mit Farbvarianten (Glastürme, Bürobauten mit Fensterbändern, Wohnhäuser mit Balkonen, Industriehallen aus Wellblech), Gesimse, Sockel, Dachbrüstungen mit Leuchtstreifen, Werbetafeln mit erfundenen Namen, Treppenhäuser. Fenster leuchten am Abend und in der Nacht.
+- **Dachaufbauten:** Klimageräte, Wassertanks und Lüfter. Sie haben Kollision und dienen als Deckung.
+- **Straßen:** Asphalt, Gehwege, gepflasterte Plätze, Mittellinien, Zebrastreifen, Straßenlaternen mit Lichtkegeln, Bäume, Betonsperren und eine Skyline am Horizont.
+- **Figuren:** gepanzerte Läufer mit Lauf- und Sprungbewegung, Teamfarbe auf Schultern, Helm und Leuchtstreifen.
+- **Effekte:** Mündungsfeuer mit Lichtblitz, Staub an Einschlägen, Rauch und Kamerawackeln bei Explosionen, aufsteigende Splitter über zerfallenden Sektoren, Waffenschwung beim Umsehen.
+- **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Unter **Grafikqualität: niedrig** sind Schatten und Leuchteffekt aus.
 
 ## Sprachen
 
