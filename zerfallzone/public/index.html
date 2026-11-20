@@ -11,6 +11,7 @@
 </head>
 <body>
 <div id="hud" class="hidden">
+  <div id="fps" class="hidden"></div>
   <canvas id="minimap" width="200" height="200"></canvas>
   <div id="teamPanel"></div>
   <div id="phase"><div id="phaseTitle">Landung</div><div id="phaseTimer"></div></div>
@@ -148,6 +149,18 @@
   </div>
 </div>
 
+<!-- Grafikeinstellungen -->
+<div id="settings" class="screen hidden">
+  <div class="panel">
+    <h2 data-i18n="gfx.title"></h2>
+    <h3 data-i18n="gfx.preset"></h3>
+    <div class="chips" id="setPresets"></div>
+    <div id="setRows"></div>
+    <p class="muted" id="setNote"></p>
+    <div class="row"><button class="big" id="setBack" data-i18n="gfx.back"></button></div>
+  </div>
+</div>
+
 <!-- Pause / Ergebnis -->
 <div id="overlay" class="screen hidden">
   <div class="panel small">
@@ -155,6 +168,7 @@
     <p id="ovText"></p>
     <div class="row">
       <button class="big" id="ovResume"></button>
+      <button class="big alt" id="ovGfx" data-i18n="gfx.open"></button>
       <button class="big alt" id="ovQuit"></button>
     </div>
   </div>

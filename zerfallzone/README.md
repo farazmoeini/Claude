@@ -23,7 +23,7 @@ bis zu 40 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusamm
 npm run assets -- 4k     # oder 2k, oder 2k 4k
 ```
 
-Danach im Hauptmenü **Grafikqualität: Ultra (4k)** wählen.
+Danach im Hauptmenü unter **Grafik** die Voreinstellung **Ultra** (oder Texturqualität 4K) wählen.
 
 ### PC-App herunterladen
 
@@ -123,9 +123,15 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 - **Zerfall als Markenzeichen:** Zerfallene Sektoren tragen ein wanderndes digitales Glitch-Muster in Rot und Cyan.
 - **Oberfläche:** schlicht und erwachsen: gedeckte Farben, dünne Schrift, kaum Kästen, nur Bernstein als Akzent für Warnungen. Vitalkern unten links (feiner Lebensring, vier Rüstungszellen, Zahl in der Mitte), Munition groß und dünn unten rechts, Fähigkeiten mit feiner Ladelinie, Fadenkreuz aus Punkt und vier feinen Linien.
 - **Kampf-Rückmeldung:** leuchtende Geschossspuren, schwebende Schadenszahlen (Kopftreffer gelb), Treffer-Kreuz, Splitter und Klang beim Rüstungsbruch (bei Gegnern räumlich), Banner bei eigenen Kills.
-- **Grafikqualität (Hauptmenü):** *Niedrig* (1k-Texturen, ohne Schatten und Effekte), *Hoch* (2k-Texturen), *Ultra* (4k-Texturen, 4096er-Schattenkarte, volle Bildschirmauflösung, maximale anisotrope Filterung). 1k liegt im Repository; 2k und 4k lädt `npm run assets -- 2k 4k` von Poly Haven (rund 310 MB, jede Datei per Prüfsumme geprüft). Der GitHub-Build der PC-App lädt sie automatisch mit. Fehlt eine Auflösung, nimmt das Spiel die nächstkleinere.
+- **Grafikeinstellungen** (Hauptmenü → *Grafik*, im Spiel über das Pausenmenü), komplett mit Controller bedienbar (↑/↓ wählen, ←/→ ändern, B zurück):
+  - Voreinstellungen *Niedrig / Mittel / Hoch / Ultra*; jede Änderung einer Einzeloption macht daraus *Benutzerdefiniert*.
+  - Anzeige: Auflösungsskalierung (50–200 %), Sichtfeld 60–110°, Helligkeit, Bildratenbegrenzung (30–240 FPS oder unbegrenzt), FPS-Anzeige, Vollbild.
+  - Qualität: Texturqualität 1K/2K/4K*, Schatten (Aus/Niedrig/Mittel/Hoch = 1024/2048/4096er-Karte), Kantenglättung (Aus, MSAA 2×/4×/8×), Umgebungsverdeckung, Leuchteffekte, Farbabstimmung, anisotrope Filterung 1–16×*, Sichtweite, Effektqualität (Rauch, Splitter, Hülsen).
+  - Komfort: Kamerawackeln an/aus.
+  - Alles wirkt sofort, außer den mit * markierten Optionen (laden beim Verlassen des Menüs neu). 1k-Texturen liegen im Repository; 2k und 4k lädt `npm run assets -- 2k 4k` von Poly Haven (rund 310 MB, jede Datei per Prüfsumme geprüft). Der GitHub-Build der PC-App lädt sie automatisch mit. Fehlt eine Auflösung, nimmt das Spiel die nächstkleinere.
+  - Bildschirmfoto: `docs/grafik.png`.
 - **Glänzende Scheiben:** Fassaden haben eine eigene Rauheits- und Metallkarte. Fensterscheiben spiegeln Himmel und Stadt, Wände bleiben matt.
-- **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Unter **Grafikqualität: niedrig** sind Schatten und Leuchteffekt aus.
+- **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Mit der Voreinstellung *Niedrig* sind Schatten, Umgebungsverdeckung und Leuchteffekte aus und die Auflösung auf 75 % skaliert.
 
 ## Sprachen
 

@@ -190,3 +190,15 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 1px 
 .langs button:hover, .langs button.suggested { border-color: var(--fg); }
 .langrow { margin-top: 0; } .langrow .chips { margin-bottom: 0; }
 .langrow > .muted { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+/* Grafikmenü */
+#setRows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
+#setRows h3 { grid-column: 1 / -1; margin-top: 20px; }
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: #c9c9c4; }
+.cyc { background: transparent; border: 1px solid var(--line2); color: var(--fg); min-width: 150px; padding: 6px 10px; cursor: pointer; font-size: 13px;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+.cyc i { font-style: normal; color: var(--muted); }
+.cyc:hover { border-color: var(--fg); }
+#setPresets button:disabled { cursor: default; }
+@media (max-width: 760px) { #setRows { grid-template-columns: 1fr; } }
+#fps { position: absolute; top: 200px; left: 18px; font-size: 11px; color: var(--muted); letter-spacing: 1px; }

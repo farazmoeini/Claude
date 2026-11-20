@@ -161,9 +161,9 @@ export function createEnvironment(scene, renderer) {
     phys.visible = envPhys.visible = !!P.phys;
     hemi.color.set(P.hemiSky); hemi.groundColor.set(P.hemiGround); hemi.intensity = P.hemiInt;
     sun.color.set(P.sunCol); sun.intensity = P.sunInt;
-    scene.fog.color.set(P.fog); scene.fog.density = P.fogDensity;
+    scene.fog.color.set(P.fog); scene.fog.density = P.fogDensity / (env.drawScale || 1);
     scene.background = new THREE.Color(P.fog);
-    renderer.toneMappingExposure = P.exposure;
+    renderer.toneMappingExposure = P.exposure * (env.brightScale || 1);
     // Himmel als Umgebungslicht und für Spiegelungen auf Glas, Metall und Waffen
     if (envRT) envRT.dispose();
     envRT = pmrem.fromScene(envScene, 0, 1, 1000);
@@ -181,6 +181,8 @@ export function createEnvironment(scene, renderer) {
     sun.target.position.set(tx, 0, tz);
     sun.position.set(tx + d.x * 350, d.y * 350, tz + d.z * 350);
   };
+  env.setDrawDistance = (k) => { env.drawScale = k; if (env.preset) scene.fog.density = env.preset.fogDensity / k; };
+  env.setBrightness = (k) => { env.brightScale = k; if (env.preset) renderer.toneMappingExposure = env.preset.exposure * k; };
   env.setShadows = (on) => { renderer.shadowMap.enabled = on; sun.castShadow = on; };
   env.setShadowSize = (n) => { if (sun.shadow.mapSize.x === n) return; sun.shadow.mapSize.set(n, n); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } };
   env.apply('tag');
@@ -1037,7 +1039,9 @@ export function createEffects(scene) {
       scene.add(s); list.push({ o: s, life: 0.05, max: 0.05, grow: 2 });
       if (withLight) { light.position.copy(pos); light.intensity = 25 * scale; lightT = 0.06; }
     },
+    quality: 1,
     smoke(pos, n = 6, size = 2, color = 0xb8b8c0, rise = 1.5) {
+      if (fx.quality === 0) { if (Math.random() < 0.5) return; n = Math.ceil(n / 3); }
       for (let i = 0; i < n; i++) {
         const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex('smoke'), color, depthWrite: false, transparent: true, opacity: 0.7 }));
         s.position.set(pos.x + (Math.random() - 0.5) * size * 0.6, pos.y + (Math.random() - 0.5) * size * 0.4, pos.z + (Math.random() - 0.5) * size * 0.6);
@@ -1047,6 +1051,7 @@ export function createEffects(scene) {
       }
     },
     shards(pos, color, n = 1) {
+      if (fx.quality === 0) { if (Math.random() < 0.6) return; n = 1; }
       for (let i = 0; i < n; i++) {
         const m = new THREE.Mesh(partGeo('shard', () => new THREE.BoxGeometry(0.25, 0.25, 0.25)), new THREE.MeshBasicMaterial({ color, transparent: true, toneMapped: false }));
         m.position.set(pos.x, pos.y, pos.z);
@@ -1057,6 +1062,7 @@ export function createEffects(scene) {
     },
     /** Patronenhülse, die aus dem Auswurffenster fliegt */
     casing(pos, vel) {
+      if (fx.quality === 0) return;
       const m = new THREE.Mesh(partGeo('casing', () => new THREE.CylinderGeometry(0.006, 0.006, 0.028, 6).rotateZ(Math.PI / 2)), wmat('brass', () => new THREE.MeshStandardMaterial({ color: 0xc9a54a, metalness: 0.9, roughness: 0.3 })));
       m.position.copy(pos);
       scene.add(m);

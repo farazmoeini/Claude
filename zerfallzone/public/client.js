@@ -14,12 +14,30 @@ import {
 import { LANGS, translate, guessLang } from './shared/i18n.js';
 import { MODELS, loadModelPack, makeModelCharacter, animateModelCharacter, makeModelWeapon } from './models.js';
 loadModelPack();
-// Grafikqualität: 0 = niedrig (1k, keine Schatten/Effekte), 1 = hoch (2k), 2 = ultra (4k, schärfere Schatten, volle Auflösung)
-let quality = (() => { try { const q = JSON.parse(localStorage.getItem('zz-quality')); if (q === 0 || q === 1 || q === 2) return q; const fx = JSON.parse(localStorage.getItem('zz-fx')); return fx === false ? 0 : 1; } catch { return 1; } })();
+// ---------------------------------------------------------------- Grafikeinstellungen
+// Voreinstellungen wie in anderen PC-Spielen; jede einzelne Option lässt sich danach anpassen (= Benutzerdefiniert)
+const GFX_PRESETS = {
+  niedrig: { scale: 0.75, tex: '1k', shadows: 0, aa: 0, ao: false, bloom: false, grade: false, aniso: 4, draw: 0.7, effects: 0 },
+  mittel: { scale: 1, tex: '1k', shadows: 1, aa: 2, ao: false, bloom: true, grade: true, aniso: 8, draw: 0.85, effects: 1 },
+  hoch: { scale: 1, tex: '2k', shadows: 2, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1, effects: 1 },
+  ultra: { scale: 1.25, tex: '4k', shadows: 3, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1.3, effects: 1 },
+};
+const GFX_FREE = { fov: 78, brightness: 1, fpsCap: 0, showFps: false, shake: true };
+const gfx = (() => {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('zz-gfx')); } catch { /* ohne Speicher */ }
+  if (saved && saved.preset) return { ...GFX_FREE, ...GFX_PRESETS.hoch, ...saved };
+  // Übernahme der alten Einstellung „Grafikqualität“
+  let q = 1;
+  try { const old = JSON.parse(localStorage.getItem('zz-quality')); if (old === 0 || old === 1 || old === 2) q = old; } catch { /* egal */ }
+  const preset = ['niedrig', 'hoch', 'ultra'][q];
+  return { preset, ...GFX_FREE, ...GFX_PRESETS[preset] };
+})();
+const saveGfx = () => { try { localStorage.setItem('zz-gfx', JSON.stringify(gfx)); } catch { /* ohne Speicher */ } };
 const TEX_RES = ['1k', '2k', '4k'];
-/** Höchste vorhandene Texturauflösung bis zur gewünschten Stufe (2k/4k liegen nur nach `npm run assets` vor) */
+/** Höchste vorhandene Texturauflösung bis zur gewählten (2k/4k liegen nur nach `npm run assets` vor) */
 const photoReady = fetch('api/assets').then((r) => r.json()).catch(() => ({ textures: ['1k'] }))
-  .then((a) => { const want = TEX_RES.indexOf(TEX_RES[quality]); let res = '1k'; for (const r of a.textures || []) if (TEX_RES.indexOf(r) <= want && TEX_RES.indexOf(r) > TEX_RES.indexOf(res)) res = r; return loadPhotoTextures(res); });
+  .then((a) => { const want = TEX_RES.indexOf(gfx.tex); let res = '1k'; for (const r of a.textures || []) if (TEX_RES.indexOf(r) <= want && TEX_RES.indexOf(r) > TEX_RES.indexOf(res)) res = r; return loadPhotoTextures(res); });
 /** Rundenstart wartet auf Modelle, Foto-Texturen und Umgebungslichter (jeweils mit Zeitlimit) */
 const assetsReady = () => Promise.race([Promise.all([MODELS.promise, photoReady, env.hdrPromise]), new Promise((r) => setTimeout(r, 30000))]);
 import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime, loadPhotoTextures, PHOTO, setMaxAnisotropy } from './visuals.js';
@@ -61,6 +79,7 @@ function setLang(k) {
   applyI18n();
   if (typeof refreshMenu === 'function') refreshMenu();
   if (typeof renderFxBtn === 'function') renderFxBtn();
+  if (typeof renderSettings === 'function' && !$('settings').classList.contains('hidden')) renderSettings();
   if (lobby) onLobby(lobby);
 }
 const hex = (c) => '#' + c.toString(16).padStart(6, '0');
@@ -69,7 +88,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 // ---------------------------------------------------------------- Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, (() => { try { return JSON.parse(localStorage.getItem('zz-quality')) === 2 ? 2 : 1.5; } catch { return 1.5; } })()));
+renderer.setPixelRatio(clamp(devicePixelRatio * gfx.scale, 0.5, 2.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.domElement.id = 'game';
 document.body.prepend(renderer.domElement);
@@ -95,10 +114,28 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = new ShaderPass(GradeShader);
 composer.addPass(grade);
-let fxOn = quality > 0;
-env.setShadows(fxOn);
-env.setShadowSize(quality === 2 ? 4096 : 2048);
-setMaxAnisotropy(renderer.capabilities.getMaxAnisotropy());
+let fxOn = true;
+let usePipeline = true;
+const SHADOW_SIZES = [0, 1024, 2048, 4096];
+setMaxAnisotropy(Math.min(gfx.aniso, renderer.capabilities.getMaxAnisotropy()));
+/** Wendet alle Grafikeinstellungen an, die ohne Neustart wirken */
+function applyGfx() {
+  const pr = clamp(devicePixelRatio * gfx.scale, 0.5, 2.5);
+  renderer.setPixelRatio(pr);
+  composer.setPixelRatio(pr);
+  composer.setSize(innerWidth, innerHeight);
+  env.setShadows(gfx.shadows > 0);
+  if (gfx.shadows > 0) env.setShadowSize(SHADOW_SIZES[gfx.shadows]);
+  gtao.enabled = gfx.ao; bloom.enabled = gfx.bloom; grade.enabled = gfx.grade;
+  for (const rt of [composer.renderTarget1, composer.renderTarget2]) if (rt.samples !== gfx.aa) { rt.samples = gfx.aa; rt.dispose(); }
+  usePipeline = gfx.ao || gfx.bloom || gfx.grade || gfx.aa > 0;
+  camera.far = 2600 * gfx.draw; camera.updateProjectionMatrix();
+  env.setDrawDistance(gfx.draw);
+  env.setBrightness(gfx.brightness);
+  effects.quality = gfx.effects;
+  fxOn = gfx.effects > 0;
+  $('fps').classList.toggle('hidden', !gfx.showFps);
+}
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -303,14 +340,8 @@ $('nameInput').addEventListener('change', () => store.set('name', $('nameInput')
 $('sensInput').value = sens;
 $('volInput').value = volume;
 $('volInput').addEventListener('input', () => { initAudio(); setVolume(+$('volInput').value); tone(660, 660, 0.05, 0.1); });
-const renderFxBtn = () => { $('fxBtn').textContent = t('menu.q' + quality); $('fxBtn').classList.toggle('on', quality > 0); };
-$('fxBtn').addEventListener('click', () => {
-  quality = (quality + 1) % 3;
-  store.set('quality', quality);
-  // Texturauflösung und Bildschärfe brauchen einen Neustart der Grafik
-  if (!game) { location.reload(); return; }
-  fxOn = quality > 0; env.setShadows(fxOn); env.setShadowSize(quality === 2 ? 4096 : 2048); renderFxBtn();
-});
+const renderFxBtn = () => { $('fxBtn').textContent = (gfx.preset === 'custom' ? t('gfx.custom') : t('gfx.p.' + gfx.preset)) + '  ›'; };
+$('fxBtn').addEventListener('click', () => openSettings());
 renderFxBtn();
 $('sensInput').addEventListener('input', () => { sens = +$('sensInput').value; store.set('sens', sens); });
 const defaultServer = location.protocol.startsWith('http') ? location.host : 'localhost:7777';
@@ -320,7 +351,7 @@ refreshMenu();
 const playerName = () => ($('nameInput').value.trim() || t('menu.namePh')).slice(0, 16);
 
 function showScreen(id) {
-  for (const s of ['menu', 'lobby', 'overlay', 'langPick']) $(s).classList.toggle('hidden', s !== id);
+  for (const s of ['menu', 'lobby', 'overlay', 'langPick', 'settings']) $(s).classList.toggle('hidden', s !== id);
   $('hud').classList.toggle('hidden', id === 'menu' || id === 'lobby' || !game);
 }
 
@@ -1173,11 +1204,18 @@ function rumble(weak, strong, ms) {
 }
 /** Steuerung der Menüs mit dem Controller: Steuerkreuz/Stick bewegt den Fokus, A klickt, B geht zurück */
 function padMenus(P) {
-  const screen = ['overlay', 'lobby', 'menu'].map($).find((el) => !el.classList.contains('hidden'));
+  const screen = ['settings', 'overlay', 'lobby', 'menu'].map($).find((el) => !el.classList.contains('hidden'));
   if (!screen) return;
   const items = [...screen.querySelectorAll('button:not(:disabled), input, summary')].filter((el) => el.offsetParent !== null && !el.closest('.readonly'));
   if (!items.length) return;
   let i = items.indexOf(document.activeElement);
+  // Grafikmenü: links/rechts ändert den Wert der gewählten Option, B geht zurück
+  const cur = items[i];
+  if (screen.id === 'settings') {
+    if (P.edge(BTN.B)) { $('setBack').click(); return; }
+    const h = P.edge(BTN.RIGHT) || (pad.navCd <= 0 && P.lx > 0.6) ? 1 : P.edge(BTN.LEFT) || (pad.navCd <= 0 && P.lx < -0.6) ? -1 : 0;
+    if (h && cur && cur.classList.contains('cyc') && cur.dataset.k) { pad.navCd = 0.22; cur.dispatchEvent(new MouseEvent('click', { shiftKey: h < 0 })); return; }
+  }
   const dir = P.edge(BTN.DOWN) || P.edge(BTN.RIGHT) || (pad.navCd <= 0 && (P.ly > 0.6 || P.lx > 0.6)) ? 1
     : P.edge(BTN.UP) || P.edge(BTN.LEFT) || (pad.navCd <= 0 && (P.ly < -0.6 || P.lx < -0.6)) ? -1 : 0;
   if (dir) { pad.navCd = 0.22; i = i < 0 ? 0 : (i + dir + items.length) % items.length; items[i].focus(); }
@@ -1492,12 +1530,17 @@ function ensurePreview() {
 function hidePreview() { if (preview && preview.root.parent) scene.remove(preview.root); }
 let lastFrame = performance.now();
 let pingTimer = 0;
+let lastRender = 0, fpsFrames = 0, fpsT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  if (gfx.fpsCap && now - lastRender < 1000 / gfx.fpsCap - 1) return; // Bildratenbegrenzung
+  lastRender = now;
+  fpsFrames++;
+  if (now - fpsT > 500) { if (gfx.showFps) $('fps').textContent = `${Math.round(fpsFrames * 1000 / (now - fpsT))} FPS`; fpsFrames = 0; fpsT = now; }
   const dt = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
   const P = readPad(dt);
-  const menuOpen = ['menu', 'lobby', 'overlay'].some((id) => !$(id).classList.contains('hidden'));
+  const menuOpen = ['menu', 'lobby', 'overlay', 'settings'].some((id) => !$(id).classList.contains('hidden'));
   if (P && game && P.edge(BTN.START)) {
     if (!$('overlay').classList.contains('hidden')) { if (!game.over && !game.eliminatedPlace) $('ovResume').click(); }
     else {
@@ -1534,7 +1577,7 @@ function frame(now) {
   setVisualTime(now / 1000);
   if (game && game.city) game.city.tick(now / 1000);
   env.follow(camera.position, now / 1000);
-  if (fxOn) composer.render(); else renderer.render(scene, camera);
+  if (usePipeline) composer.render(); else renderer.render(scene, camera);
 }
 let wind = null;
 function updateWind(speed) {
@@ -1569,7 +1612,7 @@ function updateCamera(dt) {
   G.landDip = Math.max(0, G.landDip - dt * 1.6);
   const dip = Math.sin(Math.min(1, G.landDip / 0.45) * Math.PI) * G.landDip;
   G.shake = Math.max(0, G.shake - dt * 2.5);
-  const sk = G.shake * G.shake * 0.35;
+  const sk = gfx.shake ? G.shake * G.shake * 0.35 : 0;
   camera.position.set(P.pos.x + G.camOffset.x + (Math.random() - 0.5) * sk, P.pos.y + eye - dip + G.camOffset.y + (Math.random() - 0.5) * sk, P.pos.z + G.camOffset.z + (Math.random() - 0.5) * sk);
   // beim Wandlauf von der Wand weg neigen
   let rollTarget = 0;
@@ -1584,7 +1627,7 @@ function updateCamera(dt) {
   const zoomed = aiming && w && WEAPONS[w[0]].zoom;
   const sprint = (keys.ShiftLeft && keys.KeyW || G.padSprint) && !aiming;
   const hspeed = Math.hypot(P.vel.x, P.vel.z);
-  const target = zoomed ? 28 : aiming ? 62 : 78 + clamp((hspeed - 8.5) * 0.9, 0, 16);
+  const target = zoomed ? 28 : aiming ? gfx.fov * 0.8 : gfx.fov + clamp((hspeed - 8.5) * 0.9, 0, 16);
   camera.fov += (target - camera.fov) * Math.min(1, 12 * dt);
   camera.updateProjectionMatrix();
   G.recoil = Math.max(0, G.recoil - dt * 8);
@@ -1605,6 +1648,91 @@ function updateCamera(dt) {
   }
 }
 requestAnimationFrame(frame);
+
+// ---------------------------------------------------------------- Grafikmenü
+const onoff = (v) => t(v ? 'gq.on' : 'gq.off');
+const pct = (v) => `${Math.round(v * 100)} %`;
+const GFX_ROWS = [
+  { group: 'gfx.g.display' },
+  { k: 'scale', vals: [0.5, 0.67, 0.75, 0.85, 1, 1.25, 1.5, 2], fmt: pct, preset: true },
+  { k: 'fov', vals: [60, 65, 70, 75, 78, 80, 85, 90, 95, 100, 105, 110], fmt: (v) => `${v}°` },
+  { k: 'brightness', vals: [0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5], fmt: pct },
+  { k: 'fpsCap', vals: [0, 30, 60, 75, 120, 144, 165, 240], fmt: (v) => (v ? `${v} FPS` : t('gq.unlimited')) },
+  { k: 'showFps', vals: [false, true], fmt: onoff },
+  { k: 'fullscreen', action: true },
+  { group: 'gfx.g.quality' },
+  { k: 'tex', vals: ['1k', '2k', '4k'], fmt: (v) => v.toUpperCase(), preset: true, restart: true },
+  { k: 'shadows', vals: [0, 1, 2, 3], fmt: (v) => t(['gq.off', 'gq.low', 'gq.mid', 'gq.high'][v]), preset: true },
+  { k: 'aa', vals: [0, 2, 4, 8], fmt: (v) => (v ? `MSAA ${v}×` : t('gq.off')), preset: true },
+  { k: 'ao', vals: [false, true], fmt: onoff, preset: true },
+  { k: 'bloom', vals: [false, true], fmt: onoff, preset: true },
+  { k: 'grade', vals: [false, true], fmt: onoff, preset: true },
+  { k: 'aniso', vals: [1, 2, 4, 8, 16], fmt: (v) => `${v}×`, preset: true, restart: true },
+  { k: 'draw', vals: [0.6, 0.7, 0.85, 1, 1.3, 1.6], fmt: pct, preset: true },
+  { k: 'effects', vals: [0, 1], fmt: (v) => t(v ? 'gq.high' : 'gq.low'), preset: true },
+  { group: 'gfx.g.comfort' },
+  { k: 'shake', vals: [true, false], fmt: onoff },
+];
+let settingsFrom = 'menu', gfxAtOpen = null;
+function openSettings() {
+  settingsFrom = ['overlay', 'menu', 'lobby'].find((id) => !$(id).classList.contains('hidden')) || (game ? 'overlay' : 'menu');
+  gfxAtOpen = { tex: gfx.tex, aniso: gfx.aniso };
+  renderSettings();
+  showScreen('settings');
+  if (game) $('hud').classList.remove('hidden');
+  $('setPresets').querySelector('button')?.focus();
+}
+function renderSettings() {
+  const pr = $('setPresets');
+  pr.innerHTML = '';
+  for (const p of [...Object.keys(GFX_PRESETS), 'custom']) {
+    const b = document.createElement('button');
+    b.textContent = p === 'custom' ? t('gfx.custom') : t('gfx.p.' + p);
+    b.classList.toggle('on', gfx.preset === p);
+    if (p === 'custom') b.disabled = true;
+    else b.onclick = () => { Object.assign(gfx, GFX_PRESETS[p]); gfx.preset = p; saveGfx(); applyGfx(); renderSettings(); renderFxBtn(); };
+    pr.appendChild(b);
+  }
+  const box = $('setRows');
+  box.innerHTML = '';
+  for (const row of GFX_ROWS) {
+    if (row.group) { const h = document.createElement('h3'); h.textContent = t(row.group); box.appendChild(h); continue; }
+    const r = document.createElement('div');
+    r.className = 'setrow';
+    const label = document.createElement('span');
+    label.textContent = t('gfx.' + row.k) + (row.restart ? ' *' : '');
+    const b = document.createElement('button');
+    b.className = 'cyc';
+    if (row.action) {
+      b.textContent = document.fullscreenElement ? t('gq.on') : t('gq.off');
+      b.onclick = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())?.then?.(() => renderSettings()).catch?.(() => {}); setTimeout(renderSettings, 300); };
+    } else {
+      b.innerHTML = `<i>‹</i>${esc(row.fmt(gfx[row.k]))}<i>›</i>`;
+      const step = (dir) => {
+        const i = row.vals.indexOf(gfx[row.k]);
+        gfx[row.k] = row.vals[((i < 0 ? 0 : i) + dir + row.vals.length) % row.vals.length];
+        if (row.preset) gfx.preset = 'custom';
+        saveGfx(); applyGfx(); renderSettings(); renderFxBtn();
+        $('setRows').querySelector(`[data-k="${row.k}"]`)?.focus();
+      };
+      b.onclick = (e) => step(e.shiftKey ? -1 : 1);
+      b.oncontextmenu = (e) => { e.preventDefault(); step(-1); };
+      b.dataset.k = row.k;
+    }
+    r.append(label, b);
+    box.appendChild(r);
+  }
+  const needRestart = gfxAtOpen && (gfxAtOpen.tex !== gfx.tex || gfxAtOpen.aniso !== gfx.aniso);
+  $('setNote').textContent = needRestart ? t('gfx.restart') : t('gfx.hint');
+}
+$('setBack').onclick = () => {
+  const needRestart = gfxAtOpen && (gfxAtOpen.tex !== gfx.tex || gfxAtOpen.aniso !== gfx.aniso);
+  if (needRestart && !game) { location.reload(); return; } // Texturen neu laden
+  showScreen(settingsFrom);
+  if (game) $('hud').classList.remove('hidden');
+};
+$('ovGfx').onclick = () => openSettings();
+applyGfx();
 
 // ---------------------------------------------------------------- Erster Start: Sprache wählen
 function showLangPick() {
