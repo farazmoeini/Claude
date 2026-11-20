@@ -74,6 +74,14 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 | Fallschaden | – | Gibt es nicht. Ein Sturz aus beliebiger Höhe kostet nichts (getestet aus 120 m) |
 | Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung, Seilbahn und Landung, Fahrtwind wird mit dem Tempo lauter |
 
+## Eigene 3D-Modelle
+
+Figuren und Waffen lassen sich durch fertige Modelle im GLB-Format ersetzen, zum Beispiel
+aus frei nutzbaren CC0-Paketen. Dafür legt man sie mit einer `manifest.json` in
+`public/models/` ab. Das Spiel spielt dann deren Animationen (Stehen, Gehen, Laufen,
+Springen), färbt sie in der Teamfarbe ein und hängt die Waffe an die Hand. Ohne Modelle
+werden die eingebauten Figuren verwendet. Anleitung: [`public/models/README.md`](public/models/README.md).
+
 ## Klang: Gegner am Gehör erkennen
 
 - **3D-Klang (HRTF):** Alle fremden Geräusche kommen hörbar aus ihrer Richtung und Entfernung: Schüsse, Schritte, Dash, Rutschen, Wandlauf, Landungen, Seilbahn, Nachladen, Fähigkeiten und Explosionen.
@@ -97,6 +105,11 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 - **Straßen:** Asphalt, Gehwege, gepflasterte Plätze, Mittellinien, Zebrastreifen, Straßenlaternen mit Lichtkegeln, Bäume, Betonsperren und eine Skyline am Horizont.
 - **Figuren:** gepanzerte Läufer mit Lauf- und Sprungbewegung, Teamfarbe auf Schultern, Helm und Leuchtstreifen.
 - **Effekte:** Mündungsfeuer mit Lichtblitz, Staub an Einschlägen, Rauch und Kamerawackeln bei Explosionen, aufsteigende Splitter über zerfallenden Sektoren, Waffenschwung beim Umsehen.
+- **Bildaufbereitung (hohe Qualität):** 4-fache Kantenglättung, Umgebungsverdeckung (GTAO) für Schatten in Ecken und Fugen, Himmelsreflexionen auf Glas, Metall und Waffen, Farbabstimmung und Vignette je Tageszeit.
+- **Lesbarkeit:** Figuren mit abgerundeter Panzerung und stilisierter Umrisslinie (Gegner dunkelrot, Team dunkelgrün), Kniegelenke, Oberkörperneigung und Rückstoß beim Schießen.
+- **Mehr Stadt-Details:** Lisenen an Bürobauten und Hallen, Balkone mit Geländern an Wohnhäusern, Antennen mit blinkenden Warnlichtern auf Türmen, Büsche und zweistufige Baumkronen.
+- **Zerfall als Markenzeichen:** Zerfallene Sektoren tragen ein wanderndes digitales Glitch-Muster in Rot und Cyan.
+- **Kampf-Rückmeldung:** leuchtende Geschossspuren, schwebende Schadenszahlen (Kopftreffer gelb), Treffer-Kreuz, Splitter und Klang beim Rüstungsbruch (bei Gegnern räumlich), Banner bei eigenen Kills.
 - **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Unter **Grafikqualität: niedrig** sind Schatten und Leuchteffekt aus.
 
 ## Sprachen

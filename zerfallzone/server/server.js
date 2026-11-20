@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const THREE_FILE = path.join(path.dirname(require.resolve('three')), 'three.module.js');
 const THREE_ADDONS = path.join(path.dirname(require.resolve('three')), '..', 'examples', 'jsm');
 const TICK = 1 / 30;
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
 
 function serveStatic(req, res) {
   const url = new URL(req.url, 'http://x');
@@ -30,6 +30,8 @@ function serveStatic(req, res) {
   file = path.resolve(file);
   if (!allowed.some((a) => file === a || file.startsWith(a + path.sep))) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
+    // optionales Modellpaket: ohne eigene Modelle eine leere Beschreibung liefern statt 404
+    if (err && url.pathname === '/models/manifest.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); return; }
     if (err) { res.writeHead(404); res.end('Nicht gefunden'); return; }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(data);

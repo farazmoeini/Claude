@@ -819,7 +819,7 @@ export class Sim {
           if (W.pellets > 1) dmg *= clamp(1.2 - res.t / W.range, 0.35, 1);
           if (res.hit.team !== shooter.team) {
             this.damage(res.hit, dmg, shooter);
-            this.emit({ k: 'hit', to: shooter.id, head: res.head });
+            this.emit({ k: 'hit', to: shooter.id, head: res.head, a: Math.round(dmg), p: [r2(res.hit.pos.x), r2(res.hit.pos.y + 2.1), r2(res.hit.pos.z)] });
           }
         }
       }
@@ -863,7 +863,7 @@ export class Sim {
     t.hp = 0;
     const byEnemy = s && s !== t && s.team !== t.team;
     if (byEnemy && s.alive) { s.kills++; this.tryTeamRevive(s); }
-    this.emit({ k: 'kill', a: byEnemy ? s.name : null, at: byEnemy ? s.team : -1, b: t.name, bt: t.team });
+    this.emit({ k: 'kill', a: byEnemy ? s.name : null, at: byEnemy ? s.team : -1, ai: byEnemy ? s.id : null, b: t.name, bt: t.team, bi: t.id });
     for (const w of t.weapons) if (w) this.spawnLoot('weapon', w.id, w.level, t.pos.x + rand(-1, 1), t.pos.y, t.pos.z + rand(-1, 1));
     this.spawnLoot('health', null, 1, t.pos.x, t.pos.y, t.pos.z);
     t.weapons = [null, null]; t.cur = 0; t.cloak = 0; t.shieldT = 0; t.healLeft = 0; t.burstLeft = 0; t.reloading = 0;

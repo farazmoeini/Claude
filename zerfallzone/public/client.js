@@ -4,13 +4,17 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import {
   Sim, generateWorld, applyDissolve, movePlayer, rayWorld, nearZipline, aimDir, MOVE_FIELDS, MOVE_DEFAULTS, DASH_MAX, DASH_REGEN, sectorOf,
   WEAPONS, ABILITIES, DIFFS, DIFF_IDS, MODES, LEVEL_NAMES, EVENTS, TEAM_COLORS, BOT_LIMIT, CORE_TIME, WARN,
   HALF, SECTOR, NS, EYE, lvlMag, abilityCd, clamp,
 } from './shared/sim.js';
 import { LANGS, translate, guessLang } from './shared/i18n.js';
-import { createEnvironment, buildCity, makeCharacter, animateCharacter, createEffects, TODS } from './visuals.js';
+import { MODELS, loadModelPack, makeModelCharacter, animateModelCharacter, makeModelWeapon } from './models.js';
+loadModelPack();
+import { createEnvironment, buildCity, makeCharacter, animateCharacter, createEffects, TODS, GradeShader, setVisualTime } from './visuals.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -70,11 +74,19 @@ scene.add(camera);
 const env = createEnvironment(scene, renderer);
 const effects = createEffects(scene);
 // Leuchteffekte (Bloom) für die Neonstadt – abschaltbar für schwächere Rechner
-const composer = new EffectComposer(renderer);
+// Bildaufbereitung (nur bei hoher Grafikqualität): Kantenglättung (4× MSAA), Umgebungsverdeckung,
+// Leuchten, Tonemapping und eine Farbabstimmung je Tageszeit
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
+gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.4, thickness: 3, scale: 1.1, samples: 12 });
+gtao.blendIntensity = 0.85;
+composer.addPass(gtao);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.45, 0.8);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+const grade = new ShaderPass(GradeShader);
+composer.addPass(grade);
 let fxOn = store.get('fx', true);
 env.setShadows(fxOn);
 addEventListener('resize', () => {
@@ -208,9 +220,10 @@ const SND = {
   ab_bastion: [300, 300, 0.6, 0.15, 'square'], ab_enterhaken: [1500, 400, 0.2, 0.15, 'square'],
   zipon: [700, 1100, 0.15, 0.12, 'triangle'], zipoff: [900, 500, 0.12, 0.08, 'triangle'], hang: [300, 260, 0.1, 0.08, 'square'],
   updraft: [200, 500, 0.6, 0.06, 'sine'], slam: [200, 40, 0.4, 0.3, 'sawtooth'], hurt: [180, 90, 0.12, 0.18, 'square'],
+  shieldbreak: [2400, 600, 0.35, 0.2, 'triangle'],
 };
 // Bewegungen anderer Spieler: deutlich hörbar, mit Rauschanteil für bessere Ortung
-const MOVE_NOISE = { dash: [2200, 0.12, 0.3], slide: [800, 0.35, 0.25], walljump: [1200, 0.1, 0.25], wallrun: [600, 0.4, 0.2], land: [400, 0.15, 0.4], pad: [1500, 0.3, 0.2], dj: [1400, 0.08, 0.2], mantle: [900, 0.1, 0.2], reload: [3000, 0.08, 0.25] };
+const MOVE_NOISE = { shieldbreak: [5000, 0.3, 0.35], dash: [2200, 0.12, 0.3], slide: [800, 0.35, 0.25], walljump: [1200, 0.1, 0.25], wallrun: [600, 0.4, 0.2], land: [400, 0.15, 0.4], pad: [1500, 0.3, 0.2], dj: [1400, 0.08, 0.2], mantle: [900, 0.1, 0.2], reload: [3000, 0.08, 0.25] };
 function playSndTo(dest, s, v = 1) {
   const a = SND[s];
   if (a) osc(dest, { f0: a[0], f1: a[1], dur: a[2], vol: a[3] * v, type: a[4] });
@@ -463,6 +476,9 @@ function applyTodVisuals(tod) {
   env.apply(tod);
   const P = TODS[tod] || TODS.tag;
   bloom.strength = P.bloom[0]; bloom.radius = P.bloom[1]; bloom.threshold = P.bloom[2];
+  const g = P.grade, u = grade.uniforms;
+  u.lift.value.set(...g.lift); u.gamma.value.set(...g.gamma); u.gain.value.set(...g.gain);
+  u.saturation.value = g.sat; u.contrast.value = g.contrast; u.vignette.value = g.vignette;
 }
 function buildWorldMeshes(world, root, tod = 'tag') {
   applyTodVisuals(tod);
@@ -554,7 +570,7 @@ function createEntityMesh(meta) {
   const mate = meta.team === game.myTeam;
   const teamCol = mate ? 0x3dd68c : TEAM_COLORS[meta.team % TEAM_COLORS.length];
   const accent = mate ? 0x7dff6b : meta.bot ? DIFFS[meta.diff].color : 0xffffff;
-  const rig = makeCharacter(teamCol, accent);
+  const rig = MODELS.character ? makeModelCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410) : makeCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410);
   const g = rig.group;
   const outline = new THREE.Mesh(outlineGeo, new THREE.MeshBasicMaterial({ color: mate ? 0x7dff6b : 0xff3355, transparent: true, opacity: 0.45, depthTest: false }));
   outline.position.y = 0.95; outline.visible = false; outline.renderOrder = 10;
@@ -601,6 +617,14 @@ function updateViewModel(me) {
   game.viewModel = null;
   if (!w) return;
   const W = WEAPONS[w[0]];
+  const custom = makeModelWeapon(w[0]);
+  if (custom) {
+    custom.position.set(0.22, -0.2, -0.5);
+    custom.userData.z = custom.position.z; custom.userData.len = 0.6;
+    camera.add(custom);
+    game.viewModel = custom;
+    return;
+  }
   const vm = new THREE.Group();
   const len = W.len || (w[0] === 'funke' ? 0.5 : 0.7);
   const metal = new THREE.MeshStandardMaterial({ color: 0xd9dde6, metalness: 0.45, roughness: 0.32, emissive: 0x2a2f3a });
@@ -638,6 +662,20 @@ function onSnapshot(s) {
   G.last = s;
   // Ereignisse
   for (const f of s.fx) handleFx(f, s);
+  // Rüstung bricht: Splitter und Klang (bei Gegnern an ihrer Position, bei dir am Bildschirm)
+  G.armorPrev = G.armorPrev || new Map();
+  for (const e of s.ents) {
+    const prev = G.armorPrev.get(e[0]);
+    if (prev > 0 && e[6] === 0 && (e[7] & 1)) {
+      if (e[0] === G.you) { playSnd('shieldbreak'); flashScreen('#2c8bff'); rumble(0.6, 0.6, 200); }
+      else {
+        const p = new THREE.Vector3(e[1], e[2] + 1.3, e[3]);
+        for (let i = 0; i < 4; i++) effects.shards(p, 0x6fc3ff, 3);
+        if (actx) { const d = spatial(p, { gain: 1.2 }); if (d) playSndTo(d, 'shieldbreak', 1.5); }
+      }
+    }
+    G.armorPrev.set(e[0], e[6]);
+  }
   // Welt: Wände, Zerfall
   G.walls = s.walls.map((w) => ({ mn: [w[0], w[2], w[4]], mx: [w[1], w[3], w[5]], gone: false }));
   applyDissolve(G.world, G.decayAt, s.time);
@@ -687,6 +725,7 @@ function handleFx(f, s) {
         effects.flash(muzzle, f.w === 'hagel' || f.w === 'lanze' ? 1.3 : 0.8, fxOn);
       } else if (from.distanceTo(camera.position) < 150) effects.flash(new THREE.Vector3(...f.from), 1, fxOn && from.distanceTo(camera.position) < 40);
       if (mine) { rumble(0.25, f.w === 'hagel' || f.w === 'lanze' || f.w === 'moerser' ? 0.6 : 0.1, 60); G.recoil = 1; pitch = Math.min(1.5, pitch + (f.w === 'lanze' ? 0.03 : f.w === 'hagel' || f.w === 'moerser' ? 0.04 : f.w === 'dorn' ? 0.015 : 0.006)); }
+      if (!mine) { const ve = G.ents.get(f.id); if (ve && ve.rig) ve.rig.kick = 1; }
       if (mine) sfxShot(f.w, 1);
       else if (actx) {
         // fremder Schuss: räumlich, Teamkameraden leiser, Gegner reichen weiter
@@ -705,7 +744,10 @@ function handleFx(f, s) {
       }
       break;
     }
-    case 'hit': hitmarker(f.head); break;
+    case 'hit':
+      hitmarker(f.head);
+      if (f.p) damageNumber(f.p, f.a, f.head);
+      break;
     case 'dmg':
       G.vignette = Math.min(1, G.vignette + f.a / 30); rumble(0.4, Math.min(1, f.a / 25), 140);
       playSnd('hurt');
@@ -730,6 +772,7 @@ function handleFx(f, s) {
       break;
     }
     case 'kill': {
+      if (f.ai === G.you) killBanner(f.b);
       const cls = f.at === G.myTeam ? 'me' : f.bt === G.myTeam ? 'team' : '';
       pushFeed(`${f.a ?? t('feed.decay')} ✕ ${f.b}`, cls);
       break;
@@ -793,6 +836,7 @@ $('ovQuit').onclick = () => {
   showScreen('menu');
 };
 function endGameView() {
+  $('dmgNums').innerHTML = '';
   if (wind) wind.g.gain.setTargetAtTime(0, actx.currentTime, 0.05);
   clearGameScene();
   game = null;
@@ -801,10 +845,16 @@ function endGameView() {
 }
 
 // ---------------------------------------------------------------- Effekte
+const tracerGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).rotateX(Math.PI / 2);
 function addTracer(from, to, color) {
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
-  game.root.add(line);
-  game.tracers.push({ line, life: 0.09 });
+  const len = from.distanceTo(to);
+  if (len < 0.1) return;
+  const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  m.position.copy(from).lerp(to, 0.5);
+  m.lookAt(to);
+  m.scale.set(0.03, 0.03, len);
+  game.root.add(m);
+  game.tracers.push({ beam: m, life: 0.12 });
 }
 const sparkGeo = new THREE.SphereGeometry(0.12, 6, 6);
 function addSpark(p, color) {
@@ -819,9 +869,10 @@ function updateFx(dt) {
     const t = G.tracers[i];
     t.life -= dt;
     if (t.line) t.line.material.opacity = Math.max(0, t.life / 0.09);
+    if (t.beam) { const k = Math.max(0, t.life / 0.12); t.beam.material.opacity = k; t.beam.scale.x = t.beam.scale.y = 0.012 + 0.03 * k; }
     if (t.spark) { t.spark.scale.setScalar(1 + (0.25 - t.life) * 8); t.spark.material.opacity = Math.max(0, t.life / 0.25); }
     if (t.life <= 0) {
-      const o = t.line || t.spark;
+      const o = t.line || t.spark || t.beam;
       G.root.remove(o); o.material.dispose(); if (t.line) o.geometry.dispose();
       G.tracers.splice(i, 1);
     }
@@ -852,6 +903,40 @@ function damageArrow(src) {
   el.style.transform = `rotate(${-rel}rad)`;
   $('dmgDir').appendChild(el);
   setTimeout(() => el.remove(), 1100);
+}
+// schwebende Schadenszahlen über getroffenen Gegnern
+function damageNumber(p, amount, head) {
+  const el = document.createElement('div');
+  el.className = 'dmgnum' + (head ? ' head' : '');
+  el.textContent = amount;
+  $('dmgNums').appendChild(el);
+  game.dmgNums = game.dmgNums || [];
+  game.dmgNums.push({ el, pos: new THREE.Vector3(p[0] + (Math.random() - 0.5) * 0.6, p[1], p[2] + (Math.random() - 0.5) * 0.6), life: 0.9 });
+}
+function updateDamageNumbers(dt) {
+  const list = game.dmgNums || [];
+  const v = new THREE.Vector3();
+  for (let i = list.length - 1; i >= 0; i--) {
+    const n = list[i];
+    n.life -= dt; n.pos.y += dt * 1.2;
+    v.copy(n.pos).project(camera);
+    const vis = v.z < 1 && n.life > 0;
+    n.el.style.display = vis ? '' : 'none';
+    n.el.style.transform = `translate(${(v.x * 0.5 + 0.5) * innerWidth}px, ${(-v.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -50%) scale(${0.8 + n.life * 0.4})`;
+    n.el.style.opacity = Math.min(1, n.life * 2.5);
+    if (n.life <= 0) { n.el.remove(); list.splice(i, 1); }
+  }
+}
+function killBanner(name) {
+  const el = $('killBanner');
+  el.innerHTML = `<span>✕</span> ${esc(name)}`;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  tone(880, 1320, 0.12, 0.15, 'triangle'); tone(1320, 1760, 0.18, 0.12, 'triangle');
+}
+function flashScreen(color) {
+  const el = $('flash');
+  el.style.background = color;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 function hitmarker(head) {
   const h = $('hitmarker');
@@ -1024,7 +1109,7 @@ function renderEntities() {
       const fdt = Math.max(0.001, G.frameDt || 0.016);
       const sp = Math.hypot(pos.x - prev.x, pos.z - prev.z) / fdt;
       const air = Math.abs(pos.y - prev.y) > 0.02 && pos.y > 0.05;
-      animateCharacter(v.rig, Math.min(sp, 25), air, fdt);
+      (v.rig.model ? animateModelCharacter : animateCharacter)(v.rig, Math.min(sp, 25), air, fdt);
       v.animPos = pos.clone();
     }
   }
@@ -1395,6 +1480,7 @@ function frame(now) {
       syncWorld(dt);
       renderEntities();
       updateFx(dt);
+      updateDamageNumbers(dt);
       updateCamera(dt);
       updateHud(dt);
     }
@@ -1406,6 +1492,8 @@ function frame(now) {
     camera.lookAt(0, 20, 0);
   }
   effects.update(dt);
+  setVisualTime(now / 1000);
+  if (game && game.city) game.city.tick(now / 1000);
   env.follow(camera.position, now / 1000);
   if (fxOn) composer.render(); else renderer.render(scene, camera);
 }
@@ -1505,7 +1593,7 @@ if (lang) showScreen('menu'); else showLangPick();
 // Für automatisierte Tests
 window.__zz = {
   get game() { return game; }, get conn() { return conn; }, get lobby() { return lobby; },
-  keys, pad, get lang() { return lang; },
+  keys, pad, get lang() { return lang; }, models: MODELS,
   playSeed: (seed, mode = 'solo') => { initAudio(); if (conn) conn.close(); conn = new LocalConn(onMessage); conn.start(mode, botConfig, playerName(), seed); },
   setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
 };

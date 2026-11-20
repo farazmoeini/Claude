@@ -1,24 +1,53 @@
 // Zerfallzone – Grafik: Tageszeiten, Himmel, Stadt-Architektur, Straßen, Figuren und Effekte.
 // Eigener Stil. Alles wird prozedural erzeugt; Kollisionen kommen unverändert aus shared/sim.js.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { HALF, SECTOR, NS } from './shared/sim.js';
+
+// ---------------------------------------------------------------- Farbabstimmung (letzter Bildschritt)
+export const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null }, lift: { value: new THREE.Vector3() }, gamma: { value: new THREE.Vector3(1, 1, 1) }, gain: { value: new THREE.Vector3(1, 1, 1) },
+    saturation: { value: 1 }, contrast: { value: 1 }, vignette: { value: 0.25 },
+  },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec3 lift; uniform vec3 gamma; uniform vec3 gain; uniform float saturation; uniform float contrast; uniform float vignette;
+    varying vec2 vUv;
+    void main(){
+      vec4 t = texture2D(tDiffuse, vUv); vec3 c = t.rgb;
+      c = c * gain + lift * (1.0 - c);
+      c = pow(max(c, 0.0), 1.0 / gamma);
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(l), c, saturation);
+      c = (c - 0.5) * contrast + 0.5;
+      float v = smoothstep(0.9, 0.3, distance(vUv, vec2(0.5)));
+      c *= mix(1.0 - vignette, 1.0, v);
+      gl_FragColor = vec4(clamp(c, 0.0, 1.0), t.a);
+    }`,
+};
+// gemeinsame Zeit für animierte Materialien (Zerfall-Glitch, Blinklichter)
+const TIME = { value: 0 };
+export function setVisualTime(t) { TIME.value = t; }
 
 // ---------------------------------------------------------------- Tageszeiten
 export const TODS = {
   tag: {
     sky: { top: 0x2c6cd0, hor: 0xcfe3f6, gnd: 0x8c96a2, sun: 0xfff1d0, clouds: 0.6, stars: 0, disc: 1.0 },
     sunDir: [0.45, 0.82, 0.35], sunCol: 0xfff1dc, sunInt: 2.9, hemiSky: 0xcfe4ff, hemiGround: 0x6b6155, hemiInt: 1.15,
-    fog: 0xc8dcef, fogNear: 150, fogFar: 640, exposure: 1.0, windows: 0.0, lamps: 0.15, neon: 0.35, signs: 0.55, bloom: [0.16, 0.35, 0.93],
+    fog: 0xc8dcef, fogNear: 150, fogFar: 640, exposure: 1.0, windows: 0.0, lamps: 0.15, neon: 0.35, signs: 0.55, bloom: [0.16, 0.35, 0.93], envInt: 0.55,
+    grade: { lift: [0, 0, 0.01], gamma: [1, 1, 1], gain: [1.03, 1.0, 0.97], sat: 1.2, contrast: 1.06, vignette: 0.22 },
   },
   abend: {
     sky: { top: 0x1f2f68, hor: 0xffa565, gnd: 0x5a4252, sun: 0xffb070, clouds: 0.5, stars: 0.15, disc: 1.4 },
     sunDir: [-0.78, 0.13, 0.35], sunCol: 0xff9f5a, sunInt: 2.5, hemiSky: 0xffb79e, hemiGround: 0x3b2c3a, hemiInt: 0.8,
-    fog: 0xd99078, fogNear: 100, fogFar: 520, exposure: 1.05, windows: 0.6, lamps: 0.7, neon: 0.85, signs: 1.1, bloom: [0.38, 0.45, 0.86],
+    fog: 0xd99078, fogNear: 100, fogFar: 520, exposure: 1.05, windows: 0.6, lamps: 0.7, neon: 0.85, signs: 1.1, bloom: [0.38, 0.45, 0.86], envInt: 0.5,
+    grade: { lift: [0.02, 0.0, 0.035], gamma: [1, 1.02, 1.04], gain: [1.07, 0.99, 0.92], sat: 1.12, contrast: 1.08, vignette: 0.32 },
   },
   nacht: {
     sky: { top: 0x02040c, hor: 0x1d2350, gnd: 0x07080f, sun: 0xb8ccff, clouds: 0.25, stars: 1, disc: 0.55 },
     sunDir: [0.32, 0.55, -0.5], sunCol: 0x9fb8ff, sunInt: 0.6, hemiSky: 0x4a5aa0, hemiGround: 0x15121f, hemiInt: 0.6,
-    fog: 0x12163a, fogNear: 70, fogFar: 380, exposure: 1.2, windows: 1.35, lamps: 1.0, neon: 1.0, signs: 1.7, bloom: [0.7, 0.5, 0.74],
+    fog: 0x12163a, fogNear: 70, fogFar: 380, exposure: 1.2, windows: 1.35, lamps: 1.0, neon: 1.0, signs: 1.7, bloom: [0.7, 0.5, 0.74], envInt: 0.4,
+    grade: { lift: [0.0, 0.006, 0.025], gamma: [1, 1, 1], gain: [0.96, 0.99, 1.08], sat: 1.22, contrast: 1.1, vignette: 0.4 },
   },
 };
 
@@ -72,6 +101,10 @@ export function createEnvironment(scene, renderer) {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
   scene.add(sun, sun.target);
   const env = { sky, hemi, sun, tod: null, preset: null };
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), sky.material));
+  let envRT = null;
   env.apply = (tod) => {
     const P = TODS[tod] || TODS.tag;
     env.tod = tod; env.preset = P;
@@ -83,6 +116,13 @@ export function createEnvironment(scene, renderer) {
     scene.fog.color.set(P.fog); scene.fog.near = P.fogNear; scene.fog.far = P.fogFar;
     scene.background = new THREE.Color(P.fog);
     renderer.toneMappingExposure = P.exposure;
+    // Himmel als Umgebungslicht und für Spiegelungen auf Glas, Metall und Waffen
+    if (envRT) envRT.dispose();
+    envRT = pmrem.fromScene(envScene, 0, 1, 1000);
+    scene.environment = envRT.texture;
+    ENV_INT.value = P.envInt;
+    for (const m of ENV_MATS) m.envMapIntensity = m.userData.envBase * P.envInt;
+    hemi.intensity = P.hemiInt * 0.7;
   };
   env.follow = (pos, t) => {
     uniforms.time.value = t;
@@ -113,6 +153,10 @@ function grain(g, w, h, amount, alpha = 0.06) {
     g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
   }
 }
+const ENV_INT = { value: 0.5 };
+const ENV_MATS = new Set();
+/** Material für Himmelsspiegelungen anmelden (Stärke je Material × Stärke der Tageszeit) */
+export function envMat(m, base) { m.userData.envBase = base; m.envMapIntensity = base * ENV_INT.value; ENV_MATS.add(m); return m; }
 const FW = 256, FH = 448; // ein Kachel-Ausschnitt = 8 m breit × 4 Stockwerke (14 m)
 const FLOOR = FH / 4;
 /** Fassade: Farb-Textur + Leuchtfenster für Abend und Nacht */
@@ -309,6 +353,7 @@ function materials() {
     trim: std({ color: 0xd8d4cc, roughness: 0.7 }),
     prop: std({ color: 0xffffff, roughness: 0.45, metalness: 0.5 }),
     neon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
+    beacon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     signs: new THREE.MeshStandardMaterial({ map: makeSigns(), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 1, roughness: 0.5 }),
     barrier: new THREE.MeshStandardMaterial({ map: makeBarrier(), roughness: 0.8 }),
     ground: new THREE.MeshStandardMaterial({ map: makeGround(), roughness: 0.95 }),
@@ -320,12 +365,31 @@ function materials() {
     skyline: new THREE.MeshStandardMaterial({ color: 0x8792a6, roughness: 0.9, emissive: 0xffffff, emissiveIntensity: 0 }),
   };
   M.signs.emissiveMap = M.signs.map;
+  M.facade.forEach((f, i) => envMat(f, i === 0 ? 1.6 : 0.5));
+  envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.ground, 0.3); envMat(M.lampPole, 0.9);
   // Zerfallene Sektoren: rot getönte Kopien
   M.decayed = {};
   for (const k of ['roof', 'trim', 'prop']) { M.decayed[k] = M[k].clone(); M.decayed[k].color.set(0xff5a6a); M.decayed[k].emissive = new THREE.Color(0x400008); }
   M.decayed.facade = M.facade.map((m) => { const d = m.clone(); d.color.set(0xff6070); d.emissive = new THREE.Color(0xff2040); d.emissiveIntensity = 0.25; d.emissiveMap = null; return d; });
+  // Zerfall als digitales Glitch-Muster: wandernde Leuchtbänder und Raster in Rot/Cyan
+  for (const d of [...M.decayed.facade, M.decayed.roof, M.decayed.trim, M.decayed.prop]) glitch(d);
   M.lampGlow = makeGlow('rgba(255,225,170,1)');
   return M;
+}
+
+function glitch(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = TIME;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime; varying vec3 vWP;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float band = step(0.9, fract(vWP.y * 0.35 - uTime * 0.9));
+        vec2 cell = floor(vec2(vWP.x + vWP.z, vWP.y) * 1.2);
+        float blink = step(0.93, fract(sin(dot(cell, vec2(12.9898, 78.233)) + floor(uTime * 6.0)) * 43758.5453));
+        totalEmissiveRadiance += vec3(1.0, 0.12, 0.25) * band * 1.6 + vec3(0.2, 0.95, 1.0) * blink * 1.2;`);
+  };
+  mat.customProgramCacheKey = () => 'glitch';
 }
 
 const TINTS = {
@@ -354,7 +418,7 @@ export function buildCity(world, root, tod) {
 
   // Sektoren: je Material ein Baukasten
   const sectors = [];
-  for (let i = 0; i < NS * NS; i++) sectors.push({ geos: { f0: new Geo(), f1: new Geo(), f2: new Geo(), f3: new Geo(), roof: new Geo(), trim: new Geo(), prop: new Geo(), neon: new Geo(), signs: new Geo() }, meshes: [], decayed: false });
+  for (let i = 0; i < NS * NS; i++) sectors.push({ geos: { f0: new Geo(), f1: new Geo(), f2: new Geo(), f3: new Geo(), roof: new Geo(), trim: new Geo(), prop: new Geo(), neon: new Geo(), signs: new Geo(), beacon: new Geo() }, meshes: [], decayed: false });
   const crates = new Geo();
   for (const b of world.boxes) {
     const [x0, y0, z0] = b.mn, [x1, y1, z1] = b.mx;
@@ -378,6 +442,35 @@ export function buildCity(world, root, tod) {
       if (R() < 0.7) {
         S.neon.box(x0 - t - 0.02, x1 + t + 0.02, y1 + ph - 0.08, y1 + ph, z0 - t - 0.02, z0 - t, { col: nc, top: false });
         S.neon.box(x0 - t - 0.02, x1 + t + 0.02, y1 + ph - 0.08, y1 + ph, z1 + t, z1 + t + 0.02, { col: nc, top: false });
+      }
+      // Lisenen (senkrechte Pfeiler) an Bürobauten und Hallen, Balkone an Wohnhäusern
+      const faces = [
+        { a: [x0, z1], b: [x1, z1], n: [0, 1] }, { a: [x1, z0], b: [x0, z0], n: [0, -1] },
+        { a: [x1, z1], b: [x1, z0], n: [1, 0] }, { a: [x0, z0], b: [x0, z1], n: [-1, 0] },
+      ];
+      for (const fc of faces) {
+        const len = Math.hypot(fc.b[0] - fc.a[0], fc.b[1] - fc.a[1]);
+        const dx = (fc.b[0] - fc.a[0]) / len, dz = (fc.b[1] - fc.a[1]) / len;
+        const at = (s, out, half, y0b, y1b, depth) => {
+          const cx = fc.a[0] + dx * s + fc.n[0] * out, cz = fc.a[1] + dz * s + fc.n[1] * out;
+          const hx = Math.abs(dx) * half + Math.abs(fc.n[0]) * depth, hz = Math.abs(dz) * half + Math.abs(fc.n[1]) * depth;
+          return [cx - hx, cx + hx, y0b, y1b, cz - hz, cz + hz];
+        };
+        if (style === 1 || style === 3) {
+          for (let s = 4; s < len - 1; s += 8) S.trim.box(...at(s, 0.12, 0.18, 0.9, y1, 0.12), { col: style === 3 ? [0.55, 0.57, 0.6] : [0.9, 0.9, 0.88], top: true });
+        } else if (style === 2) {
+          for (let y = 4.375; y < y1 - 2; y += 7) for (let s = 3; s < len - 1.5; s += 4) {
+            S.trim.box(...at(s, 0.45, 0.85, y - 0.12, y, 0.45), { col: [0.82, 0.82, 0.84] });            // Platte
+            S.trim.box(...at(s, 0.88, 0.85, y, y + 0.85, 0.03), { col: [0.6, 0.66, 0.72] });            // Geländer
+          }
+        }
+      }
+      // Antenne mit Warnlicht auf hohen Türmen (Ecke, damit Seilbahnmast frei bleibt)
+      if (b.h0 > 32) {
+        const ax = x0 + 1.5, az = z0 + 1.5, ah = 6 + R() * 8;
+        S.prop.box(ax - 0.08, ax + 0.08, y1, y1 + ah, az - 0.08, az + 0.08, { col: [0.7, 0.7, 0.72] });
+        S.prop.box(ax - 0.5, ax + 0.5, y1 + ah * 0.6, y1 + ah * 0.6 + 0.06, az - 0.04, az + 0.04, { col: [0.7, 0.7, 0.72] });
+        S.beacon.box(ax - 0.18, ax + 0.18, y1 + ah, y1 + ah + 0.3, az - 0.18, az + 0.18, { col: [1, 0.15, 0.15] });
       }
       // Sockel im Erdgeschoss
       S.trim.box(x0 - 0.12, x1 + 0.12, 0, 0.9, z0 - 0.12, z1 + 0.12, { col: [0.55, 0.56, 0.6], top: false });
@@ -410,14 +503,14 @@ export function buildCity(world, root, tod) {
       }
     }
   }
-  const matFor = { f0: m.facade[0], f1: m.facade[1], f2: m.facade[2], f3: m.facade[3], roof: m.roof, trim: m.trim, prop: m.prop, neon: m.neon, signs: m.signs };
+  const matFor = { f0: m.facade[0], f1: m.facade[1], f2: m.facade[2], f3: m.facade[3], roof: m.roof, trim: m.trim, prop: m.prop, neon: m.neon, signs: m.signs, beacon: m.beacon };
   const decayFor = { f0: m.decayed.facade[0], f1: m.decayed.facade[1], f2: m.decayed.facade[2], f3: m.decayed.facade[3], roof: m.decayed.roof, trim: m.decayed.trim, prop: m.decayed.prop };
   for (const s of sectors) {
     const group = new THREE.Group();
     for (const [k, g] of Object.entries(s.geos)) {
       if (g.empty) continue;
       const mesh = new THREE.Mesh(g.build(), matFor[k]);
-      mesh.castShadow = k !== 'neon' && k !== 'signs'; mesh.receiveShadow = k !== 'neon';
+      mesh.castShadow = !['neon', 'signs', 'beacon'].includes(k); mesh.receiveShadow = !['neon', 'beacon'].includes(k);
       mesh.userData.key = k;
       group.add(mesh);
       s.meshes.push(mesh);
@@ -455,8 +548,14 @@ export function buildCity(world, root, tod) {
     (d, [x, z]) => { const a = Math.atan2(-(Math.round(z / 25) * 25 - z), Math.round(x / 25) * 25 - x); d.rotation.set(0, 0, 0); d.position.set(x + Math.cos(a) * 1.05, 0, z - Math.sin(a) * 1.05); }, false);
   inst(new THREE.CylinderGeometry(0.12, 0.18, 2.6, 6).translate(0, 1.3, 0), m.trunk, trees, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); });
   const crowns = inst(new THREE.IcosahedronGeometry(1.6, 1).translate(0, 3.6, 0), m.crown, trees, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, R() * 6, 0); const s = 0.8 + R() * 0.45; d.scale.set(s, s * 1.1, s); });
+  const crowns2 = inst(new THREE.IcosahedronGeometry(1.1, 1).translate(0, 4.9, 0), m.crown, trees, (d, [x, z]) => { d.position.set(x + (R() - 0.5) * 0.6, 0, z + (R() - 0.5) * 0.6); d.rotation.set(0, R() * 6, 0); const s = 0.75 + R() * 0.4; d.scale.set(s, s, s); });
   const green = new THREE.Color();
-  trees.forEach((_, i) => crowns.setColorAt(i, green.setHSL(0.27 + R() * 0.06, 0.45, 0.28 + R() * 0.1)));
+  trees.forEach((_, i) => { crowns.setColorAt(i, green.setHSL(0.26 + R() * 0.07, 0.5, 0.3 + R() * 0.1)); crowns2.setColorAt(i, green.setHSL(0.25 + R() * 0.07, 0.55, 0.38 + R() * 0.1)); });
+  // Büsche an den Plätzen
+  const bushes = [];
+  for (const [x, z] of trees) for (let k = 0; k < 2; k++) { const bx = x + (R() - 0.5) * 3, bz = z + (R() - 0.5) * 3; if (!occupied(bx, bz, 0.8)) bushes.push([bx, bz]); }
+  const bushMesh = inst(new THREE.IcosahedronGeometry(0.75, 1).translate(0, 0.45, 0), m.crown, bushes, (d, [x, z]) => { d.position.set(x, 0, z); d.rotation.set(0, R() * 6, 0); const s = 0.7 + R() * 0.5; d.scale.set(s * 1.3, s * 0.8, s); });
+  bushes.forEach((_, i) => bushMesh.setColorAt(i, green.setHSL(0.28 + R() * 0.06, 0.5, 0.26 + R() * 0.08)));
 
   // Skyline am Horizont (unerreichbar, nur Kulisse)
   const sky = [];
@@ -467,7 +566,9 @@ export function buildCity(world, root, tod) {
   const skyline = inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ map: makeFacade(1).map, emissive: 0xffffff, emissiveMap: makeFacade(0).emi, emissiveIntensity: 0, roughness: 0.9 }), sky,
     (d, [x, z, h, w]) => { d.position.set(x, 0, z); d.rotation.set(0, R(), 0); d.scale.set(w, h, w * (0.7 + R() * 0.6)); }, false);
 
-  const city = { sectors, heads, pools, skyline, crateMesh };
+  const city = { sectors, heads, pools, skyline, crateMesh, beaconBase: 1 };
+  // Warnlichter blinken langsam
+  city.tick = (t) => m.beacon.color.setScalar(city.beaconBase * (Math.sin(t * 2.4) > 0.3 ? 1 : 0.15));
   city.applyTod = (P2) => {
     for (const f of m.facade) f.emissiveIntensity = P2.windows;
     m.neon.color.setScalar(P2.neon);
@@ -476,6 +577,7 @@ export function buildCity(world, root, tod) {
     pools.visible = P2.lamps > 0.5;
     pools.material.opacity = 0.45 * P2.lamps;
     skyline.material.emissiveIntensity = P2.windows * 0.8;
+    city.beaconBase = 0.3 + P2.lamps * 1.6;
   };
   city.applyTod(P);
   /** Zerfall: Sektor rot einfärben, flackern lassen und versinken (gleiche Formel wie die Kollision) */
@@ -498,64 +600,81 @@ function mulberry(a) {
 // ---------------------------------------------------------------- Figuren mit Bewegung
 const PART = {};
 function partGeo(key, make) { return PART[key] || (PART[key] = make()); }
-/** Eigene Figur: gepanzerter Läufer. Beine und Arme hängen an Gelenken und werden animiert. */
-export function makeCharacter(teamCol, accent) {
+/** Eigene Figur: gepanzerter Läufer mit abgerundeter Panzerung und stilisierter Umrisslinie.
+ *  Beine, Arme und Oberkörper hängen an Gelenken und werden animiert. */
+export function makeCharacter(teamCol, accent, outlineCol = 0x0b0b12) {
   const g = new THREE.Group();
-  const armor = new THREE.MeshStandardMaterial({ color: 0xe4e7ee, roughness: 0.35, metalness: 0.25, transparent: true });
-  const suit = new THREE.MeshStandardMaterial({ color: 0x2a2f3c, roughness: 0.8, transparent: true });
-  const team = new THREE.MeshStandardMaterial({ color: teamCol, roughness: 0.4, emissive: teamCol, emissiveIntensity: 0.35, transparent: true });
+  const armor = envMat(new THREE.MeshStandardMaterial({ color: 0xeef0f5, roughness: 0.3, metalness: 0.15, transparent: true }), 0.8);
+  const suit = envMat(new THREE.MeshStandardMaterial({ color: 0x2b303d, roughness: 0.75, transparent: true }), 0.3);
+  const team = envMat(new THREE.MeshStandardMaterial({ color: teamCol, roughness: 0.35, emissive: teamCol, emissiveIntensity: 0.3, transparent: true }), 0.6);
   const glow = new THREE.MeshBasicMaterial({ color: accent, transparent: true, toneMapped: false });
+  const line = new THREE.MeshBasicMaterial({ color: outlineCol, side: THREE.BackSide, transparent: true });
+  const rbox = (w, h, d) => partGeo(`r${w}_${h}_${d}`, () => new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.3));
   const box = (w, h, d) => partGeo(`b${w}_${h}_${d}`, () => new THREE.BoxGeometry(w, h, d));
-  const add = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
-  const legs = [], arms = [];
+  const add = (parent, geo, mat, x, y, z, outline = true) => {
+    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
+    if (outline) { const o = new THREE.Mesh(geo, line); o.scale.setScalar(1.09); m.add(o); }
+    return m;
+  };
+  const legs = [], knees = [], arms = [];
+  const torso = new THREE.Group(); torso.position.y = 0.98; g.add(torso);
   for (const s of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(0.13 * s, 0.92, 0); g.add(hip);
-    add(hip, box(0.2, 0.46, 0.24), armor, 0, -0.24, 0);          // Oberschenkel
-    add(hip, box(0.17, 0.46, 0.2), suit, 0, -0.66, 0.02);         // Unterschenkel
-    add(hip, box(0.2, 0.1, 0.32), suit, 0, -0.88, -0.05);         // Fuß
-    add(hip, box(0.05, 0.22, 0.02), team, 0, -0.24, -0.13);       // Leuchtstreifen
-    legs.push(hip);
+    const hip = new THREE.Group(); hip.position.set(0.14 * s, 0.94, 0); g.add(hip);
+    add(hip, rbox(0.21, 0.46, 0.25), armor, 0, -0.24, 0);
+    const knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee);
+    add(knee, rbox(0.18, 0.44, 0.21), suit, 0, -0.2, 0.01);
+    add(knee, rbox(0.21, 0.11, 0.34), suit, 0, -0.43, -0.05);
+    add(knee, box(0.05, 0.2, 0.02), team, 0, -0.18, -0.12, false);
+    legs.push(hip); knees.push(knee);
   }
-  add(g, box(0.48, 0.22, 0.3), suit, 0, 1.0, 0);                  // Becken
-  const chest = add(g, box(0.6, 0.44, 0.36), armor, 0, 1.32, 0);  // Brustpanzer
-  add(g, box(0.5, 0.06, 0.02), team, 0, 1.26, -0.19);
-  add(g, box(0.36, 0.42, 0.16), suit, 0, 1.3, 0.25);              // Rückenmodul
-  add(g, box(0.06, 0.32, 0.02), team, 0, 1.3, 0.34);
+  add(torso, rbox(0.48, 0.22, 0.3), suit, 0, 0.02, 0);
+  const chest = add(torso, rbox(0.62, 0.46, 0.38), armor, 0, 0.34, 0);
+  add(torso, box(0.52, 0.06, 0.02), team, 0, 0.28, -0.2, false);
+  add(torso, rbox(0.38, 0.42, 0.18), suit, 0, 0.32, 0.26);
+  add(torso, box(0.06, 0.32, 0.02), glow, 0, 0.32, 0.36, false);
+  const head = new THREE.Group(); head.position.set(0, 0.58, 0); torso.add(head);
+  add(head, rbox(0.16, 0.1, 0.16), suit, 0, 0, 0, false);
+  add(head, rbox(0.36, 0.32, 0.38), armor, 0, 0.15, 0);
+  add(head, rbox(0.38, 0.07, 0.4), team, 0, 0.3, 0.01, false);
+  add(head, rbox(0.3, 0.1, 0.06), glow, 0, 0.15, -0.18, false);
   for (const s of [-1, 1]) {
-    add(g, box(0.24, 0.16, 0.34), team, 0.4 * s, 1.5, 0);           // Schulterplatte
-    const sh = new THREE.Group(); sh.position.set(0.38 * s, 1.45, 0); g.add(sh);
-    add(sh, box(0.14, 0.32, 0.16), suit, 0, -0.18, 0);
-    add(sh, box(0.13, 0.3, 0.15), armor, 0, -0.42, -0.08);
+    add(torso, rbox(0.26, 0.17, 0.36), team, 0.41 * s, 0.52, 0);
+    const sh = new THREE.Group(); sh.position.set(0.39 * s, 0.47, 0); torso.add(sh);
+    add(sh, rbox(0.15, 0.32, 0.17), suit, 0, -0.18, 0);
+    add(sh, rbox(0.14, 0.3, 0.16), armor, 0, -0.42, -0.08);
     arms.push(sh);
   }
-  add(g, box(0.16, 0.08, 0.16), suit, 0, 1.56, 0);
-  add(g, box(0.34, 0.3, 0.36), armor, 0, 1.71, 0);               // Helm
-  add(g, box(0.36, 0.06, 0.38), team, 0, 1.85, 0);
-  add(g, box(0.3, 0.1, 0.04), glow, 0, 1.71, -0.18);             // Visier
-  // Waffe
   const gun = new THREE.Group();
-  const gm = new THREE.MeshStandardMaterial({ color: 0x3a4152, metalness: 0.5, roughness: 0.4 });
-  add(gun, box(0.1, 0.13, 0.6), gm, 0, 0, 0);
-  add(gun, box(0.03, 0.03, 0.46), glow, 0.055, 0.03, 0);
-  gun.position.set(0.18, 1.2, -0.42);
-  g.add(gun);
+  const gm = envMat(new THREE.MeshStandardMaterial({ color: 0x4a5163, metalness: 0.6, roughness: 0.35 }), 1);
+  add(gun, rbox(0.1, 0.14, 0.62), gm, 0, 0, 0);
+  add(gun, box(0.03, 0.03, 0.46), glow, 0.056, 0.03, 0, false);
+  gun.position.set(0.18, 0.23, -0.44);
+  torso.add(gun);
   arms[0].rotation.x = -1.1; arms[1].rotation.x = -1.25; arms[0].rotation.z = -0.2; arms[1].rotation.z = 0.35;
-  return { group: g, legs, arms, chest, gun, mats: [armor, suit, team, glow], phase: Math.random() * 6 };
+  return { group: g, legs, knees, arms, torso, head, chest, gun, mats: [armor, suit, team, glow, line], phase: Math.random() * 6, kick: 0, lean: 0 };
 }
-/** Lauf-, Sprint- und Sprunghaltung aus Tempo und Bodenkontakt */
+/** Lauf-, Sprint- und Sprunghaltung aus Tempo und Bodenkontakt, dazu Rückstoß beim Schießen */
 export function animateCharacter(rig, speed, airborne, dt) {
   const k = Math.min(1, speed / 9);
-  rig.phase += dt * (4 + speed * 0.9);
-  const swing = Math.sin(rig.phase) * 0.75 * k;
+  rig.phase += dt * (4 + speed * 0.85);
+  const s = Math.sin(rig.phase);
+  const lerp = (o, key, target, rate = 12) => { o[key] += (target - o[key]) * Math.min(1, dt * rate); };
   if (airborne) {
-    rig.legs[0].rotation.x += (-0.7 - rig.legs[0].rotation.x) * Math.min(1, dt * 10);
-    rig.legs[1].rotation.x += (0.35 - rig.legs[1].rotation.x) * Math.min(1, dt * 10);
+    lerp(rig.legs[0].rotation, 'x', -0.9); lerp(rig.legs[1].rotation, 'x', 0.4);
+    lerp(rig.knees[0].rotation, 'x', 1.2); lerp(rig.knees[1].rotation, 'x', 0.5);
   } else {
-    rig.legs[0].rotation.x = swing; rig.legs[1].rotation.x = -swing;
+    rig.legs[0].rotation.x = s * 0.8 * k; rig.legs[1].rotation.x = -s * 0.8 * k;
+    rig.knees[0].rotation.x = Math.max(0, -Math.cos(rig.phase)) * 1.1 * k;
+    rig.knees[1].rotation.x = Math.max(0, Math.cos(rig.phase)) * 1.1 * k;
   }
-  rig.chest.position.y = 1.32 + Math.abs(Math.cos(rig.phase)) * 0.03 * k;
-  rig.gun.position.y = 1.2 + Math.abs(Math.cos(rig.phase)) * 0.03 * k;
-  rig.group.children.forEach(() => {});
+  lerp(rig, 'lean', -0.22 * k, 6);
+  rig.torso.rotation.x = rig.lean;
+  rig.torso.position.y = 0.98 + Math.abs(Math.cos(rig.phase)) * 0.045 * k - (airborne ? 0 : 0.03 * k);
+  rig.torso.rotation.y = Math.sin(rig.phase) * 0.08 * k;
+  rig.head.rotation.x = -rig.lean * 0.8;
+  rig.kick = Math.max(0, rig.kick - dt * 8);
+  rig.gun.position.z = -0.44 + rig.kick * 0.08;
+  rig.arms[0].rotation.x = -1.1 - rig.kick * 0.25; rig.arms[1].rotation.x = -1.25 - rig.kick * 0.25;
 }
 
 // ---------------------------------------------------------------- Effekte
