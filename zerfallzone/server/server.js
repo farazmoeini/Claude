@@ -68,7 +68,7 @@ const sanitizeBots = (b = {}) => {
 
 function createRoom(host, mode, bots, isPublic) {
   const room = {
-    code: newCode(), host: host.id, mode: MODES[mode] ? mode : 'solo', bots: sanitizeBots(bots ?? { leicht: 4, mittel: 7, schwer: 3, elite: 1 }),
+    code: newCode(), host: host.id, mode: MODES[mode] ? mode : 'solo', bots: sanitizeBots(bots ?? { leicht: 30, mittel: 42, schwer: 20, elite: 7 }), // auf 100 Spieler aufgefüllt; Menschen ersetzen Bots
     isPublic: !!isPublic, clients: new Set(), state: 'lobby', sim: null, timer: null, autoStartAt: 0,
   };
   rooms.set(room.code, room);
@@ -163,7 +163,7 @@ function handle(c, msg) {
     }
     case 'quick': {
       const mode = MODES[msg.mode] ? msg.mode : 'solo';
-      let room = [...rooms.values()].find((r) => r.isPublic && r.mode === mode && r.state === 'lobby' && r.clients.size < 24);
+      let room = [...rooms.values()].find((r) => r.isPublic && r.mode === mode && r.state === 'lobby' && r.clients.size < MAX_PLAYERS);
       if (!room) room = createRoom(c, mode, null, true);
       joinRoom(c, room);
       break;

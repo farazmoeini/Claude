@@ -180,7 +180,7 @@ button.toggle.on { color: var(--fg); }
 .botcfg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; }
 .botrow { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--line); }
 .botrow .dl { flex: 1; color: #c9c9c4; } .botrow .cnt { width: 24px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
-.botrow button { background: none; border: 1px solid var(--line2); color: var(--fg); width: 22px; height: 22px; padding: 0; cursor: pointer; line-height: 1; }
+.botrow button { background: none; border: 1px solid var(--line2); color: var(--fg); min-width: 24px; height: 22px; padding: 0 5px; cursor: pointer; line-height: 1; }
 .botrow button:hover { border-color: var(--fg); }
 .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .readonly .botrow button, .readonly.chips button, .readonly.presets { pointer-events: none; }

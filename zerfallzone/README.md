@@ -6,7 +6,14 @@
 
 Ein eigener, vertikaler Arena-Battle-Royale: Solo, Duos oder Trios in einer prozedural
 erzeugten Neon-Stadt, die dynamisch Sektor für Sektor zerfällt. Spielbar **offline gegen
-bis zu 40 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusammen.
+bis zu 99 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusammen.
+
+**Battle Royale mit 100 Spielern:** Jede Runde startet standardmäßig mit dir und 99 Bots (Voreinstellung *Normal*:
+30 leicht, 42 mittel, 20 schwer, 7 Elite). Online füllen Bots jede Runde auf 100 auf; jeder Mensch ersetzt einen Bot,
+alle Schwierigkeitsstufen schrumpfen dabei gleichmäßig. In Duos sind das 50 Teams, in Trios 34. Mit −10/+10 im Menü
+stellst du die Bots schnell ein; *Training* bleibt bei 12 leichten Bots. Die Beute wächst mit der Spielerzahl mit.
+Der Server rechnet eine volle Runde mit 100 Spielern in rund 4 ms pro Takt (Budget 33 ms); im Bild werden Figuren
+jenseits der Sichtweite weder gezeichnet noch animiert.
 
 ## Spielen
 

@@ -53,8 +53,8 @@ export const DIFFS = {
   elite: { label: 'Elite', short: 'E', color: 0xff3355, acc: 0.5, react: [0.15, 0.28], fire: 1.0, view: 120, strafe: 1.0, abil: true, jump: 0.035, head: 0.45 },
 };
 export const DIFF_IDS = Object.keys(DIFFS);
-export const BOT_LIMIT = 40;
-export const MAX_PLAYERS = 48;
+export const BOT_LIMIT = 99;
+export const MAX_PLAYERS = 100;
 
 export const MODES = {
   solo: { size: 1, label: 'Solo' },
@@ -800,7 +800,10 @@ export class Sim {
 
     // Teams zusammenstellen: Menschen zuerst, dann mit Bots auffüllen
     const size = this.mode.size;
-    const diffs = DIFF_IDS.flatMap((k) => Array(clamp(botConfig[k] | 0, 0, BOT_LIMIT)).fill(k));
+    // Schwierigkeiten reihum mischen: Wenn viele Menschen mitspielen und Plätze fehlen, fallen alle Stufen gleichmäßig weg
+    const pools = DIFF_IDS.map((k) => clamp(botConfig[k] | 0, 0, BOT_LIMIT));
+    const diffs = [];
+    for (let left = pools.reduce((a, b) => a + b, 0); left > 0;) for (let k = 0; k < pools.length; k++) if (pools[k] > 0) { diffs.push(DIFF_IDS[k]); pools[k]--; left--; }
     for (let i = diffs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [diffs[i], diffs[j]] = [diffs[j], diffs[i]]; }
     let slot = 0;
     for (const h of humans) { this.addEntity({ id: h.id, name: h.name, isBot: false, team: Math.floor(slot / size) }); slot++; }
@@ -1258,7 +1261,7 @@ export class Sim {
       }
       return streetSpot();
     };
-    const scale = clamp(this.entities.length / 16, 1, 2.5);
+    const scale = clamp(this.entities.length / 16, 1, 6.5);
     for (let i = 0; i < 110 * scale; i++) { const s = spot(); this.spawnLoot('weapon', pick(WEAPON_IDS), Math.random() < 0.15 ? 2 : 1, ...s); }
     for (let i = 0; i < 70 * scale; i++) { const s = spot(); this.spawnLoot('ability', pick(ABILITY_IDS), 1, ...s); }
     for (let i = 0; i < 50 * scale; i++) { const s = spot(); this.spawnLoot('health', null, 1, ...s); }

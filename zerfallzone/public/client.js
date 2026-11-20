@@ -310,13 +310,14 @@ function tone(f0, f1, dur, vol = 0.15, type = 'sine') { if (actx) osc(master, { 
 function sfxShot(kind, vol = 1) { if (actx && WEAPON_SND[kind]) WEAPON_SND[kind](master, vol); }
 
 // ---------------------------------------------------------------- Menü-Zustand
+// Battle Royale: 100 Spieler pro Runde (du + 99 Bots); Training bleibt klein
 const PRESETS = {
-  training: { leicht: 8, mittel: 0, schwer: 0, elite: 0 },
-  normal: { leicht: 4, mittel: 7, schwer: 3, elite: 1 },
-  hart: { leicht: 0, mittel: 5, schwer: 8, elite: 4 },
-  albtraum: { leicht: 0, mittel: 0, schwer: 10, elite: 15 },
+  training: { leicht: 12, mittel: 0, schwer: 0, elite: 0 },
+  normal: { leicht: 30, mittel: 42, schwer: 20, elite: 7 },
+  hart: { leicht: 0, mittel: 40, schwer: 44, elite: 15 },
+  albtraum: { leicht: 0, mittel: 0, schwer: 55, elite: 44 },
 };
-let botConfig = { ...PRESETS.normal, ...store.get('bots', {}) };
+let botConfig = { ...PRESETS.normal, ...store.get('bots100', {}) };
 let modeSel = store.get('mode', 'solo');
 let sens = store.get('sens', 1);
 const totalBots = (cfg) => DIFF_IDS.reduce((s, k) => s + (cfg[k] | 0), 0);
@@ -329,11 +330,11 @@ function renderBotCfg(el, totalEl, cfg, editable, onChange) {
     const row = document.createElement('div');
     row.className = 'botrow';
     row.innerHTML = `<span class="dot" style="background:${hex(D.color)}"></span><span class="dl">${t('diff.' + k)}</span>`
-      + `<button data-d="-1">−</button><span class="cnt">${cfg[k] | 0}</span><button data-d="1">+</button>`;
+      + `<button data-d="-10">−10</button><button data-d="-1">−</button><span class="cnt">${cfg[k] | 0}</span><button data-d="1">+</button><button data-d="10">+10</button>`;
     row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const d = +b.dataset.d;
       if (d > 0 && totalBots(cfg) >= BOT_LIMIT) return;
-      cfg[k] = clamp((cfg[k] | 0) + d, 0, BOT_LIMIT);
+      cfg[k] = clamp((cfg[k] | 0) + Math.min(d, BOT_LIMIT - totalBots(cfg)), 0, BOT_LIMIT);
       onChange();
     }));
     el.appendChild(row);
@@ -349,13 +350,13 @@ function setChips(el, mode, editable, onPick) {
 }
 function refreshMenu() {
   setChips($('modeChips'), modeSel, true, (m) => { modeSel = m; store.set('mode', m); refreshMenu(); });
-  renderBotCfg($('botcfg'), $('botTotal'), botConfig, true, () => { store.set('bots', botConfig); refreshMenu(); });
+  renderBotCfg($('botcfg'), $('botTotal'), botConfig, true, () => { store.set('bots100', botConfig); refreshMenu(); });
   const size = MODES[modeSel].size;
   $('botTotal').textContent = t('bots.teams', { n: totalBots(botConfig), t: Math.ceil((totalBots(botConfig) + 1) / size), s: size });
   $('serverHint').textContent = location.protocol.startsWith('http') ? t('menu.serverHint', { port: location.port || 80 }) : '';
 }
 document.querySelectorAll('#menu [data-preset]').forEach((b) => b.addEventListener('click', () => {
-  botConfig = { ...PRESETS[b.dataset.preset] }; store.set('bots', botConfig); refreshMenu();
+  botConfig = { ...PRESETS[b.dataset.preset] }; store.set('bots100', botConfig); refreshMenu();
 }));
 $('nameInput').value = store.get('name', '');
 $('nameInput').addEventListener('change', () => store.set('name', $('nameInput').value.trim()));
@@ -1153,6 +1154,8 @@ function renderEntities() {
     v.g.visible = !!show;
     if (!show) continue;
     v.g.position.set(ea[1] + (eb[1] - ea[1]) * f, ea[2] + (eb[2] - ea[2]) * f, ea[3] + (eb[3] - ea[3]) * f);
+    // Bei 100 Spielern: Figuren weit hinter der Sichtweite gar nicht erst zeichnen und animieren
+    if (!v.mate && !revealed && v.g.position.distanceToSquared(camera.position) > (240 * gfx.draw) ** 2) { v.g.visible = false; continue; }
     let dy = eb[4] - ea[4];
     if (dy > Math.PI) dy -= 2 * Math.PI; else if (dy < -Math.PI) dy += 2 * Math.PI;
     v.g.rotation.y = ea[4] + dy * f;
