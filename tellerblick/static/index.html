@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f9d58">
+<title>Tellerblick</title>
+<style>
+  :root { --bg:#f4f6f5; --card:#fff; --text:#121614; --muted:#68716c; --line:#e3e7e5; --brand:#0f9d58; --brand2:#e6f5ec; --p:#2563eb; --c:#d97706; --f:#db2777; --bad:#dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e1210; --card:#171c19; --text:#e9eeeb; --muted:#93a099; --line:#26302b; --brand:#34c77b; --brand2:#163324; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Inter,sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:14px 16px 150px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:12px; }
+  h1 { font-size:22px; margin:2px 0 12px; letter-spacing:-.02em; } h1 span { color:var(--brand); }
+  h2 { font-size:16px; margin:0 0 8px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .row { display:flex; gap:10px; align-items:center; }
+  .between { justify-content:space-between; }
+  .btn { border:0; border-radius:12px; padding:11px 14px; font:600 15px/1.1 inherit; cursor:pointer; background:var(--brand); color:#fff; }
+  .btn.ghost { background:var(--brand2); color:var(--brand); }
+  .btn.small { padding:7px 10px; font-size:13px; }
+  .btn.icon { background:none; color:var(--muted); padding:4px 8px; font-size:18px; }
+  input, select { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; }
+  label { display:block; font-size:12.5px; color:var(--muted); margin:10px 0 4px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .ring { width:150px; height:150px; flex:none; }
+  .macro { margin:7px 0; }
+  .macro .bar { height:8px; border-radius:99px; background:var(--line); overflow:hidden; margin-top:3px; }
+  .macro .bar div { height:100%; border-radius:99px; }
+  .entry { display:flex; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+  .entry img { width:42px; height:42px; border-radius:10px; object-fit:cover; flex:none; }
+  .entry .n { flex:1; min-width:0; } .entry .n div:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tabs { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:8px 16px calc(8px + env(safe-area-inset-bottom)); z-index:5; }
+  .tabs .in { max-width:560px; margin:0 auto; display:flex; justify-content:space-around; }
+  .tabs button { background:none; border:0; color:var(--muted); font:600 12px inherit; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; padding:4px 14px; }
+  .tabs button.on { color:var(--brand); } .tabs button span { font-size:20px; }
+  .fab { position:fixed; bottom:calc(76px + env(safe-area-inset-bottom)); left:0; right:0; z-index:4; pointer-events:none; }
+  .fab .in { max-width:560px; margin:0 auto; padding:0 16px; display:flex; gap:10px; justify-content:flex-end; }
+  .fab .btn { pointer-events:auto; box-shadow:0 6px 20px rgba(0,0,0,.18); }
+  .sheet { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:10; display:flex; align-items:flex-end; }
+  .sheet .box { background:var(--card); width:100%; max-width:560px; margin:0 auto; border-radius:20px 20px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); max-height:92vh; overflow:auto; }
+  .item { border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; }
+  .chip { display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:99px; background:var(--brand2); color:var(--brand); font-weight:600; }
+  .preview { width:100%; max-height:220px; object-fit:cover; border-radius:14px; margin-bottom:10px; }
+  .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .kpi b { display:block; font-size:22px; }
+  svg text { fill:var(--muted); font-size:10px; }
+</style>
+</head>
+<body>
+<main id="view"></main>
+<div class="fab" id="fab" hidden><div class="in"><button class="btn ghost" onclick="openSearch()">🔍 Suchen</button><button class="btn" onclick="openPhoto()">📷 Foto</button></div></div>
+<div class="tabs" id="tabs" hidden><div class="in">
+  <button data-t="today" class="on"><span>🍽️</span>Heute</button><button data-t="progress"><span>📈</span>Verlauf</button><button data-t="profile"><span>👤</span>Profil</button>
+</div></div>
+<script>
+"use strict";
+const $v = document.getElementById("view");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const MEALS = ["Frühstück", "Mittagessen", "Abendessen", "Snack"];
+const r0 = x => Math.round(x || 0);
+let state = { day: iso(new Date()), profile: null, targets: null, ai: false };
+
+async function api(path, opts = {}) {
+  const json = opts.body && !(opts.body instanceof FormData);
+  const r = await fetch("/api" + path, { ...opts, headers: json ? { "Content-Type": "application/json" } : {}, body: json ? JSON.stringify(opts.body) : opts.body });
+  if (!r.ok) { let m = r.statusText; try { const j = await r.json(); m = typeof j.detail === "string" ? j.detail : j.detail.map(d => d.loc.at(-1) + ": " + d.msg).join(", "); } catch {} throw new Error(m); }
+  return r.json();
+}
+const fail = e => alert(e.message);
+function defaultMeal() { const h = new Date().getHours(); return h < 10 ? "Frühstück" : h < 15 ? "Mittagessen" : h < 21 ? "Abendessen" : "Snack"; }
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => tab(b.dataset.t));
+function tab(t) {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  document.getElementById("fab").hidden = t !== "today";
+  ({ today, progress, profile: () => profileForm(false) })[t]();
+}
+
+// ---------------------------------------------------------------- onboarding / profile
+function profileForm(first) {
+  const p = state.profile || { sex: "w", age: 30, height_cm: 170, weight_kg: 70, activity: "leicht", goal: "abnehmen", rate_kg_week: 0.5, protein_g_per_kg: 1.8 };
+  document.getElementById("tabs").hidden = first; document.getElementById("fab").hidden = true;
+  const opt = (v, cur, l) => `<option value="${v}" ${String(v) === String(cur) ? "selected" : ""}>${l}</option>`;
+  $v.innerHTML = `<h1>Teller<span>blick</span></h1>
+  ${first ? `<div class="card"><h2>Willkommen 👋</h2><p class="muted" style="margin:0">Foto vom Essen machen – Kalorien und Eiweiß werden geschätzt. Erst ein paar Angaben für dein persönliches Tagesziel:</p></div>` : ""}
+  <form class="card" id="pf">
+    <div class="grid2">
+      <div><label>Geschlecht</label><select name="sex">${opt("w", p.sex, "weiblich")}${opt("m", p.sex, "männlich")}</select></div>
+      <div><label>Alter</label><input name="age" type="number" value="${p.age}" min="14" max="100"></div>
+      <div><label>Größe (cm)</label><input name="height_cm" type="number" value="${p.height_cm}"></div>
+      <div><label>Gewicht (kg)</label><input name="weight_kg" type="number" step="0.1" value="${p.weight_kg}"></div>
+    </div>
+    <label>Aktivität im Alltag</label><select name="activity">${opt("sitzend", p.activity, "Sitzend, kaum Bewegung")}${opt("leicht", p.activity, "Leicht aktiv (1–3× Sport/Woche)")}${opt("mittel", p.activity, "Mittel (3–5× Sport/Woche)")}${opt("aktiv", p.activity, "Aktiv (6–7× Sport/Woche)")}${opt("sehr_aktiv", p.activity, "Sehr aktiv (körperliche Arbeit + Sport)")}</select>
+    <div class="grid2">
+      <div><label>Ziel</label><select name="goal">${opt("abnehmen", p.goal, "Abnehmen")}${opt("halten", p.goal, "Gewicht halten")}${opt("zunehmen", p.goal, "Muskeln aufbauen")}</select></div>
+      <div><label>Tempo (kg/Woche)</label><select name="rate_kg_week">${[0.25, 0.5, 0.75].map(v => opt(v, p.rate_kg_week, String(v).replace(".", ","))).join("")}</select></div>
+    </div>
+    <label>Eiweiß (g pro kg Körpergewicht)</label><select name="protein_g_per_kg">${[1.2, 1.6, 1.8, 2.0, 2.2].map(v => opt(v, p.protein_g_per_kg, String(v).replace(".", ",") + (v === 1.8 ? " (empfohlen beim Abnehmen)" : v === 2.0 ? " (Muskelaufbau)" : ""))).join("")}</select>
+    <button class="btn" style="width:100%;margin-top:16px">${first ? "Los geht's" : "Speichern"}</button>
+    ${state.targets?.floor_applied && !first ? `<p class="muted" style="color:var(--c)">Dein Tagesziel wurde auf das gesunde Minimum angehoben – wähle ein langsameres Tempo oder mehr Bewegung.</p>` : ""}
+    ${state.targets && !first ? `<p class="muted">Grundumsatz ${state.targets.bmr} kcal · Gesamtumsatz ${state.targets.tdee} kcal · Tagesziel ${state.targets.kcal} kcal</p>` : ""}
+    <p class="muted">Berechnung nach Mifflin-St Jeor. Bei Erkrankungen, Schwangerschaft oder Essstörungen bitte ärztlich beraten lassen.</p>
+  </form>`;
+  document.getElementById("pf").onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    for (const k of ["age", "height_cm", "weight_kg", "rate_kg_week", "protein_g_per_kg"]) f[k] = parseFloat(String(f[k]).replace(",", "."));
+    try { const r = await api("/profile", { method: "PUT", body: f }); Object.assign(state, { profile: r.profile, targets: r.targets }); document.getElementById("tabs").hidden = false; tab("today"); } catch (er) { fail(er); }
+  };
+}
+
+// ---------------------------------------------------------------- today
+function ringSvg(eaten, target) {
+  const R = 64, C = 2 * Math.PI * R, frac = Math.min(1, eaten / target), over = eaten > target;
+  return `<svg class="ring" viewBox="0 0 150 150"><circle cx="75" cy="75" r="${R}" fill="none" stroke="var(--line)" stroke-width="12"/>
+    <circle cx="75" cy="75" r="${R}" fill="none" stroke="${over ? "var(--bad)" : "var(--brand)"}" stroke-width="12" stroke-linecap="round"
+      stroke-dasharray="${C * frac} ${C}" transform="rotate(-90 75 75)"/>
+    <text x="75" y="70" text-anchor="middle" style="font-size:26px;font-weight:800;fill:var(--text)">${r0(Math.abs(target - eaten))}</text>
+    <text x="75" y="92" text-anchor="middle" style="font-size:12px">${over ? "kcal zu viel" : "kcal übrig"}</text></svg>`;
+}
+const macro = (label, v, t, color) => `<div class="macro"><div class="row between" style="gap:6px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span><span class="muted" style="white-space:nowrap">${r0(v)} / ${t} g</span></div>
+  <div class="bar"><div style="width:${Math.min(100, 100 * v / t)}%;background:${color}"></div></div></div>`;
+
+async function today() {
+  const d = await api("/day/" + state.day), t = d.targets, tot = d.totals;
+  const isToday = state.day === iso(new Date());
+  const label = isToday ? "Heute" : new Date(state.day + "T12:00").toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+  $v.innerHTML = `<div class="row between"><h1>Teller<span>blick</span></h1>
+    <div class="row" style="gap:2px"><button class="btn icon" onclick="shiftDay(-1)">‹</button><b>${label}</b><button class="btn icon" onclick="shiftDay(1)" ${isToday ? "disabled" : ""}>›</button></div></div>
+  <div class="card row">${ringSvg(tot.kcal, t.kcal)}
+    <div style="flex:1"><div class="muted">${r0(tot.kcal)} von ${t.kcal} kcal</div>
+      ${macro("Eiweiß", tot.protein, t.protein, "var(--p)")}${macro("Kohlenhydrate", tot.carbs, t.carbs, "var(--c)")}${macro("Fett", tot.fat, t.fat, "var(--f)")}</div></div>
+  ${tot.protein >= t.protein * 0.9 ? `<div class="card" style="background:var(--brand2);border:0">💪 Eiweißziel erreicht – stark!</div>` : ""}
+  ${MEALS.map(m => { const es = d.entries.filter(e => e.meal === m), k = es.reduce((s, e) => s + e.kcal, 0);
+    return `<div class="card"><div class="row between"><h2 style="margin:0">${m}</h2><span class="muted">${r0(k)} kcal</span></div>
+      ${es.map(e => `<div class="entry">${e.photo ? `<img src="/photos/${esc(e.photo)}" alt="">` : `<div style="width:42px;text-align:center;font-size:22px">🥄</div>`}
+        <div class="n"><div>${esc(e.name)}</div><div class="muted">${r0(e.grams)} g · E ${r0(e.protein)} · K ${r0(e.carbs)} · F ${r0(e.fat)}</div></div>
+        <b>${r0(e.kcal)}</b><button class="btn icon" title="Löschen" onclick="delEntry(${e.id})">✕</button></div>`).join("") || `<div class="muted">Noch nichts eingetragen.</div>`}</div>`; }).join("")}`;
+}
+function shiftDay(n) { const d = new Date(state.day + "T12:00"); d.setDate(d.getDate() + n); if (iso(d) <= iso(new Date())) { state.day = iso(d); today(); } }
+async function delEntry(id) { if (confirm("Eintrag löschen?")) { await api("/entries/" + id, { method: "DELETE" }).catch(fail); today(); } }
+
+// ---------------------------------------------------------------- sheets
+function sheet(html) {
+  const s = document.createElement("div"); s.className = "sheet"; s.innerHTML = `<div class="box">${html}</div>`;
+  s.onclick = e => { if (e.target === s) s.remove(); }; document.body.appendChild(s); return s;
+}
+const mealSelect = () => `<label>Mahlzeit</label><select id="meal">${MEALS.map(m => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select>`;
+
+function openPhoto() {
+  const s = sheet(`<div class="row between"><h2 style="margin:0">Foto analysieren</h2><button class="btn icon" onclick="this.closest('.sheet').remove()">✕</button></div>
+    ${state.ai ? "" : `<p class="muted">Hinweis: Die KI-Schätzung ist auf diesem Server nicht aktiv. Das Foto wird gespeichert, die Lebensmittel trägst du per Suche ein.</p>`}
+    <label class="btn ghost" style="display:block;text-align:center;margin-top:10px">📷 Foto aufnehmen oder auswählen<input type="file" accept="image/*" capture="environment" id="ph" hidden></label>
+    <label>Hinweis (optional)</label><input id="hint" placeholder="z. B. „mit Sahnesoße“, „halbe Portion gegessen“">
+    <div id="res"></div>`);
+  s.querySelector("#ph").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const res = s.querySelector("#res");
+    res.innerHTML = `<img class="preview" src="${URL.createObjectURL(f)}"><p class="muted">Analysiere …</p>`;
+    const fd = new FormData(); fd.append("photo", f); fd.append("hint", s.querySelector("#hint").value);
+    try {
+      const a = await api("/analyze", { method: "POST", body: fd });
+      if (!a.ai || !a.items.length) { res.innerHTML = `<img class="preview" src="/photos/${a.photo}"><p class="muted">${esc(a.notes || "Kein Essen erkannt.")}</p>
+        <button class="btn" style="width:100%" id="toSearch">Lebensmittel suchen</button>`; s.querySelector("#toSearch").onclick = () => { s.remove(); openSearch(a.photo); }; return; }
+      const items = a.items.map(it => ({ ...it, base: { ...it } }));
+      const draw = () => {
+        const sum = items.reduce((acc, it) => acc + (it.on === false ? 0 : it.kcal), 0);
+        res.innerHTML = `<img class="preview" src="/photos/${a.photo}"><h2>${esc(a.meal_name)}</h2>${a.notes ? `<p class="muted">${esc(a.notes)}</p>` : ""}
+          ${items.map((it, i) => `<div class="item" style="${it.on === false ? "opacity:.45" : ""}"><div class="row between"><label style="margin:0;color:var(--text);display:flex;gap:8px;align-items:center"><input type="checkbox" data-on="${i}" style="width:auto" ${it.on === false ? "" : "checked"}><b>${esc(it.name)}</b></label><span class="chip">${esc(it.confidence)}</span></div>
+            <div class="row" style="margin-top:6px"><input type="number" data-g="${i}" value="${r0(it.grams)}" style="width:90px"> g <span class="muted" style="margin-left:auto">${r0(it.kcal)} kcal · E ${r0(it.protein)} g</span></div></div>`).join("")}
+          ${mealSelect()}<button class="btn" style="width:100%;margin-top:14px" id="save">Eintragen (${r0(sum)} kcal)</button>`;
+        res.querySelectorAll("[data-g]").forEach(inp => inp.onchange = () => {   // scale macros to new amount
+          const it = items[inp.dataset.g], g = Math.max(1, parseFloat(inp.value) || it.base.grams), k = g / it.base.grams;
+          Object.assign(it, { grams: g, kcal: it.base.kcal * k, protein: it.base.protein * k, carbs: it.base.carbs * k, fat: it.base.fat * k }); draw();
+        });
+        res.querySelectorAll("[data-on]").forEach(cb => cb.onchange = () => { items[cb.dataset.on].on = cb.checked; draw(); });
+        res.querySelector("#save").onclick = async () => {
+          const meal = res.querySelector("#meal").value;
+          const body = items.filter(it => it.on !== false).map(it => ({ day: state.day, meal, name: it.name, grams: it.grams, kcal: it.kcal, protein: it.protein, carbs: it.carbs, fat: it.fat, photo: a.photo, source: "foto" }));
+          if (!body.length) return;
+          try { await api("/entries", { method: "POST", body }); s.remove(); today(); } catch (er) { fail(er); }
+        };
+      };
+      draw();
+    } catch (er) { res.innerHTML = `<p style="color:var(--bad)">${esc(er.message)}</p>`; }
+  };
+}
+
+function openSearch(photo = "") {
+  const s = sheet(`<div class="row between"><h2 style="margin:0">Lebensmittel suchen</h2><button class="btn icon" onclick="this.closest('.sheet').remove()">✕</button></div>
+    <input id="q" placeholder="z. B. Haferflocken, Banane, Döner …" style="margin-top:10px" autofocus><div id="list" style="margin-top:10px"></div>
+    <details style="margin-top:8px"><summary class="muted">Eigenes Lebensmittel eintragen</summary>
+      <div class="grid2"><div><label>Name</label><input id="cn"></div><div><label>Menge (g)</label><input id="cg" type="number" value="100"></div>
+      <div><label>kcal (gesamt)</label><input id="ck" type="number"></div><div><label>Eiweiß (g)</label><input id="cp" type="number" value="0"></div>
+      <div><label>Kohlenhydrate (g)</label><input id="cc" type="number" value="0"></div><div><label>Fett (g)</label><input id="cf" type="number" value="0"></div></div>
+      ${mealSelect()}<button class="btn" id="cadd" style="width:100%;margin-top:10px">Eintragen</button></details>`);
+  const add = async (food, grams, meal) => {
+    const k = grams / 100;
+    await api("/entries", { method: "POST", body: [{ day: state.day, meal, name: food.name, grams, kcal: food.kcal * k, protein: food.protein * k, carbs: food.carbs * k, fat: food.fat * k, photo, source: "suche" }] });
+    s.remove(); today();
+  };
+  const load = async () => {
+    const list = await api("/foods?q=" + encodeURIComponent(s.querySelector("#q").value));
+    s.querySelector("#list").innerHTML = list.map((f, i) => `<div class="item"><div class="row between"><b>${esc(f.name)}</b><span class="muted">${f.kcal} kcal/100 g</span></div>
+      <div class="row" style="margin-top:6px"><input type="number" data-i="${i}" value="${f.portion_g}" style="width:80px"> g <span class="muted">${esc(f.portion_label)}</span>
+      <select data-m="${i}" style="width:auto;margin-left:auto">${MEALS.map(m => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select>
+      <button class="btn small" data-add="${i}">+</button></div></div>`).join("") || `<p class="muted">Nichts gefunden – unten eigenes Lebensmittel eintragen.</p>`;
+    s.querySelectorAll("[data-add]").forEach(b => b.onclick = () => add(list[b.dataset.add], parseFloat(s.querySelector(`[data-i="${b.dataset.add}"]`).value) || 100, s.querySelector(`[data-m="${b.dataset.add}"]`).value).catch(fail));
+  };
+  s.querySelector("#q").oninput = load; load();
+  s.querySelector("#cadd").onclick = async () => {
+    const v = id => parseFloat(s.querySelector(id).value) || 0, name = s.querySelector("#cn").value.trim();
+    if (!name || !v("#ck")) return alert("Name und kcal angeben.");
+    try { await api("/entries", { method: "POST", body: [{ day: state.day, meal: s.querySelector("details #meal").value, name, grams: v("#cg") || 100, kcal: v("#ck"), protein: v("#cp"), carbs: v("#cc"), fat: v("#cf"), photo, source: "manuell" }] }); s.remove(); today(); } catch (er) { fail(er); }
+  };
+}
+
+// ---------------------------------------------------------------- progress
+function weightChart(ws) {
+  if (ws.length < 2) return `<p class="muted">Trag dein Gewicht ein paar Tage lang ein, dann erscheint hier der Verlauf.</p>`;
+  const W = 520, H = 180, P = 28, kgs = ws.flatMap(w => [w.kg, w.avg]), lo = Math.floor(Math.min(...kgs) - 0.5), hi = Math.ceil(Math.max(...kgs) + 0.5);
+  const t0 = new Date(ws[0].day).getTime(), t1 = new Date(ws.at(-1).day).getTime() || t0 + 1;
+  const x = d => P + (W - 2 * P) * ((new Date(d).getTime() - t0) / Math.max(1, t1 - t0)), y = k => H - P - (H - 2 * P) * (k - lo) / (hi - lo);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%">
+    ${[lo, (lo + hi) / 2, hi].map(k => `<line x1="${P}" x2="${W - P}" y1="${y(k)}" y2="${y(k)}" stroke="var(--line)"/><text x="2" y="${y(k) + 3}">${k.toFixed(1)}</text>`).join("")}
+    ${ws.map(w => `<circle cx="${x(w.day)}" cy="${y(w.kg)}" r="3" fill="var(--muted)" opacity=".5"/>`).join("")}
+    <polyline fill="none" stroke="var(--brand)" stroke-width="2.5" points="${ws.map(w => `${x(w.day)},${y(w.avg)}`).join(" ")}"/>
+    <text x="${P}" y="${H - 6}">${new Date(ws[0].day).toLocaleDateString("de-DE")}</text><text x="${W - P}" y="${H - 6}" text-anchor="end">${new Date(ws.at(-1).day).toLocaleDateString("de-DE")}</text></svg>
+    <p class="muted">Punkte = Tageswerte, Linie = 7-Tage-Durchschnitt (glättet Wasserschwankungen).</p>`;
+}
+function kcalBars(days, target) {
+  const W = 520, H = 120, bw = (W - 20) / days.length, max = Math.max(target * 1.3, ...days.map(d => d.kcal));
+  return `<svg viewBox="0 0 ${W} ${H + 16}" style="width:100%">${days.map((d, i) => { const h = H * d.kcal / max;
+    return `<rect x="${10 + i * bw + 3}" y="${H - h}" width="${bw - 6}" height="${h}" rx="4" fill="${d.kcal > target * 1.05 ? "var(--bad)" : "var(--brand)"}" opacity="${d.kcal ? 1 : .2}"/>
+      <text x="${10 + i * bw + bw / 2}" y="${H + 12}" text-anchor="middle">${new Date(d.day + "T12:00").toLocaleDateString("de-DE", { weekday: "narrow" })}</text>`; }).join("")}
+    <line x1="10" x2="${W - 10}" y1="${H - H * target / max}" y2="${H - H * target / max}" stroke="var(--text)" stroke-dasharray="4 4" opacity=".5"/></svg>`;
+}
+async function progress() {
+  const s = await api("/stats");
+  $v.innerHTML = `<h1>Verlauf</h1>
+  <div class="kpis"><div class="kpi"><b>🔥 ${s.streak}</b><span class="muted">Tage in Folge</span></div>
+    <div class="kpi"><b>${s.avg_kcal_7d ?? "–"}</b><span class="muted">Ø kcal (7 Tage)</span></div>
+    <div class="kpi"><b>${s.protein_days_7d}/${s.logged_days_7d}</b><span class="muted">Tage Eiweißziel</span></div></div>
+  <div class="card" style="margin-top:12px"><h2>Kalorien – letzte 14 Tage</h2>${kcalBars(s.last14, s.targets.kcal)}<p class="muted">Gestrichelt: Tagesziel ${s.targets.kcal} kcal</p></div>
+  <div class="card"><div class="row between"><h2 style="margin:0">Gewicht</h2>
+    <div class="row" style="gap:6px"><input id="wkg" type="text" inputmode="decimal" placeholder="kg" style="width:90px"><button class="btn small" id="wsave">Speichern</button></div></div>
+    ${weightChart(s.weights)}</div>`;
+  document.getElementById("wsave").onclick = async () => {
+    const kg = parseFloat(document.getElementById("wkg").value.replace(",", ".")); if (!kg) return;
+    try { await api("/weights", { method: "POST", body: { day: iso(new Date()), kg } }); const r = await api("/profile"); Object.assign(state, { profile: r.profile, targets: r.targets }); progress(); } catch (e) { fail(e); }
+  };
+}
+
+// ---------------------------------------------------------------- boot
+api("/profile").then(r => {
+  Object.assign(state, { profile: r.profile, targets: r.targets, ai: r.ai });
+  if (!r.profile) profileForm(true); else { document.getElementById("tabs").hidden = false; tab("today"); }
+}).catch(fail);
+</script>
+</body>
+</html>
