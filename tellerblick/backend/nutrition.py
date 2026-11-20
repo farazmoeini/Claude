@@ -5,6 +5,8 @@ import base64
 import io
 import os
 
+import config
+
 ACTIVITY = {"sitzend": 1.2, "leicht": 1.375, "mittel": 1.55, "aktiv": 1.725, "sehr_aktiv": 1.9}
 KCAL_PER_KG_FAT = 7700
 
@@ -58,7 +60,7 @@ def analyze_photo(jpeg: bytes, hint: str = "") -> dict:
 
     client = anthropic.Anthropic()
     resp = client.messages.parse(
-        model=os.environ.get("TELLERBLICK_MODEL", "claude-opus-5-5"),
+        model=config.AI_MODEL,
         max_tokens=4000,
         output_config={"effort": "low"},
         system=(

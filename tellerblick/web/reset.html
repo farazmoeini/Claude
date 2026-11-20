@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passwort zurücksetzen – Tellerblick</title>
+<style>body{margin:0;font:16px/1.5 system-ui,sans-serif;background:#f4f6f5;color:#121614}main{max-width:420px;margin:40px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #e3e7e5;border-radius:18px;padding:20px}input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #e3e7e5;border-radius:10px;font:inherit;margin:6px 0 12px}
+button{width:100%;padding:12px;border:0;border-radius:12px;background:#0f9d58;color:#fff;font:600 15px inherit}#msg{margin-top:10px}</style></head>
+<body><main><h1>Teller<span style="color:#0f9d58">blick</span></h1><div class="card"><form id="f">
+<label>Neues Passwort (mind. 8 Zeichen)</label><input type="password" id="pw" minlength="8" autocomplete="new-password" required>
+<button>Passwort speichern</button><p id="msg"></p></form></div></main>
+<script>
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault(); const msg = document.getElementById("msg");
+  const r = await fetch("/api/auth/reset", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: location.hash.slice(1), password: document.getElementById("pw").value }) });
+  const j = await r.json().catch(() => ({}));
+  msg.textContent = r.ok ? "Gespeichert! Du kannst dich jetzt in der App mit dem neuen Passwort anmelden." : (typeof j.detail === "string" ? j.detail : "Bitte mindestens 8 Zeichen verwenden.");
+  if (r.ok) e.target.querySelector("button").disabled = true;
+};
+</script></body></html>
