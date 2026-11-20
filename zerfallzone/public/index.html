@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zerfallzone</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="hud" class="hidden">
+  <canvas id="minimap" width="200" height="200"></canvas>
+  <div id="teamPanel"></div>
+  <div id="phase"><div id="phaseTitle">Landung</div><div id="phaseTimer"></div></div>
+  <div id="event" class="hidden"></div>
+  <div id="ghostInfo" class="hidden"></div>
+  <div id="stats"><span id="alive">0</span> übrig · <span id="teamsLeft"></span> · <span id="kills">0</span> Kills · <span id="ping"></span></div>
+  <div id="feed"></div>
+  <div id="crosshair"><div id="hitmarker"></div></div>
+  <div id="prompt"></div>
+  <div id="vitals">
+    <div class="bar"><div id="armorBar"></div></div>
+    <div class="bar"><div id="hpBar"></div></div>
+    <div id="vitalsText"></div>
+  </div>
+  <div id="abilities"><div class="ab" id="ab0"></div><div class="ab" id="ab1"></div></div>
+  <div id="weapons"><div class="wp" id="wp0"></div><div class="wp" id="wp1"></div></div>
+  <div id="corebar" class="hidden"><div id="coreFill"></div><span id="coreText"></span></div>
+  <div id="vignette"></div>
+</div>
+
+<!-- Hauptmenü -->
+<div id="menu" class="screen">
+  <div class="panel">
+    <h1>ZERFALL<span>ZONE</span></h1>
+    <p class="sub">Vertikaler Arena-Battle-Royale · Solo, Duos, Trios · offline gegen Bots oder online mit Freunden</p>
+
+    <div class="row">
+      <label>Dein Name <input id="nameInput" maxlength="16" placeholder="Spieler"></label>
+      <label>Maus-Empfindlichkeit <input id="sensInput" type="range" min="0.4" max="2.5" step="0.05" value="1"></label>
+    </div>
+
+    <h3>Modus</h3>
+    <div class="chips" id="modeChips">
+      <button data-mode="solo">Solo</button><button data-mode="duo">Duos</button><button data-mode="trio">Trios</button>
+    </div>
+
+    <div class="cols">
+      <section>
+        <h3>Offline gegen Bots</h3>
+        <div class="presets">
+          <button data-preset="training">Training</button><button data-preset="normal">Normal</button>
+          <button data-preset="hart">Hart</button><button data-preset="albtraum">Albtraum</button>
+        </div>
+        <div class="botcfg" id="botcfg"></div>
+        <div class="muted" id="botTotal"></div>
+        <button class="big" id="playOffline">Offline spielen</button>
+      </section>
+      <section>
+        <h3>Online</h3>
+        <label>Server <input id="serverInput" placeholder="localhost:7777"></label>
+        <p class="muted" id="serverHint"></p>
+        <div class="row">
+          <button class="big" id="quickBtn">Schnellsuche</button>
+          <button class="big alt" id="createBtn">Raum erstellen</button>
+        </div>
+        <div class="row">
+          <input id="codeInput" maxlength="4" placeholder="CODE" class="code">
+          <button id="joinBtn">Beitreten</button>
+        </div>
+        <p class="err" id="netErr"></p>
+      </section>
+    </div>
+
+    <details>
+      <summary>Steuerung und Regeln</summary>
+      <div class="cols">
+        <table>
+          <tr><td>WASD</td><td>Laufen</td></tr>
+          <tr><td>Shift</td><td>Sprinten</td></tr>
+          <tr><td>Strg / C</td><td>Rutschen (beim Sprinten)</td></tr>
+          <tr><td>Leertaste</td><td>Sprung, Doppelsprung, an Wänden klettern</td></tr>
+          <tr><td>Maus</td><td>Schießen, rechts: Zielen / Zoom</td></tr>
+          <tr><td>1 / 2 / Mausrad</td><td>Waffe wechseln</td></tr>
+          <tr><td>R</td><td>Nachladen</td></tr>
+          <tr><td>Q / E</td><td>Fähigkeiten</td></tr>
+          <tr><td>F</td><td>Aufheben / Rückkehr halten</td></tr>
+          <tr><td>Esc</td><td>Menü</td></tr>
+        </table>
+        <ul>
+          <li>Die Stadt zerfällt dynamisch Sektor für Sektor. Orange: Warnung, rot: Schaden, und die Gebäude lösen sich auf.</li>
+          <li>Doppelte Waffen und Fähigkeiten verschmelzen zu höheren Stufen (max. IV).</li>
+          <li>Teams: Wer fällt, wird zum Geist. Schaltet ein Teamkamerad einen Gegner aus, kehrt der Geist zurück.</li>
+          <li>Solo: einmal pro Runde Rückkehr über eine grüne Säule (F halten).</li>
+          <li>Im letzten Sektor erscheint der Kern. Hält ihn ein Team 30 s, gewinnt es.</li>
+          <li>Stadt-Events ändern zwischendurch die Regeln.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- Lobby -->
+<div id="lobby" class="screen hidden">
+  <div class="panel">
+    <h2>Lobby <span id="lobbyCode" class="code-big"></span></h2>
+    <p class="muted" id="lobbyShare"></p>
+    <div class="cols">
+      <section>
+        <h3>Spieler</h3>
+        <div id="lobbyPlayers"></div>
+      </section>
+      <section>
+        <h3>Einstellungen <span class="muted" id="hostNote"></span></h3>
+        <div class="chips" id="lobbyModeChips">
+          <button data-mode="solo">Solo</button><button data-mode="duo">Duos</button><button data-mode="trio">Trios</button>
+        </div>
+        <div class="presets" id="lobbyPresets">
+          <button data-preset="training">Training</button><button data-preset="normal">Normal</button>
+          <button data-preset="hart">Hart</button><button data-preset="albtraum">Albtraum</button>
+        </div>
+        <div class="botcfg" id="lobbyBotcfg"></div>
+        <div class="muted" id="lobbyBotTotal"></div>
+      </section>
+    </div>
+    <p id="lobbyStatus"></p>
+    <div class="row">
+      <button class="big" id="startBtn">Runde starten</button>
+      <button class="big alt" id="leaveBtn">Verlassen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pause / Ergebnis -->
+<div id="overlay" class="screen hidden">
+  <div class="panel small">
+    <h2 id="ovTitle">Pause</h2>
+    <p id="ovText"></p>
+    <div class="row">
+      <button class="big" id="ovResume">Weiter</button>
+      <button class="big alt" id="ovQuit">Zum Menü</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="client.js"></script>
+</body>
+</html>

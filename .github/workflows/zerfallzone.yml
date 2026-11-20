@@ -1,0 +1,51 @@
+# Baut Zerfallzone als PC-Spiel: Windows (.exe Installer + portable), macOS (.dmg), Linux (.AppImage)
+# Läuft automatisch bei jedem Push, der zerfallzone/ ändert, oder per Hand: Actions → "Zerfallzone bauen" → "Run workflow".
+# Die fertigen Dateien liegen danach im Lauf unter "Artifacts".
+name: Zerfallzone bauen
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['zerfallzone/**', '.github/workflows/zerfallzone.yml']
+  pull_request:
+    paths: ['zerfallzone/**', '.github/workflows/zerfallzone.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: zerfallzone } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: zerfallzone/package-lock.json }
+      - run: npm ci
+        env: { ELECTRON_SKIP_BINARY_DOWNLOAD: '1' }
+      - run: npm test
+
+  build:
+    needs: test
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: --win, files: 'zerfallzone/dist/*.exe' }
+          - { os: macos-latest, target: --mac, files: 'zerfallzone/dist/*.dmg' }
+          - { os: ubuntu-latest, target: --linux, files: 'zerfallzone/dist/*.AppImage' }
+    runs-on: ${{ matrix.os }}
+    defaults: { run: { working-directory: zerfallzone } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: zerfallzone/package-lock.json }
+      - run: npm ci
+      - run: npx electron-builder ${{ matrix.target }} --publish never
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zerfallzone-${{ runner.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error

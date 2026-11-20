@@ -1,14 +1,56 @@
 # Zerfallzone
 
-Ein eigener, vertikaler Arena-Battle-Royale im Browser (Three.js, kein Build-Schritt).
-Du gegen bis zu 40 Bots in vier Schwierigkeitsstufen, in einer prozedural erzeugten Neon-Stadt, die dynamisch Sektor für Sektor zerfällt.
+Ein eigener, vertikaler Arena-Battle-Royale: Solo, Duos oder Trios in einer prozedural
+erzeugten Neon-Stadt, die dynamisch Sektor für Sektor zerfällt. Spielbar **offline gegen
+bis zu 40 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusammen.
 
-```bash
-cd zerfallzone && python3 -m http.server 8500
-# http://localhost:8500 öffnen
-```
+## Spielen
 
-Three.js kommt per CDN (jsDelivr). Beim ersten Start braucht der Browser also Internet.
+| Wie | Was du brauchst | Start |
+|---|---|---|
+| **PC-App** (Windows/Mac/Linux) | Die heruntergeladene Datei, siehe unten | `Zerfallzone Setup.exe` installieren oder die portable `.exe` starten |
+| **Browser** | Node.js 20+ | `npm install && npm start`, dann http://localhost:7777 |
+| **Aus dem Quellcode als App** | Node.js 20+ | `npm install && npm run app` |
+| **Eigener Online-Server** (VPS) | Docker | `docker build -t zerfallzone . && docker run -p 7777:7777 zerfallzone` |
+
+### PC-App herunterladen
+
+GitHub baut die App automatisch, sobald sich etwas in `zerfallzone/` ändert
+(Workflow `.github/workflows/zerfallzone.yml`):
+
+1. Im Repository auf **Actions → „Zerfallzone bauen“** gehen und den neuesten Lauf öffnen.
+2. Unten unter **Artifacts** liegen `Zerfallzone-Windows` (Installer und portable `.exe`), `Zerfallzone-macOS` (`.dmg`) und `Zerfallzone-Linux` (`.AppImage`).
+
+Die App ist nicht signiert. Windows zeigt deshalb beim ersten Start „Der Computer wurde
+durch Windows geschützt“: auf **Weitere Informationen → Trotzdem ausführen** klicken.
+Auf dem Mac: Rechtsklick → Öffnen. Für den Verkauf auf Steam oder itch.io lohnt sich
+später ein Code-Signing-Zertifikat.
+
+Selbst bauen: `npm run dist:win`, `dist:mac` oder `dist:linux`. Ein Windows-Build
+braucht Windows oder Wine, ein Mac-Build einen Mac.
+
+### Mit Freunden spielen (Crossplay PC ↔ Browser)
+
+- Die **PC-App ist gleichzeitig Spielserver.** Im App-Menü zeigt **Spiel → Mit Freunden spielen** deine Adresse an, z. B. `192.168.1.20:7777`.
+- Freunde im selben Netzwerk tragen diese Adresse in der PC-App unter **Online → Server** ein oder öffnen im Browser `http://192.168.1.20:7777`.
+- **Über das Internet:** Port 7777 (TCP) im Router freigeben und deine öffentliche IP weitergeben. Bequemer ist ein kleiner Server (VPS) mit dem Dockerfile, dann verbinden sich alle mit dessen Adresse.
+- **Raum erstellen:** Du bekommst einen 4-stelligen Code. Freunde treten mit dem Code bei und kommen in der Reihenfolge des Beitritts ins selbe Team. Der Host wählt Solo, Duos oder Trios und die Bots, mit denen leere Plätze aufgefüllt werden.
+- **Schnellsuche:** Öffentlicher Raum für den gewählten Modus, startet 20 s nach dem ersten Spieler.
+
+### PS5
+
+Eine PS5-Version ist mit diesem Code nicht möglich. Konsolenspiele erfordern eine
+Zulassung im PlayStation-Partners-Programm von Sony, ein Dev-Kit und eine Engine mit
+Konsolen-Unterstützung (Unity, Unreal). Das wäre ein eigener Port. Die Spiellogik in
+`shared/sim.js` und das Netzwerkprotokoll sind dafür als Vorlage nutzbar.
+
+## Teams: Solo, Duos, Trios
+
+- Kein Eigenbeschuss unter Teamkameraden. Teamkameraden haben eine grüne Raute mit Namen über dem Kopf, auf der Minimap einen grünen Punkt und links im Teampanel ihre Lebensanzeige.
+- **Geist im Team:** Wer fällt, während noch jemand aus dem Team lebt, wird zum Geist. Schaltet ein Teamkamerad einen Gegner aus, kehrt der Geist an dessen Position zurück (60 HP, Funke I). Ein Team ist erst raus, wenn niemand mehr lebt.
+- **Solo:** einmal pro Runde Rückkehr über eine grüne Säule (45 s Zeit, 3 s F halten).
+- Bots füllen die Teams auf und folgen ihrem nächsten Teamkameraden, Menschen bevorzugt.
+- Der Kern gehört dem Team, das ihn 30 s allein hält. Ist mehr als ein Team im Bereich, ist er umkämpft und zählt für niemanden.
 
 ## Woher das Design kommt
 
@@ -60,20 +102,38 @@ Schwere und Elite-Bots setzen auf kurze Distanz die Schockwelle ein. Getarnte Sp
 
 ## Technik
 
-- **Welt** (`buildWorld`): 64 Sektoren mit je 4 Grundstücken und Gebäuden von 4 bis 50 m Höhe, zur Mitte hin höher. Dazu Dachaufbauten, Deckungskisten und Sprungfelder. Straßen liegen alle 25 m und dienen den Bots als Wegenetz.
-- **Physik** (`moveEntity`): Achsen-getrennte AABB-Kollision gegen alle Boxen. Landen auf Dächern geht über einen Kreuzungstest, damit man auch bei hohem Tempo nicht durchfällt.
-- **Treffer** (`traceShot`): Hitscan mit Slab-Raycast gegen die Boxen. Spieler und Bots haben je eine Körper- und eine Kopfkugel, Kopftreffer zählen ×1,6. Schrotkugeln verlieren mit der Distanz an Schaden.
-- **Bots** (`updateBot`): Wegfindung als Manhattan-Pfad über das Straßenraster. Bots suchen alle 0,3 s nach Gegnern in Sichtlinie, haben eine Reaktionszeit, schießen mit distanzabhängiger Streuung und Vorhalt, laufen im Kampf seitwärts, heilen sich, flüchten vor dem Zerfall und laufen im Finale zum Kern.
-- **Audio**: alles synthetisch per WebAudio, ohne Sounddateien.
+```
+zerfallzone/
+  shared/sim.js     Spielkern: Welt aus Seed, Physik, Waffen, Fähigkeiten, Bots, Zerfall, Kern, Teams, Snapshots
+  server/server.js  Node-Server: liefert das Spiel aus, Lobbys mit Code und Schnellsuche, WebSocket, 30 Ticks/s
+  public/           Client: Three.js-Darstellung, Eingabe, Vorhersage, HUD, Menü und Lobby
+  electron/main.cjs PC-App: startet den Server eingebaut und öffnet das Spiel im Fenster
+  test/             Tests des Spielkerns (node --test)
+```
+
+- **Ein Spielkern für alles:** Offline läuft `Sim` direkt im Browser, online auf dem Server. Der Client spricht in beiden Fällen dasselbe Protokoll (`start`, Snapshots `s`, Eingaben `in`).
+- **Server entscheidet:** Treffer, Schaden, Beute, Zerfall und Bots berechnet nur der Server. Clients schicken nur Tasten und Blickrichtung.
+- **Keine spürbare Verzögerung bei der eigenen Bewegung:** Der Client führt `movePlayer` mit denselben Eingaben selbst aus. Kommt ein Snapshot, setzt er auf den Serverzustand zurück, spielt die noch unbestätigten Eingaben erneut ab und glättet kleine Abweichungen.
+- **Andere Spieler** werden mit 110 ms Verzögerung zwischen zwei Snapshots interpoliert.
+- **Welt aus Seed:** Server und Client erzeugen aus demselben Seed dieselbe Stadt. Das Versinken der Gebäude ist eine reine Funktion der Zeit (`applyDissolve`), deshalb stimmt die Kollision auf beiden Seiten überein.
+- **Physik** (`moveEntity`): achsen-getrennte AABB-Kollision. **Treffer** (`traceShot`): Slab-Raycast plus Kopf- und Körperkugel, Kopftreffer ×1,6.
+- **Bots** (`updateBot`): Manhattan-Wege über das Straßenraster, Sichtlinienprüfung, Reaktionszeit, Streuung je nach Schwierigkeit, Seitwärtslaufen, Fähigkeiten.
 
 ## Tests
 
-Mit `window.__zz` lässt sich das Spiel per Skript steuern. Ein Playwright-Lauf, der
-eine ganze Runde simuliert (alle Zerfallswellen, Kern, Spielende, Bot-Auswahl im Menü), lief ohne Konsolenfehler.
-40 s Spielzeit brauchen etwa 0,3 ms pro Tick.
+```bash
+npm test
+```
+
+Getestet werden: dieselbe Welt aus demselben Seed, komplette Runden in Solo, Duos und
+Trios mit Gewinner und Platzierungen, kein Eigenbeschuss, Geist-Rückkehr per Teamkill,
+Solo-Rückkehr an der Säule. Dazu lief ein Browser-Test mit zwei Spielern: Raum
+erstellen, mit Code beitreten, Trio starten, beide im selben Team, Bewegung beim
+anderen sichtbar, Schüsse über den Server. Außerdem ein Offline-Test im Duo-Modus und
+ein Start der Linux-App.
 
 ## Ideen für danach
 
-Online-Mehrspieler (WebSocket-Server mit autoritativer Simulation), Squads mit
-Bot-Mitspielern (Geister könnten dann durch Kills der Mitspieler zurückkehren),
-Bots, die Dächer gezielt erklettern.
+Accounts und Bestenlisten, Spielersuche über einen zentralen Server, Sprachchat,
+Controller-Unterstützung (Gamepad-API), Bots, die Dächer gezielt erklettern,
+App-Symbol und Code-Signatur für Steam oder itch.io.
