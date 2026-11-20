@@ -62,7 +62,13 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 | Klettern | Gegen eine Wand springen und A halten | Bis 1,1 s nach oben |
 | Hochziehen / Flanken | Gegen Kanten bis 2,3 m (Luft) bzw. 1,7 m (beim Laufen) | Fließend statt ruckartig. Das Sprinttempo bleibt nach dem Flanken erhalten |
 | Schnell fallen | B halten in der Luft · Strg / C | 2,8-fache Schwerkraft |
-| Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung und Landung |
+| An der Kante hängen | LT halten an einer Kante (1,2–2,3 m über dir) · rechte Maustaste | Hängen und über die Kante spähen, schießen geht. A zieht hoch, Loslassen lässt fallen |
+| Seilbahnen | In das gelbe Seil zwischen zwei Hochhäusern springen | Hängt sich automatisch ein, fährt mit 20 m/s (bergab schneller), schießen geht. A löst mit Sprung, ein Dash löst mit Schub. 30 Seilbahnen pro Karte, sie verschwinden, wenn eines der Gebäude zerfällt |
+| Gerichtete Sprungfelder | Orange Felder mit Pfeil | Hoher Bogen genau auf ein bestimmtes Dach. Beim Bau der Karte wird jede Flugbahn auf Hindernisse geprüft (getestet: 237 von 241 landen auf dem Zieldach, 3 weitere auf einem anderen). Blaue Felder schleudern wie bisher senkrecht |
+| Aufwind-Säulen | Helle Säulen mit aufsteigenden Ringen | Tragen dich mit 16 m/s bis 55 m hoch, danach ist der Doppelsprung wieder frei |
+| Enterhaken | Neue Fähigkeit (Beute) | Zieht dich bis 50 m an Wände und Dächer, mit 28 m/s. A bricht ab. Andere Spieler sehen das Seil. Wenn nichts getroffen wird, gibt es keine Abklingzeit |
+| Fallschaden | – | Gibt es nicht. Ein Sturz aus beliebiger Höhe kostet nichts (getestet aus 120 m) |
+| Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung, Seilbahn und Landung, Fahrtwind wird mit dem Tempo lauter |
 
 ## Controller
 
@@ -74,7 +80,7 @@ sofort erkannt. Bewegt man die Maus, schaltet die Anzeige wieder auf Tastatur um
 |---|---|
 | Linker Stick | Laufen (analog), ganz nach vorn: automatisch sprinten, L3 schaltet Sprinten um |
 | Rechter Stick | Umsehen, mit leichter Zielhilfe in der Nähe von Gegnern |
-| RT / R2 · LT / L2 | Schießen · Zielen / Zoom |
+| RT / R2 · LT / L2 | Schießen · Zielen / Zoom, an Kanten: hängen |
 | A / ✕ | Sprung, Doppelsprung, Wandsprung, Klettern |
 | B / ○ | Tippen: Dash · Halten: Rutschen am Boden / schnell fallen in der Luft |
 | X / □ | Aufheben, an der Säule halten für die Rückkehr, sonst Nachladen |
@@ -108,7 +114,7 @@ Figuren, Grafik, Sounds und Code sind komplett eigen.
 | Spielfeld schrumpft | Statt eines runden Gases fallen einzelne Stadtsektoren weg, in Wellen und mit Vorwarnung, und die Gebäude darin lösen sich auf | Dynamische Zone, siehe unten |
 | Vertikalität | Viel Bewegung über Dächer, Sprungfelder, Doppelsprung, Klettern | Doppelsprung, Wandklettern (Leertaste + W), Kante hochziehen, Sprungfelder mit 30 m/s |
 | Waffenfortschritt | Doppelte Waffen verschmelzen zu stärkeren Stufen statt Seltenheitsfarben | 6 Waffen (MP, Salvengewehr, Schrotflinte, Railgun, Präzisionspistole, Granatwerfer), Stufen I bis IV: +15 % Schaden und +20 % Magazin pro Stufe |
-| Fähigkeiten als Beute | Fähigkeiten liegen in der Welt und belegen zwei Slots | 10 eigene Fähigkeiten: Sprung (Blinzeln), Bollwerk (Wand), Scan, Heilung, Katapult, Tarnung, Schockwelle, Mine, Stampfer, Bastion (−75 % Schaden). Doppelte senken die Abklingzeit |
+| Fähigkeiten als Beute | Fähigkeiten liegen in der Welt und belegen zwei Slots | 11 eigene Fähigkeiten: Sprung (Blinzeln), Bollwerk (Wand), Scan, Heilung, Katapult, Tarnung, Schockwelle, Mine, Stampfer, Bastion (−75 % Schaden), Enterhaken. Doppelte senken die Abklingzeit |
 | Alternatives Siegziel | Im Finale erscheint ein Objekt, das man halten muss | Der Kern erscheint im letzten Sektor. Wer ihn 30 s allein hält, gewinnt. Oder als Letzter überleben |
 | Zweite Chance | Ausgeschiedene Spieler bleiben als Geist im Spiel und können zurückkommen | Einmal pro Runde wirst du zum Geist: schneller und unsichtbar für Bots. Du hast 45 s, um eine von 3 grünen Rückkehrsäulen zu erreichen und dort 3 s F zu halten. Dann kommst du mit 60 HP und einer Funke I zurück |
 | Wechselnde Regeln | Zufällige Events verändern die Runde | Stadt-Events alle 45–70 s für 25 s: Niedrige Schwerkraft, Endlose Munition, Schnelle Fähigkeiten, Radar, Turbo |
@@ -167,7 +173,7 @@ zerfallzone/
 npm test
 ```
 
-Getestet werden: Dash und Aufladen, verzeihende Sprünge (Coyote-Time und Sprungpuffer), Wandlauf und Wandsprung, Flanken mit erhaltenem Tempo, Rutschsprung, schnelles Fallen, dieselbe Welt aus demselben Seed, komplette Runden in Solo, Duos und
+Getestet werden: kein Fallschaden, Seilbahn (einhaken, fahren, lösen), gerichtete Sprungfelder, Aufwind, Enterhaken, an der Kante hängen, Dash und Aufladen, verzeihende Sprünge (Coyote-Time und Sprungpuffer), Wandlauf und Wandsprung, Flanken mit erhaltenem Tempo, Rutschsprung, schnelles Fallen, dieselbe Welt aus demselben Seed, komplette Runden in Solo, Duos und
 Trios mit Gewinner und Platzierungen, kein Eigenbeschuss, Geist-Rückkehr per Teamkill,
 Solo-Rückkehr an der Säule. Dazu lief ein Browser-Test mit zwei Spielern: Raum
 erstellen, mit Code beitreten, Trio starten, beide im selben Team, Bewegung beim
@@ -177,5 +183,5 @@ ein Start der Linux-App.
 ## Ideen für danach
 
 Accounts und Bestenlisten, Spielersuche über einen zentralen Server, Sprachchat,
-frei belegbare Controller-Tasten, Bots, die Dächer gezielt erklettern,
+frei belegbare Controller-Tasten, Bots, die Seilbahnen, Sprungfelder und Dächer gezielt nutzen,
 App-Symbol und Code-Signatur für Steam oder itch.io.

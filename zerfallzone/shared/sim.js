@@ -36,6 +36,7 @@ export const ABILITIES = {
   mine: { name: 'Mine', desc: 'Explodiert bei Nähe', cd: 12 },
   stampfer: { name: 'Stampfer', desc: 'Aus der Luft einschlagen', cd: 12 },
   bastion: { name: 'Bastion', desc: '−75 % Schaden für 4 s', cd: 20 },
+  enterhaken: { name: 'Enterhaken', desc: 'Zieht dich bis 50 m an Wände und Dächer', cd: 9 },
 };
 export const ABILITY_IDS = Object.keys(ABILITIES);
 export const abilityCd = (a) => ABILITIES[a.id].cd * (1 - (a.level - 1) * 0.15);
@@ -147,7 +148,68 @@ export function generateWorld(seed) {
     const cx = alongX ? t : line + off, cz = alongX ? line + off : t;
     add(cx - 0.7, cx + 0.7, 0, r(1.0, 1.6), cz - 0.7, cz + 0.7, 'crate', 0xff4dd2);
   }
-  return { seed, boxes, pads, bySector };
+  // Gerichtete Sprungfelder: etwa jedes zweite schleudert auf ein nahes Dach
+  const buildings = boxes.filter((b) => b.kind === 'building');
+  // Flugbahn prüfen: Die Form der Bahn hängt nicht von der Schwerkraft ab, nur von Start, Ziel und Scheitel
+  const arcClear = (pd, b, t) => {
+    const g = GRAV, peak = t[1] + 4, vy = Math.sqrt(2 * g * peak), T = vy / g + Math.sqrt(8 / g);
+    const vx = (t[0] - pd.x) / T, vz = (t[2] - pd.z) / T, r = 0.6;
+    for (let i = 1; i <= 60; i++) {
+      const tt = (T * i) / 60, x = pd.x + vx * tt, y = vy * tt - 0.5 * g * tt * tt, z = pd.z + vz * tt;
+      for (const q of boxes) {
+        if (x + r <= q.mn[0] || x - r >= q.mx[0] || z + r <= q.mn[2] || z - r >= q.mx[2]) continue;
+        if (y + BODY_H <= q.mn[1] || y >= q.mx[1] - 0.05) continue;
+        if (q === b && i === 60) continue;
+        return false;
+      }
+    }
+    return true;
+  };
+  for (const pd of pads) {
+    if (R() < 0.5) continue;
+    const cands = buildings.filter((b) => {
+      const cx = (b.mn[0] + b.mx[0]) / 2, cz = (b.mn[2] + b.mx[2]) / 2, d = Math.hypot(cx - pd.x, cz - pd.z);
+      return d > 10 && d < 32 && b.h0 > 8 && b.h0 < 42;
+    });
+    for (let tries = 0; tries < 4 && cands.length; tries++) {
+      const b = cands.splice(Math.floor(R() * cands.length), 1)[0];
+      const t = [(b.mn[0] + b.mx[0]) / 2, b.mx[1] + 0.2, (b.mn[2] + b.mx[2]) / 2];
+      if (arcClear(pd, b, t)) { pd.t = t; break; }
+    }
+  }
+  // Seilbahnen zwischen hohen Dächern
+  const ziplines = [];
+  const tall = buildings.filter((b) => b.h0 > 16);
+  const top = (b) => [(b.mn[0] + b.mx[0]) / 2, b.mx[1] + 3, (b.mn[2] + b.mx[2]) / 2];
+  for (const A of tall) {
+    if (ziplines.length >= 30 || R() > 0.4) continue;
+    const pa = top(A);
+    const cands = buildings.filter((B) => B !== A && B.h0 > 10 && (() => { const d = Math.hypot((B.mn[0] + B.mx[0]) / 2 - pa[0], (B.mn[2] + B.mx[2]) / 2 - pa[2]); return d > 22 && d < 70; })());
+    if (!cands.length) continue;
+    const B = cands[Math.floor(R() * cands.length)];
+    if (ziplines.some((z) => (z.a === A && z.b === B) || (z.a === B && z.b === A))) continue;
+    const pb = top(B);
+    const d = [pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]];
+    const len = Math.hypot(...d);
+    const n = d.map((v) => v / len);
+    // Seil darf nichts schneiden (2,5 m Platz darunter für den Spieler)
+    const blocked = boxes.some((b) => b !== A && b !== B && (rayBox(pa, n, b, len) < len || rayBox([pa[0], pa[1] - 2.5, pa[2]], n, b, len) < len));
+    if (blocked) continue;
+    ziplines.push({ id: ziplines.length, p0: pa, p1: pb, a: A, b: B, ha: A.mx[1], hb: B.mx[1], len, n });
+  }
+  // Aufwind-Säulen an den breiten Straßen (neben den Laufwegen der Bots)
+  const updrafts = [];
+  for (let i = 0; i < NS * NS; i++) {
+    if (R() > 0.45) continue;
+    const sx = i % NS, sz = Math.floor(i / NS);
+    const alongX = R() < 0.5;
+    const line = alongX ? -HALF + sz * SECTOR : -HALF + sx * SECTOR;
+    if (line <= -HALF) continue;
+    const off = R() < 0.5 ? 2.6 : -2.6;
+    const t = (alongX ? -HALF + sx * SECTOR : -HALF + sz * SECTOR) + r(8, 42);
+    updrafts.push({ x: alongX ? t : line + off, z: alongX ? line + off : t, r: 1.8, h: 55 });
+  }
+  return { seed, boxes, pads, bySector, ziplines, updrafts };
 }
 
 /** Gebäude in zerfallenen Sektoren versinken – reine Funktion der Zeit, damit Client und Server übereinstimmen. */
@@ -249,7 +311,8 @@ export function rayWorld(o, d, maxT, boxes) {
 /** Startwerte aller Bewegungs-Zustände (für Server, Snapshot und Client-Vorhersage) */
 export const MOVE_DEFAULTS = {
   onGround: false, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false, ghost: false,
-  coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, airT: 0, vaultV: 0,
+  coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, airT: 0, vaultV: 0, padT: 0,
+  zlId: -1, zlT: 0, zlDir: 1, zlV: 0, zlCd: 0, grT: 0, grX: 0, grY: 0, grZ: 0, hang: 0, hangY: 0, updraft: false,
 };
 export const MOVE_FIELDS = Object.keys(MOVE_DEFAULTS);
 export const DASH_MAX = 2, DASH_REGEN = 2.2;
@@ -288,6 +351,36 @@ export function movePlayer(p, inp, dt, ctx) {
   p.wrCd = Math.max(0, p.wrCd - dt);
   if (p.dashN < DASH_MAX) { p.dashRegen += dt; if (p.dashRegen >= DASH_REGEN) { p.dashN++; p.dashRegen = 0; } } else p.dashRegen = 0;
 
+  p.zlCd = Math.max(0, p.zlCd - dt);
+  if (p.padT > 0) p.padT = p.onGround ? 0 : p.padT - dt;
+  // Seilbahn fahren: Position folgt dem Seil, Springen oder Dash löst
+  if (p.zlId >= 0) {
+    const z = ctx.ziplines && ctx.ziplines[p.zlId];
+    if (!z || !zipAlive(z) || p.ghost) { p.zlId = -1; }
+    else {
+      const slope = z.n[1] * p.zlDir; // bergab schneller
+      p.zlV = clamp(p.zlV + (20 - p.zlV) * Math.min(1, 1.5 * dt) - slope * GRAV * 0.5 * dt, 10, 30);
+      p.zlT += (p.zlDir * p.zlV * dt) / z.len;
+      const t = clamp(p.zlT, 0, 1);
+      p.pos.set(z.p0[0] + (z.p1[0] - z.p0[0]) * t, z.p0[1] + (z.p1[1] - z.p0[1]) * t - 2.1, z.p0[2] + (z.p1[2] - z.p0[2]) * t);
+      p.vel.set(z.n[0] * p.zlDir * p.zlV, z.n[1] * p.zlDir * p.zlV, z.n[2] * p.zlDir * p.zlV);
+      p.onGround = false; p.airT = 0.2; p.jumps = 1; p.wrT = 0;
+      if (inp.jump || inp.dash || p.zlT <= 0 || p.zlT >= 1) {
+        p.zlId = -1; p.zlCd = 0.6;
+        p.vel.y = Math.max(p.vel.y, inp.jump ? 9 : 4);
+        out.zipoff = true;
+        if (!inp.dash) return out;
+      } else { out.zipping = true; return out; }
+    }
+  }
+  // An der Kante hängen: Zielen halten. Springen zieht hoch, Loslassen lässt fallen
+  if (p.hang) {
+    if (inp.jump) {
+      p.hang = 0; p.vel.y = Math.sqrt(2 * GRAV * ctx.gravMul * 1.9); p.vel.x = fx * 6; p.vel.z = fz * 6; p.vaultV = 8;
+      out.mantle = true;
+    } else if (!inp.aim || inp.slide || p.ghost) { p.hang = 0; p.vel.set(0, -1, 0); }
+    else { p.vel.set(0, 0, 0); p.pos.y = p.hangY; p.onGround = false; p.jumps = 1; p.coyote = 0; out.hanging = true; return out; }
+  }
   // Dash: kurzer Schub in Laufrichtung (ohne Eingabe: Blickrichtung), am Boden und in der Luft
   if (inp.dash && p.dashN > 0 && !p.ghost && !(p.dashT > 0)) {
     let dx = wx, dz = wz;
@@ -347,7 +440,7 @@ export function movePlayer(p, inp, dt, ctx) {
     p.vel.x += wx * 30 * dt; p.vel.z += wz * 30 * dt;
     let nh = Math.hypot(p.vel.x, p.vel.z);
     if (nh > cap) { p.vel.x *= cap / nh; p.vel.z *= cap / nh; nh = cap; }
-    if (nh > speed) { const k = 1 - 0.35 * dt; p.vel.x *= k; p.vel.z *= k; }
+    if (nh > speed && !(p.padT > 0)) { const k = 1 - 0.35 * dt; p.vel.x *= k; p.vel.z *= k; }
   }
   // Wandlauf: Tempo entlang der Wand halten und leicht an die Wand drücken
   if (p.wrT > 0) {
@@ -358,9 +451,31 @@ export function movePlayer(p, inp, dt, ctx) {
     if (p.vel.y < -1.5) p.vel.y = -1.5;
   }
 
+  // Enterhaken: zieht zum Ziel
+  if (p.grT > 0) {
+    p.grT -= dt;
+    const dx = p.grX - p.pos.x, dy = p.grY - (p.pos.y + 1.2), dz = p.grZ - p.pos.z, d = Math.hypot(dx, dy, dz);
+    if (d < 2.2 || p.grT <= 0 || inp.jump) {
+      p.grT = 0; p.vel.y = Math.max(p.vel.y, 7); out.grappleEnd = true;
+    } else {
+      p.vel.x += (dx / d * 28 - p.vel.x) * Math.min(1, 8 * dt);
+      p.vel.y += (dy / d * 28 - p.vel.y) * Math.min(1, 8 * dt);
+      p.vel.z += (dz / d * 28 - p.vel.z) * Math.min(1, 8 * dt);
+    }
+  }
+  // Aufwind: hebt sanft nach oben, Doppelsprung danach wieder frei
+  p.updraft = false;
+  if (ctx.updrafts) for (const u of ctx.updrafts) {
+    if (p.pos.y < u.h && Math.hypot(p.pos.x - u.x, p.pos.z - u.z) < u.r + 0.4) {
+      p.updraft = true; p.jumps = Math.min(p.jumps, 1); p.wrT = 0;
+      p.vel.y += (16 - p.vel.y) * Math.min(1, 4 * dt);
+      out.updraft = true;
+      break;
+    }
+  }
   // Vertikal
   let g = GRAV * ctx.gravMul;
-  if (p.dashT > 0) g = 0;
+  if (p.dashT > 0 || p.grT > 0 || p.updraft) g = 0;
   else if (p.wrT > 0) g *= 0.25;
   else if (inp.slide && !p.onGround && p.airT > 0.12 && !p.ghost) { g *= 2.8; out.fastfall = true; }
   p.vel.y = Math.max(-45, p.vel.y - g * dt);
@@ -398,7 +513,27 @@ export function movePlayer(p, inp, dt, ctx) {
     }
   }
   // Hochziehen an Kanten (in der Luft) und Flanken über niedrige Hindernisse (beim Laufen)
-  if (p.wallBox && fwdHeld && !(p.wrT > 0) && p.vel.y < 6) {
+  if (p.wallBox && inp.aim && !p.onGround && !(p.wrT > 0) && p.vel.y < 3 && !p.ghost) {
+    const rise = p.wallBox.mx[1] - p.pos.y;
+    if (rise > 1.2 && rise < 2.3) { p.hang = 1; p.hangY = p.wallBox.mx[1] - 1.45; p.pos.y = p.hangY; p.vel.set(0, 0, 0); out.hang = true; }
+  }
+  if (!p.hang && p.zlId < 0 && !p.onGround && !(p.zlCd > 0) && !p.ghost && ctx.ziplines) {
+    const hx = p.pos.x, hy = p.pos.y + 2.0, hz = p.pos.z;
+    for (const z of ctx.ziplines) {
+      if (!zipAlive(z)) continue;
+      const t = clamp(((hx - z.p0[0]) * z.n[0] + (hy - z.p0[1]) * z.n[1] + (hz - z.p0[2]) * z.n[2]) / z.len, 0, 1);
+      const cx = z.p0[0] + (z.p1[0] - z.p0[0]) * t, cy2 = z.p0[1] + (z.p1[1] - z.p0[1]) * t, cz = z.p0[2] + (z.p1[2] - z.p0[2]) * t;
+      if (Math.hypot(hx - cx, hy - cy2, hz - cz) < 1.4 && t > 0.02 && t < 0.98) {
+        const along = p.vel.x * z.n[0] + p.vel.z * z.n[2];
+        const look = fx * z.n[0] + fz * z.n[2];
+        p.zlId = z.id; p.zlT = t; p.zlDir = (Math.abs(along) > 3 ? along : look) >= 0 ? 1 : -1;
+        p.zlV = Math.max(14, Math.abs(along)); p.dashT = 0; p.grT = 0;
+        out.zipon = true;
+        break;
+      }
+    }
+  }
+  if (p.wallBox && fwdHeld && !p.hang && !(p.wrT > 0) && p.vel.y < 6) {
     const rise = p.wallBox.mx[1] - p.pos.y;
     const ok = p.onGround ? rise > 0.3 && rise < 1.7 && Math.hypot(preVx, preVz) > 4 : rise > 0 && rise < 2.3;
     if (ok) {
@@ -415,16 +550,30 @@ export function movePlayer(p, inp, dt, ctx) {
       p.vel.x = fx * p.vaultV; p.vel.z = fz * p.vaultV; p.vaultV = 0;
     } else if (p.onGround && !p.wallBox) p.vaultV = 0;
   }
-  if (checkJumpPad(p, ctx.pads)) { out.pad = true; p.jumps = 1; }
+  if (checkJumpPad(p, ctx.pads, GRAV * ctx.gravMul)) { out.pad = true; p.jumps = 1; p.dashT = 0; }
   return out;
 }
-export function checkJumpPad(e, pads) {
+/** Sprungfelder: senkrecht (30 m/s) oder gerichtet auf ein Dach (ballistische Bahn, 1,4 s Flug) */
+export function checkJumpPad(e, pads, g = GRAV) {
   if (!e.onGround || e.pos.y > 0.2) return false;
   for (const p of pads) {
-    if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 1.2) { e.vel.y = 30; e.onGround = false; return true; }
+    if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 1.2) {
+      if (p.t) {
+        // hoher Bogen: Scheitel 4 m über dem Dach, damit man sicher über die Kante kommt
+        const peak = p.t[1] + 4 - e.pos.y;
+        const vy = Math.sqrt(2 * g * peak);
+        const T = vy / g + Math.sqrt(2 * 4 / g);
+        e.vel.set((p.t[0] - e.pos.x) / T, vy, (p.t[2] - e.pos.z) / T);
+        e.padT = T;
+      } else e.vel.y = 30;
+      e.onGround = false;
+      return true;
+    }
   }
   return false;
 }
+/** Seilbahn nutzbar, solange beide Gebäude stehen */
+export const zipAlive = (z) => !z.a.gone && !z.b.gone && z.a.mx[1] > z.ha - 0.3 && z.b.mx[1] > z.hb - 0.3;
 
 // ---------------------------------------------------------------- Simulation
 export class Sim {
@@ -511,7 +660,7 @@ export class Sim {
   newWeapon(id, level = 1) { return { id, level, ammo: lvlMag(WEAPONS[id], level) }; }
   teamMembers(t) { return this.entities.filter((e) => e.team === t); }
   ev(id) { return this.cityEvent && this.cityEvent.id === id; }
-  ctx() { return { boxes: this.allBoxes, pads: this.world.pads, gravMul: this.gravMul, speedMul: this.ev('turbo') ? 1.35 : 1 }; }
+  ctx() { return { boxes: this.allBoxes, pads: this.world.pads, ziplines: this.world.ziplines, updrafts: this.world.updrafts, gravMul: this.gravMul, speedMul: this.ev('turbo') ? 1.35 : 1 }; }
   emit(e) { this.events.push(e); }
   msg(text, to) { this.emit({ k: 'msg', text, ...(to !== undefined ? { to } : {}) }); }
   reveal(e, team, t) { e.rev[team] = Math.max(e.rev[team] || 0, t); }
@@ -873,6 +1022,15 @@ export class Sim {
         if (p.onGround) { p.vel.y = 11; p.onGround = false; }
         break;
       case 'bastion': p.shieldT = 4; break;
+      case 'enterhaken': {
+        const o = [p.pos.x, p.pos.y + EYE, p.pos.z];
+        let best = 50;
+        for (const b of this.allBoxes) { if (b.gone) continue; const t = rayBox(o, [fwd.x, fwd.y, fwd.z], b, best); if (t > 0.5 && t < best) best = t; }
+        if (best >= 50) { this.emit({ k: 'snd', s: 'nodash', to: p.id }); return; } // nichts getroffen: keine Abklingzeit
+        p.grT = 1.4; p.grX = o[0] + fwd.x * best; p.grY = o[1] + fwd.y * best; p.grZ = o[2] + fwd.z * best;
+        p.zlId = -1; p.hang = 0; p.wrT = 0;
+        break;
+      }
     }
     a.cd = abilityCd(a);
     this.emit({ k: 'snd', s: 'ab_' + a.id, to: p.id });
@@ -1046,7 +1204,7 @@ export class Sim {
     ai.jumpCd -= dt;
     if (b.onGround && ai.jumpCd <= 0 && (t ? Math.random() < D.jump : b.wallBox)) { b.vel.y = 9; ai.jumpCd = 1.2; }
     moveEntity(b, dt, this.allBoxes);
-    checkJumpPad(b, this.world.pads);
+    checkJumpPad(b, this.world.pads, GRAV * this.gravMul);
 
     ai.stuckT += dt;
     if (ai.stuckT > 2) {
@@ -1196,9 +1354,9 @@ export class Sim {
     const ents = [];
     for (const e of this.entities) {
       const flags = (e.alive ? 1 : 0) | (e.ghost ? 2 : 0) | (e.cloak > 0 ? 4 : 0) | (e.shieldT > 0 ? 8 : 0)
-        | (e.team !== team && this.revealedTo(e, team) ? 16 : 0) | (e.left ? 32 : 0);
+        | (e.team !== team && this.revealedTo(e, team) ? 16 : 0) | (e.left ? 32 : 0) | (e.grT > 0 ? 64 : 0) | (e.zlId >= 0 ? 128 : 0);
       const w = e.weapons[e.cur];
-      ents.push([e.id, r2(e.pos.x), r2(e.pos.y), r2(e.pos.z), r2(e.yaw), Math.ceil(e.hp), Math.ceil(e.armor), flags, w ? w.id : '', e.kills]);
+      ents.push([e.id, r2(e.pos.x), r2(e.pos.y), r2(e.pos.z), r2(e.yaw), Math.ceil(e.hp), Math.ceil(e.armor), flags, w ? w.id : '', e.kills, e.grT > 0 ? [r2(e.grX), r2(e.grY), r2(e.grZ)] : 0]);
     }
     const fx = this.events.filter((ev) => (ev.to === undefined || ev.to === id) && (ev.team === undefined || ev.team === team));
     const snap = {

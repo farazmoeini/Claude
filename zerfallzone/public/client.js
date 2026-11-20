@@ -105,7 +105,9 @@ const SND = {
   ab_sprung: [1800, 300, 0.25, 0.2, 'square'], ab_bollwerk: [200, 600, 0.3, 0.2, 'triangle'], ab_scan: [900, 900, 0.5, 0.15, 'sine'],
   ab_heilung: [500, 1000, 0.6, 0.15, 'sine'], ab_katapult: [250, 1500, 0.4, 0.2, 'triangle'], ab_tarnung: [1200, 200, 0.5, 0.15, 'sine'],
   ab_schockwelle: [300, 80, 0.3, 0.15, 'sawtooth'], ab_mine: [800, 600, 0.15, 0.15, 'square'], ab_stampfer: [400, 900, 0.3, 0.15, 'triangle'],
-  ab_bastion: [300, 300, 0.6, 0.15, 'square'],
+  ab_bastion: [300, 300, 0.6, 0.15, 'square'], ab_enterhaken: [1500, 400, 0.2, 0.15, 'square'],
+  zipon: [700, 1100, 0.15, 0.12, 'triangle'], zipoff: [900, 500, 0.12, 0.08, 'triangle'], hang: [300, 260, 0.1, 0.08, 'square'],
+  updraft: [200, 500, 0.6, 0.06, 'sine'],
 };
 const playSnd = (s) => { const a = SND[s]; if (a) tone(...a); };
 
@@ -360,15 +362,58 @@ function buildWorldMeshes(world, root) {
     root.add(mesh);
     game.boxMeshes.set(b.id, { mesh, edges, b, h0: h, decayed: false });
   }
+  // Sprungfelder: blau = senkrecht, orange mit Pfeil = gerichtet auf ein Dach
   game.padMeshes = world.pads.map((p) => {
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.15, 24), new THREE.MeshBasicMaterial({ color: 0x2c8bff }));
+    const col = p.t ? 0xff9b2c : 0x2c8bff;
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.15, 24), new THREE.MeshBasicMaterial({ color: col }));
     pad.position.set(p.x, 0.08, p.z);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: 0x8ff8ff }));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: p.t ? 0xffd34d : 0x8ff8ff }));
     ring.rotation.x = Math.PI / 2;
     pad.add(ring);
+    if (p.t) {
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.0, 4), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+      arrow.position.y = 0.4;
+      arrow.rotation.order = 'YXZ';
+      arrow.rotation.y = Math.atan2(p.t[0] - p.x, p.t[2] - p.z);
+      arrow.rotation.x = Math.PI / 2;
+      pad.add(arrow);
+    }
     root.add(pad);
     return ring;
   });
+  // Seilbahnen: Masten auf den Dächern und leuchtendes Seil
+  for (const z of world.ziplines) {
+    const pts = [new THREE.Vector3(...z.p0), new THREE.Vector3(...z.p1)];
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffd34d }));
+    root.add(line);
+    const poles = [z.p0, z.p1].map((p) => {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 6), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+      pole.position.set(p[0], p[1] - 1.6, p[2]);
+      root.add(pole);
+      return pole;
+    });
+    game.zipMeshes = game.zipMeshes || [];
+    game.zipMeshes.push({ z, line, poles });
+  }
+  // Aufwind-Säulen mit aufsteigenden Ringen
+  game.updraftRings = [];
+  for (const u of world.updrafts) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(u.r, u.r, u.h, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x8ff8ff, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false }));
+    col.position.set(u.x, u.h / 2, u.z);
+    root.add(col);
+    const base = new THREE.Mesh(new THREE.RingGeometry(u.r - 0.2, u.r, 32), new THREE.MeshBasicMaterial({ color: 0x8ff8ff, side: THREE.DoubleSide }));
+    base.rotation.x = -Math.PI / 2; base.position.set(u.x, 0.05, u.z);
+    root.add(base);
+    for (let k = 0; k < 6; k++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(u.r * 0.9, 0.05, 6, 24), new THREE.MeshBasicMaterial({ color: 0xbffcff, transparent: true, opacity: 0.6 }));
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(u.x, 0, u.z);
+      root.add(ring);
+      game.updraftRings.push({ ring, u, off: k / 6 });
+    }
+  }
+  game.ropes = new Map();
   game.columns = [];
   for (let i = 0; i < NS * NS; i++) {
     const c = { x: -HALF + (i % NS) * SECTOR + SECTOR / 2, z: -HALF + Math.floor(i / NS) * SECTOR + SECTOR / 2 };
@@ -516,7 +561,7 @@ function onSnapshot(s) {
 function predCtx() {
   const s = game.last;
   return {
-    boxes: game.world.boxes.concat(game.walls), pads: game.world.pads,
+    boxes: game.world.boxes.concat(game.walls), pads: game.world.pads, ziplines: game.world.ziplines, updrafts: game.world.updrafts,
     gravMul: s && s.ev && s.ev.id === 'schwerelos' ? 0.45 : 1, speedMul: s && s.ev && s.ev.id === 'turbo' ? 1.35 : 1,
   };
 }
@@ -606,6 +651,7 @@ $('ovQuit').onclick = () => {
   showScreen('menu');
 };
 function endGameView() {
+  if (wind) wind.g.gain.setTargetAtTime(0, actx.currentTime, 0.05);
   clearGameScene();
   game = null;
   document.body.classList.remove('ghostmode', 'cloaked', 'shielded');
@@ -738,6 +784,28 @@ function syncWorld(dt) {
     l.m.position.y = l.base + Math.sin(t * 2 + l.phase) * 0.15;
   }
   for (const r of G.padMeshes) r.position.y = 0.1 + ((t * 1.5) % 1) * 1.5;
+  for (const r of G.updraftRings) {
+    const f = (t * 0.25 + r.off) % 1;
+    r.ring.position.y = f * r.u.h;
+    r.ring.material.opacity = 0.6 * (1 - f);
+  }
+  // Seilbahnen über zerfallenen Gebäuden verschwinden
+  for (const zm of G.zipMeshes || []) {
+    const alive = !zm.z.a.gone && !zm.z.b.gone && zm.z.a.mx[1] > zm.z.ha - 0.3 && zm.z.b.mx[1] > zm.z.hb - 0.3;
+    zm.line.visible = alive; zm.poles.forEach((p) => { p.visible = alive; });
+  }
+  // Enterhaken-Seile: eigenes aus der Vorhersage, andere aus dem Snapshot
+  const ropes = [];
+  if (G.pred.grT > 0) ropes.push(['me', camera.localToWorld(new THREE.Vector3(0.2, -0.3, -0.5)), new THREE.Vector3(G.pred.grX, G.pred.grY, G.pred.grZ)]);
+  for (const e of s.ents) if (e[0] !== G.you && e[10] && (e[7] & 1)) ropes.push([e[0], new THREE.Vector3(e[1], e[2] + 1.3, e[3]), new THREE.Vector3(...e[10])]);
+  const seenR = new Set();
+  for (const [id, a, b] of ropes) {
+    seenR.add(id);
+    let l = G.ropes.get(id);
+    if (!l) { l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: 0xb06cff })); G.root.add(l); G.ropes.set(id, l); }
+    else l.geometry.setFromPoints([a, b]);
+  }
+  for (const [id, l] of G.ropes) if (!seenR.has(id)) { G.root.remove(l); l.geometry.dispose(); G.ropes.delete(id); }
 }
 function syncList(meshes, data, make, update) {
   while (meshes.length < data.length) { const m = make(); game.root.add(m); meshes.push(m); }
@@ -894,6 +962,12 @@ function sendInput(dt, P) {
     if (out.walljump) playSnd('walljump');
     if (out.mantle) playSnd('mantle');
     if (out.slide) rumble(0.3, 0.1, 150);
+    if (out.zipon) { playSnd('zipon'); rumble(0.3, 0.1, 120); }
+    if (out.zipoff) playSnd('zipoff');
+    if (out.hang) playSnd('hang');
+    if (out.updraft && !G.inUpdraft) playSnd('updraft');
+    G.inUpdraft = !!out.updraft;
+    if (out.zipping) rumble(0.08, 0, 40);
     if (out.land) { G.landDip = Math.min(0.45, out.land / 70); playSnd('land'); rumble(0, Math.min(0.8, out.land / 40), 100); }
   }
   G.pending.push(inp);
@@ -1009,8 +1083,7 @@ function updateHud(dt) {
   const aliveCount = s.ents.filter((e) => e[7] & 1).length;
   $('alive').textContent = aliveCount;
   const teamsAlive = new Set(s.ents.filter((e) => e[7] & 1).map((e) => G.meta.get(e[0]).team)).size;
-  $('teamsLeft').textContent = MODES[G.mode].size > 1 ? `${teamsAlive} Teams` : '';
-  $('teamsLeft').style.display = MODES[G.mode].size > 1 ? '' : 'none';
+  $('teamsLeft').textContent = MODES[G.mode].size > 1 ? ` · ${teamsAlive} Teams` : '';
   $('kills').textContent = me.kills;
   $('ping').textContent = conn.online ? `${pingMs} ms` : 'offline';
 
@@ -1129,9 +1202,26 @@ function frame(now) {
   }
   renderer.render(scene, camera);
 }
+let wind = null;
+function updateWind(speed) {
+  if (!actx) return;
+  if (!wind) {
+    const src = actx.createBufferSource();
+    src.buffer = noiseBuf; src.loop = true;
+    const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
+    const g = actx.createGain(); g.gain.value = 0;
+    src.connect(f).connect(g).connect(actx.destination);
+    src.start();
+    wind = { f, g };
+  }
+  const k = clamp((speed - 11) / 20, 0, 1);
+  wind.g.gain.setTargetAtTime(k * 0.12, actx.currentTime, 0.1);
+  wind.f.frequency.setTargetAtTime(400 + k * 1400, actx.currentTime, 0.1);
+}
 function updateCamera(dt) {
   const G = game, me = G.me;
   if (!me) return;
+  updateWind(G.pred.vel.length());
   G.camOffset.multiplyScalar(Math.max(0, 1 - dt * 12));
   const P = G.pred;
   const eye = P.slideT > 0 && P.onGround ? 0.9 : EYE;

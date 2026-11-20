@@ -95,3 +95,85 @@ test('Schnell fallen in der Luft', () => {
   run(a, 30); run(b, 30, { slide: true });
   assert.ok(b.pos.y < a.pos.y - 3, 'fällt deutlich schneller');
 });
+
+// ---------------------------------------------------------------- Paket 2 + 3
+import { generateWorld, Sim } from '../shared/sim.js';
+const W = generateWorld(4242);
+const wctx = { boxes: W.boxes, pads: W.pads, ziplines: W.ziplines, updrafts: W.updrafts, gravMul: 1, speedMul: 1 };
+
+test('Kein Fallschaden, auch aus 120 m Höhe', () => {
+  const sim = new Sim({ seed: 3, mode: 'solo', botConfig: {}, humans: [{ id: 'a', name: 'A' }] });
+  const a = sim.byId.get('a');
+  a.pos.set(-187.5, 120, -187.5);
+  const hp = a.hp, armor = a.armor;
+  for (let i = 0; i < 400; i++) { sim.applyInput('a', { seq: i + 1, dt: 1 / 60, yaw: 0, pitch: 0 }); }
+  assert.ok(a.onGround, 'ist gelandet');
+  assert.equal(a.hp, hp); assert.equal(a.armor, armor);
+});
+
+test('Seilbahn: hineinspringen, mitfahren, mit Sprung lösen', () => {
+  assert.ok(W.ziplines.length > 10, 'Karte hat Seilbahnen');
+  const z = W.ziplines[0];
+  const t = 0.3;
+  const p = player(z.p0[0] + (z.p1[0] - z.p0[0]) * t, z.p0[1] + (z.p1[1] - z.p0[1]) * t - 2.0, z.p0[2] + (z.p1[2] - z.p0[2]) * t);
+  p.vel.set(0, 1, 0); p.airT = 0.3;
+  const o = movePlayer(p, inp(), DT, wctx);
+  assert.ok(o.zipon, 'hängt sich ein');
+  const start = p.pos.clone();
+  run(p, 30, {}, wctx);
+  assert.ok(p.zlId === z.id, 'fährt noch');
+  assert.ok(p.pos.distanceTo(start) > 6, `bewegt sich am Seil (${p.pos.distanceTo(start).toFixed(1)} m)`);
+  const off = movePlayer(p, inp({ jump: true }), DT, wctx);
+  assert.ok(off.zipoff && p.zlId === -1 && p.vel.y >= 9);
+});
+
+test('Gerichtetes Sprungfeld landet auf dem Zieldach', () => {
+  const pad = W.pads.find((q) => q.t);
+  assert.ok(pad, 'es gibt gerichtete Felder');
+  const p = player(pad.x, 0, pad.z);
+  p.onGround = true;
+  movePlayer(p, inp(), DT, wctx);
+  let landed = false;
+  for (let i = 0; i < 240 && !landed; i++) { movePlayer(p, inp(), DT, wctx); landed = p.onGround && p.pos.y > 1; }
+  assert.ok(landed, 'landet auf einem Dach');
+  assert.ok(Math.hypot(p.pos.x - pad.t[0], p.pos.z - pad.t[2]) < 8, `nahe am Ziel (${Math.hypot(p.pos.x - pad.t[0], p.pos.z - pad.t[2]).toFixed(1)} m)`);
+});
+
+test('Aufwind trägt nach oben', () => {
+  const u = W.updrafts[0];
+  const p = player(u.x, 0, u.z);
+  run(p, 120, {}, wctx);
+  assert.ok(p.pos.y > 15, `steigt (${p.pos.y.toFixed(1)} m)`);
+});
+
+test('Enterhaken zieht zur Wand', () => {
+  const sim = new Sim({ seed: 11, mode: 'solo', botConfig: {}, humans: [{ id: 'a', name: 'A' }] });
+  const a = sim.byId.get('a');
+  // ein hohes Gebäude mit freier Fläche 12 m davor (−x-Seite), Blick in +x Richtung
+  const free = (x, z) => !sim.world.boxes.some((q) => x > q.mn[0] - 1 && x < q.mx[0] + 1 && z > q.mn[2] - 1 && z < q.mx[2] + 1);
+  const b = sim.world.boxes.find((x) => x.kind === 'building' && x.h0 > 20 && free(x.mn[0] - 12, (x.mn[2] + x.mx[2]) / 2)
+    && !sim.world.boxes.some((q) => q !== x && q.mx[0] > x.mn[0] - 12 && q.mn[0] < x.mn[0] && q.mn[2] < (x.mn[2] + x.mx[2]) / 2 + 1 && q.mx[2] > (x.mn[2] + x.mx[2]) / 2 - 1));
+  assert.ok(b, 'passendes Gebäude gefunden');
+  a.pos.set(b.mn[0] - 12, 0, (b.mn[2] + b.mx[2]) / 2); a.onGround = true; a.vel.set(0, 0, 0);
+  a.abilities[0] = { id: 'enterhaken', level: 1, cd: 0 };
+  a.yaw = -Math.PI / 2; a.pitch = 0.5;
+  sim.useAbility(a, 0);
+  assert.ok(a.grT > 0, 'Haken greift');
+  const d0 = Math.hypot(a.grX - a.pos.x, a.grZ - a.pos.z);
+  for (let i = 0; i < 30; i++) sim.applyInput('a', { seq: i + 1, dt: 1 / 60, yaw: -Math.PI / 2, pitch: 0.5 });
+  const d1 = Math.hypot(a.grX - a.pos.x, a.grZ - a.pos.z);
+  assert.ok(d0 > 8 && d1 < d0 - 5, `kommt näher (${d0.toFixed(1)} → ${d1.toFixed(1)} m)`);
+});
+
+test('An der Kante hängen und hochziehen', () => {
+  const c = { ...ctx, boxes: [box(-5, 5, 0, 6, -30, -20)] };
+  const p = player(0, 4.2, -19.4);
+  p.vel.set(0, 0, -3); p.airT = 0.3;
+  const o = run(p, 5, { aim: true, f: true }, c);
+  assert.ok(o.hang, 'hängt');
+  run(p, 30, { aim: true }, c);
+  assert.ok(p.hang && Math.abs(p.pos.y - 4.55) < 0.01, 'bleibt hängen');
+  movePlayer(p, inp({ aim: true, jump: true, f: true }), DT, c);
+  run(p, 40, { f: true }, c);
+  assert.ok(p.onGround && p.pos.y > 5.9, 'steht auf dem Dach');
+});
