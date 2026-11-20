@@ -14,7 +14,10 @@ import {
 import { LANGS, translate, guessLang } from './shared/i18n.js';
 import { MODELS, loadModelPack, makeModelCharacter, animateModelCharacter, makeModelWeapon } from './models.js';
 loadModelPack();
-import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime } from './visuals.js';
+loadPhotoTextures();
+/** Rundenstart wartet auf Modelle, Foto-Texturen und Umgebungslichter (jeweils mit Zeitlimit) */
+const assetsReady = () => Promise.race([Promise.all([MODELS.promise, loadPhotoTextures(), env.hdrPromise]), new Promise((r) => setTimeout(r, 25000))]);
+import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime, loadPhotoTextures, PHOTO } from './visuals.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -347,7 +350,7 @@ function onMessage(m) {
   switch (m.t) {
     case 'welcome': myClientId = m.id; break;
     case 'lobby': onLobby(m); break;
-    case 'start': MODELS.promise.then(() => startGame(m)); break;
+    case 'start': assetsReady().then(() => startGame(m)); break;
     case 's': if (game) onSnapshot(m); break;
     case 'err': $('netErr').textContent = t(m.key); $('lobbyStatus').textContent = t(m.key); break;
     case 'left': lobby = null; showScreen('menu'); break;
@@ -1464,6 +1467,7 @@ function updateHud(dt) {
 // Vorschau-Stadt im Menü (Abendstimmung)
 let preview = null;
 function ensurePreview() {
+  if (!PHOTO.ready) return; // Vorschau erst mit Foto-Texturen bauen
   if (preview) { if (!preview.root.parent) { scene.add(preview.root); applyTodVisuals('abend'); } return; }
   const world = generateWorld(20240611);
   const root = new THREE.Group();

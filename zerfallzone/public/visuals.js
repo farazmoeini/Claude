@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { HALF, SECTOR, NS } from './shared/sim.js';
 
 // ---------------------------------------------------------------- Farbabstimmung (letzter Bildschritt)
@@ -36,21 +37,21 @@ export const TODS = {
     phys: { turbidity: 3, rayleigh: 1.1, mie: 0.004, g: 0.8, elev: 52, azim: 140, gain: 0.55 },
     sky: { top: 0x2c6cd0, hor: 0xcfe3f6, gnd: 0x8c96a2, sun: 0xfff1d0, clouds: 0.5, stars: 0, disc: 1.0 },
     sunDir: [0.45, 0.82, 0.35], sunCol: 0xfff4e6, sunInt: 3.4, hemiSky: 0xc9dcf2, hemiGround: 0x6e655a, hemiInt: 0.55,
-    fog: 0xbcd0e3, fogDensity: 0.0016, exposure: 0.95, windows: 0.0, lamps: 0.05, neon: 0.0, signs: 0.3, bloom: [0.05, 0.3, 0.97], envInt: 1.0,
+    fog: 0xbcd0e3, fogDensity: 0.0016, exposure: 0.95, windows: 0.0, lamps: 0.05, neon: 0.0, signs: 0.3, bloom: [0.05, 0.3, 0.97], envInt: 1.0, hdrScale: 0.8,
     grade: { lift: [0, 0, 0.005], gamma: [1, 1, 1], gain: [1.01, 1.0, 0.98], sat: 1.04, contrast: 1.05, vignette: 0.18 },
   },
   abend: {
     phys: { turbidity: 7, rayleigh: 2.6, mie: 0.006, g: 0.93, elev: 5, azim: 250, gain: 0.5 },
     sky: { top: 0x1f2f68, hor: 0xffa565, gnd: 0x5a4252, sun: 0xffb070, clouds: 0.45, stars: 0.1, disc: 1.4 },
     sunDir: [-0.78, 0.13, 0.35], sunCol: 0xffa766, sunInt: 2.6, hemiSky: 0xf2b8a0, hemiGround: 0x3b2c3a, hemiInt: 0.45,
-    fog: 0xc99782, fogDensity: 0.0022, exposure: 1.0, windows: 0.5, lamps: 0.7, neon: 0.5, signs: 0.9, bloom: [0.22, 0.4, 0.9], envInt: 0.9,
+    fog: 0xc99782, fogDensity: 0.0022, exposure: 1.0, windows: 0.5, lamps: 0.7, neon: 0.5, signs: 0.9, bloom: [0.22, 0.4, 0.9], envInt: 0.9, hdrScale: 0.7,
     grade: { lift: [0.012, 0.0, 0.02], gamma: [1, 1.01, 1.03], gain: [1.05, 0.99, 0.94], sat: 1.05, contrast: 1.06, vignette: 0.24 },
   },
   nacht: {
     phys: null,
     sky: { top: 0x02040c, hor: 0x1a2046, gnd: 0x07080f, sun: 0xb8ccff, clouds: 0.25, stars: 1, disc: 0.55 },
     sunDir: [0.32, 0.55, -0.5], sunCol: 0xa9c0ff, sunInt: 0.9, hemiSky: 0x5a6ab0, hemiGround: 0x1d1a28, hemiInt: 0.8,
-    fog: 0x141a3a, fogDensity: 0.0028, exposure: 1.35, windows: 1.2, lamps: 1.0, neon: 0.8, signs: 1.4, bloom: [0.5, 0.45, 0.8], envInt: 0.6,
+    fog: 0x141a3a, fogDensity: 0.0028, exposure: 1.35, windows: 1.2, lamps: 1.0, neon: 0.8, signs: 1.4, bloom: [0.5, 0.45, 0.8], envInt: 0.6, hdrScale: 0.12,
     grade: { lift: [0.0, 0.004, 0.018], gamma: [1, 1, 1], gain: [0.97, 0.99, 1.05], sat: 1.05, contrast: 1.08, vignette: 0.3 },
   },
 };
@@ -122,6 +123,25 @@ export function createEnvironment(scene, renderer) {
   const envPhys = new Sky(); envPhys.scale.setScalar(200); envPhys.material = phys.material;
   envScene.add(envNight, envPhys);
   let envRT = null;
+  /** Stärke der Spiegelungen: HDRIs sind je nach Aufnahme unterschiedlich hell (Nacht-HDRI stark gedämpft) */
+  env.updateEnvIntensity = () => {
+    const P = env.preset;
+    if (!P) return;
+    ENV_INT.value = P.envInt * (hdrEnv[env.tod] ? P.hdrScale ?? 1 : 1);
+    for (const m of ENV_MATS) m.envMapIntensity = m.userData.envBase * ENV_INT.value;
+  };
+  // echte Umgebungslichter (Poly Haven, CC0) für Spiegelungen; ohne sie dient der berechnete Himmel
+  const HDRI = { tag: 'wide_street_01', abend: 'sunset_jhbcentral', nacht: 'modern_buildings_night' };
+  const hdrEnv = {};
+  env.hdrPromise = Promise.all(Object.entries(HDRI).map(async ([tod, file]) => {
+    try {
+      const t = await new RGBELoader().loadAsync(`hdri/${file}_1k.hdr`);
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      hdrEnv[tod] = pmrem.fromEquirectangular(t).texture;
+      t.dispose();
+      if (env.tod === tod) { scene.environment = hdrEnv[tod]; env.updateEnvIntensity(); }
+    } catch { /* ohne HDRI weiter mit berechnetem Himmel */ }
+  }));
   env.apply = (tod) => {
     const P = TODS[tod] || TODS.tag;
     env.tod = tod; env.preset = P;
@@ -147,9 +167,8 @@ export function createEnvironment(scene, renderer) {
     // Himmel als Umgebungslicht und für Spiegelungen auf Glas, Metall und Waffen
     if (envRT) envRT.dispose();
     envRT = pmrem.fromScene(envScene, 0, 1, 1000);
-    scene.environment = envRT.texture;
-    ENV_INT.value = P.envInt;
-    for (const m of ENV_MATS) m.envMapIntensity = m.userData.envBase * P.envInt;
+    scene.environment = hdrEnv[tod] || envRT.texture;
+    env.updateEnvIntensity();
     hemi.intensity = P.hemiInt;
   };
   env.follow = (pos, t) => {
@@ -186,6 +205,38 @@ const ENV_INT = { value: 0.5 };
 const ENV_MATS = new Set();
 /** Material für Himmelsspiegelungen anmelden (Stärke je Material × Stärke der Tageszeit) */
 export function envMat(m, base) { m.userData.envBase = base; m.envMapIntensity = base * ENV_INT.value; ENV_MATS.add(m); return m; }
+// ---------------------------------------------------------------- Foto-Texturen (Poly Haven, CC0) – siehe public/ASSETS-LICENSES.md
+const PHOTO_IDS = ['asphalt_02', 'concrete_pavers_02', 'white_plaster_rough_02', 'concrete_panels', 'worn_corrugated_iron', 'gravel_concrete', 'rough_concrete'];
+export const PHOTO = { ready: false, img: {}, promise: null };
+/** Lädt die Foto-Texturen einmal. Fehlen sie, zeichnet das Spiel weiter seine eigenen Texturen. */
+export function loadPhotoTextures(base = 'textures/') {
+  if (PHOTO.promise) return PHOTO.promise;
+  const load = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+  PHOTO.promise = Promise.all(PHOTO_IDS.flatMap((id) => ['diff', 'nor'].map(async (k) => { PHOTO.img[id + '/' + k] = await load(`${base}${id}/${k}.jpg`); })))
+    .then(() => { PHOTO.ready = true; });
+  return PHOTO.promise;
+}
+const photo = (id, k) => PHOTO.img[id + '/' + k] || null;
+function photoTex(id, k, repeat = 1) {
+  const im = photo(id, k);
+  if (!im) return null;
+  const t = new THREE.Texture(im);
+  t.needsUpdate = true;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = k === 'diff' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = 8;
+  t.repeat.set(repeat, repeat);
+  return t;
+}
+/** Musterfüllung aus einem Foto: ein Bild deckt `units` Einheiten ab */
+function photoPattern(g, id, k, units) {
+  const im = photo(id, k);
+  if (!im) return null;
+  const p = g.createPattern(im, 'repeat');
+  p.setTransform(new DOMMatrix().scale(units / im.width));
+  return p;
+}
+
 /** Normalenkarte aus der Helligkeit einer Textur (Sobel-Filter): dunkle Stellen liegen tiefer */
 function normalFromCanvas(src, strength = 2.5) {
   const w = src.width, h = src.height;
@@ -224,10 +275,14 @@ function weather(g, w, h, amount = 1) {
 const FW = 256, FH = 448; // ein Kachel-Ausschnitt = 8 m breit × 4 Stockwerke (14 m)
 const FLOOR = FH / 4;
 /** Fassade: Farb-Textur + Leuchtfenster für Abend und Nacht */
+const FACADE_PHOTO = { 1: 'concrete_panels', 2: 'white_plaster_rough_02', 3: 'worn_corrugated_iron' };
 function makeFacade(style) {
-  const [c, g] = canvas(FW, FH);
-  const [ce, ge] = canvas(FW, FH);
+  const [c, g] = canvas(FW * 2, FH * 2);
+  const [ce, ge] = canvas(FW * 2, FH * 2);
+  g.scale(2, 2); ge.scale(2, 2);
   ge.fillStyle = '#000'; ge.fillRect(0, 0, FW, FH);
+  const wallId = FACADE_PHOTO[style];
+  const wall = wallId ? photoPattern(g, wallId, 'diff', style === 3 ? 64 : 80) : null; // ein Foto = 2–2,5 m Wand
   const lit = (x, y, w, h, p) => {
     if (Math.random() > p) return;
     ge.fillStyle = Math.random() < 0.7 ? '#ffd9a0' : Math.random() < 0.5 ? '#bfe3ff' : '#ffb8e8';
@@ -250,8 +305,8 @@ function makeFacade(style) {
     g.fillStyle = '#22344a';
     for (let x = 0; x < FW; x += 32) g.fillRect(x, 0, 3, FH); // Pfosten
   } else if (style === 1) { // Bürobau: Betonbänder und Fensterbänder
-    g.fillStyle = '#d3cec4'; g.fillRect(0, 0, FW, FH);
-    grain(g, FW, FH, 2500);
+    g.fillStyle = wall || '#d3cec4'; g.fillRect(0, 0, FW, FH);
+    if (!wall) grain(g, FW, FH, 2500);
     for (let f = 0; f < 4; f++) {
       const y = f * FLOOR;
       const wg = g.createLinearGradient(0, y + 34, 0, y + 98);
@@ -262,8 +317,8 @@ function makeFacade(style) {
       g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, y + 98, FW, 4);
     }
   } else if (style === 2) { // Wohnhaus: Putz, Einzelfenster, Balkone
-    g.fillStyle = '#e6dccb'; g.fillRect(0, 0, FW, FH);
-    grain(g, FW, FH, 3000, 0.05);
+    g.fillStyle = wall || '#e6dccb'; g.fillRect(0, 0, FW, FH);
+    if (!wall) grain(g, FW, FH, 3000, 0.05);
     for (let f = 0; f < 4; f++) {
       const y = f * FLOOR;
       for (let i = 0; i < 4; i++) {
@@ -278,8 +333,8 @@ function makeFacade(style) {
       }
     }
   } else { // Industrie: Wellblech und hohe Fensterstreifen
-    for (let x = 0; x < FW; x += 8) { g.fillStyle = x % 16 ? '#69717c' : '#59616b'; g.fillRect(x, 0, 8, FH); }
-    grain(g, FW, FH, 2000, 0.08);
+    if (wall) { g.fillStyle = wall; g.fillRect(0, 0, FW, FH); }
+    else { for (let x = 0; x < FW; x += 8) { g.fillStyle = x % 16 ? '#69717c' : '#59616b'; g.fillRect(x, 0, 8, FH); } grain(g, FW, FH, 2000, 0.08); }
     for (let f = 0; f < 4; f += 2) {
       const y = f * FLOOR + 30;
       g.fillStyle = '#26323e'; g.fillRect(16, y, FW - 32, 40);
@@ -290,7 +345,19 @@ function makeFacade(style) {
     g.fillStyle = 'rgba(180,150,40,0.5)'; g.fillRect(0, FH - 14, FW, 6);
   }
   if (style !== 0) weather(g, FW, FH, style === 3 ? 1.4 : 1);
-  return { map: tex(c), emi: tex(ce), nrm: style === 0 ? null : normalFromCanvas(c, style === 3 ? 3 : 2.2) };
+  let nrm = null;
+  if (style !== 0) {
+    nrm = normalFromCanvas(c, style === 3 ? 3 : 2.2);
+    const wallN = wallId && photo(wallId, 'nor');
+    if (wallN) { // Foto-Relief der Wand + Kanten der Fenster aus der Farbtextur
+      const [cn, gn] = canvas(FW * 2, FH * 2);
+      gn.scale(2, 2);
+      gn.fillStyle = photoPattern(gn, wallId, 'nor', style === 3 ? 64 : 80); gn.fillRect(0, 0, FW, FH);
+      gn.setTransform(1, 0, 0, 1, 0, 0); gn.globalAlpha = 0.5; gn.drawImage(nrm.image, 0, 0);
+      nrm = new THREE.CanvasTexture(cn); nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping; nrm.colorSpace = THREE.NoColorSpace;
+    }
+  }
+  return { map: tex(c), emi: tex(ce), nrm };
 }
 function makeRoof() {
   const [c, g] = canvas(256, 256);
@@ -303,9 +370,10 @@ function makeRoof() {
   return t;
 }
 function makeBarrier() {
-  const [c, g] = canvas(128, 128);
-  g.fillStyle = '#c9c6bf'; g.fillRect(0, 0, 128, 128);
-  grain(g, 128, 128, 1200, 0.08);
+  const [c, g] = canvas(256, 256);
+  g.scale(2, 2);
+  g.fillStyle = photoPattern(g, 'rough_concrete', 'diff', 128) || '#c9c6bf'; g.fillRect(0, 0, 128, 128);
+  if (!photo('rough_concrete', 'diff')) grain(g, 128, 128, 1200, 0.08);
   for (let x = -128; x < 128; x += 32) { g.fillStyle = '#e8622a'; g.beginPath(); g.moveTo(x, 70); g.lineTo(x + 16, 70); g.lineTo(x + 48, 100); g.lineTo(x + 32, 100); g.fill(); }
   return tex(c);
 }
@@ -432,8 +500,8 @@ function materials() {
   const std = (o) => new THREE.MeshStandardMaterial({ vertexColors: true, ...o });
   M = {
     facade: fac.map((f, i) => std({ map: f.map, emissive: 0xffffff, emissiveMap: f.emi, emissiveIntensity: 0, roughness: i === 0 ? 0.08 : 0.88, metalness: i === 0 ? 0.6 : 0.02, ...(f.nrm ? { normalMap: f.nrm, normalScale: new THREE.Vector2(0.8, 0.8) } : {}) })),
-    roof: (() => { const t = makeRoof(); return std({ map: t, normalMap: t.userData.nrm, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.95 }); })(),
-    trim: std({ color: 0xd8d4cc, roughness: 0.7 }),
+    roof: (() => { const d = photoTex('gravel_concrete', 'diff', 2); if (d) return std({ map: d, normalMap: photoTex('gravel_concrete', 'nor', 2), roughness: 0.95 }); const t = makeRoof(); return std({ map: t, normalMap: t.userData.nrm, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.95 }); })(),
+    trim: std({ color: 0xd8d4cc, roughness: 0.75, map: photoTex('rough_concrete', 'diff', 3), normalMap: photoTex('rough_concrete', 'nor', 3) }),
     prop: std({ color: 0xffffff, roughness: 0.45, metalness: 0.5 }),
     neon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     beacon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
@@ -442,8 +510,22 @@ function materials() {
     carTire: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }),
     carLight: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     signs: new THREE.MeshStandardMaterial({ map: makeSigns(), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 1, roughness: 0.5 }),
-    barrier: new THREE.MeshStandardMaterial({ map: makeBarrier(), roughness: 0.8 }),
-    ground: (() => { const t = makeGround(); return new THREE.MeshStandardMaterial({ map: t, normalMap: t.userData.nrm, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.92 }); })(),
+    barrier: new THREE.MeshStandardMaterial({ map: makeBarrier(), normalMap: photoTex('rough_concrete', 'nor', 1), roughness: 0.85 }),
+    pavers: new THREE.MeshStandardMaterial({ map: photoTex('concrete_pavers_02', 'diff'), normalMap: photoTex('concrete_pavers_02', 'nor'), roughness: 0.9, color: 0xd8d6d0 }),
+    ground: (() => {
+      const t = makeGround();
+      const det = photoTex('asphalt_02', 'diff');
+      const mat = new THREE.MeshStandardMaterial({ map: t, normalMap: photoTex('asphalt_02', 'nor', 80) || t.userData.nrm, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92 });
+      if (det) { // Foto-Asphalt als Detail (alle 5 m) unter Markierungen und Rissen
+        mat.onBeforeCompile = (sh) => {
+          sh.uniforms.detailMap = { value: det };
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;')
+            .replace('#include <map_fragment>', '#include <map_fragment>\n  vec3 det = texture2D(detailMap, vMapUv * 80.0).rgb;\n  diffuseColor.rgb *= det * 2.1;');
+        };
+        mat.customProgramCacheKey = () => 'ground-detail';
+      }
+      return mat;
+    })(),
     outer: new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 1 }),
     lampPole: new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.5, metalness: 0.6 }),
     lampHead: new THREE.MeshBasicMaterial({ color: 0xfff1c8, toneMapped: false }),
@@ -453,7 +535,7 @@ function materials() {
   };
   M.signs.emissiveMap = M.signs.map;
   M.facade.forEach((f, i) => envMat(f, i === 0 ? 1.6 : 0.5));
-  envMat(M.carPaint, 1.2); envMat(M.carGlass, 1.6); envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.ground, 0.3); envMat(M.lampPole, 0.9);
+  envMat(M.carPaint, 1.2); if (M.pavers.map) envMat(M.pavers, 0.3); envMat(M.carGlass, 1.6); envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.ground, 0.3); envMat(M.lampPole, 0.9);
   // Zerfallene Sektoren: rot getönte Kopien
   M.decayed = {};
   for (const k of ['roof', 'trim', 'prop']) { M.decayed[k] = M[k].clone(); M.decayed[k].color.set(0xff5a6a); M.decayed[k].emissive = new THREE.Color(0x400008); }
@@ -496,6 +578,16 @@ export function buildCity(world, root, tod) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), m.ground);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
   root.add(ground);
+  if (m.pavers.map) {
+    const pv = new Geo();
+    for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) for (let lx = 0; lx < 2; lx++) for (let lz = 0; lz < 2; lz++) {
+      const x0 = -HALF + sx * SECTOR + (lx ? 27 : 4) - 1.4, z0 = -HALF + sz * SECTOR + (lz ? 27 : 4) - 1.4, x1 = x0 + 21.8, z1 = z0 + 21.8, y = 0.012, k = 1 / 3;
+      pv.plane([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [[x0 * k, -z1 * k], [x1 * k, -z1 * k], [x1 * k, -z0 * k], [x0 * k, -z0 * k]]);
+    }
+    const pm = new THREE.Mesh(pv.build(), m.pavers);
+    pm.receiveShadow = true;
+    root.add(pm);
+  }
   const outer = new THREE.Mesh(new THREE.RingGeometry(HALF * 1.42, 1400, 4, 1, Math.PI / 4), m.outer);
   outer.rotation.x = -Math.PI / 2; outer.position.y = -0.02;
   root.add(outer);

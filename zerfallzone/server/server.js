@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const THREE_FILE = path.join(path.dirname(require.resolve('three')), 'three.module.js');
 const THREE_ADDONS = path.join(path.dirname(require.resolve('three')), '..', 'examples', 'jsm');
 const TICK = 1 / 30;
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.hdr': 'application/octet-stream' };
 
 function serveStatic(req, res) {
   const url = new URL(req.url, 'http://x');
