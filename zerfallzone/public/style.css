@@ -34,11 +34,11 @@ canvas#game { display: block; }
 #prompt:empty { display: none; }
 #prompt b { color: #2cf3ff; }
 
-#vitals { position: absolute; left: 16px; bottom: 16px; width: 280px; }
-.bar { height: 12px; background: #ffffff18; margin-top: 5px; border-radius: 2px; overflow: hidden; }
-#hpBar { height: 100%; background: linear-gradient(90deg,#3dff9a,#b8ff6b); width: 100%; }
-#armorBar { height: 100%; background: linear-gradient(90deg,#2c8bff,#2cf3ff); width: 0%; }
-#vitalsText { font-size: 13px; margin-top: 4px; color: #9fb4d0; }
+
+
+
+
+
 
 #abilities { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 10px; }
 .ab { width: 120px; height: 54px; background: #05060dcc; border: 1px solid #b06cff88; border-radius: 6px;
@@ -64,7 +64,7 @@ canvas#game { display: block; }
 #feed .team { color: #7dff6b; }
 #teamPanel { position: absolute; top: 224px; left: 16px; width: 200px; font-size: 12px; }
 #teamPanel .tm { background: #05060daa; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px; }
-#teamPanel .tm .bar { height: 5px; margin-top: 3px; }
+#teamPanel .tm .bar { height: 5px; margin-top: 3px; background: #ffffff18; border-radius: 2px; overflow: hidden; }
 #teamPanel .tm .bar div { height: 100%; background: #3dff9a; }
 #teamPanel .tm.ghost { opacity: .6; } #teamPanel .tm.dead { opacity: .3; text-decoration: line-through; }
 #event { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); background: #b06cffcc; color: #fff;
@@ -150,3 +150,25 @@ button.toggle.on { border-color: #2cf3ff; color: #2cf3ff; }
 #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 #flash.show { animation: fl .45s ease-out; }
 @keyframes fl { 0% { opacity: .35; } 100% { opacity: 0; } }
+
+/* Vitalkern */
+#vitals { position: absolute; left: 14px; bottom: 10px; width: 150px; height: 150px; --hp: #3dff9a; }
+#vitalSvg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 6px #0009); }
+#vitalSvg circle { fill: none; transition: stroke-dasharray .18s ease-out, stroke .3s; }
+.aseg-bg { stroke: #ffffff1c; stroke-width: 7; }
+.aseg { stroke: #2cc8ff; stroke-width: 7; filter: drop-shadow(0 0 4px #2cc8ffaa); }
+.hp-track { stroke: #00000066; stroke-width: 9; }
+.hp-lag { stroke: #ffffffcc; stroke-width: 9; transition: stroke-dasharray .6s ease-in .35s !important; }
+.hp-arc { stroke: var(--hp); stroke-width: 9; stroke-linecap: butt; filter: drop-shadow(0 0 5px var(--hp)); }
+.core { fill: #0a0e1ee6; }
+.core-line { fill: none; stroke: var(--hp); stroke-width: 1.5; opacity: .7; }
+.vnum { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; pointer-events: none; }
+.vnum b { font: 800 34px "Segoe UI", system-ui, sans-serif; color: #fff; letter-spacing: -1px; text-shadow: 0 0 10px var(--hp); }
+.vnum span { margin-top: 3px; font: 700 13px "Segoe UI", system-ui, sans-serif; color: #7fdcff; }
+.vnum span::before { content: "◆ "; font-size: 10px; }
+#vitals.low { --hp: #ff3355; animation: vpulse .9s ease-in-out infinite; }
+#vitals.mid { --hp: #ffd34d; }
+#vitals.hit { animation: vshake .25s; }
+#vitals.low.hit { animation: vshake .25s, vpulse .9s ease-in-out infinite .25s; }
+@keyframes vpulse { 50% { transform: scale(1.04); } }
+@keyframes vshake { 20% { transform: translate(-4px, 2px); } 40% { transform: translate(4px, -2px); } 60% { transform: translate(-3px, -1px); } 80% { transform: translate(2px, 1px); } }

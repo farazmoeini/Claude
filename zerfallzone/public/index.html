@@ -25,10 +25,19 @@
   <div id="killBanner"></div>
   <div id="flash"></div>
   <div id="prompt"></div>
+  <!-- Vitalkern: Leben als Ring um ein Sechseck, Rüstung als vier Zellen außen -->
   <div id="vitals">
-    <div class="bar"><div id="armorBar"></div></div>
-    <div class="bar"><div id="hpBar"></div></div>
-    <div id="vitalsText"></div>
+    <svg viewBox="0 0 140 140" id="vitalSvg" aria-hidden="true">
+      <g transform="rotate(135 70 70)">
+        <circle class="aseg-bg" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-0.00"/><circle class="aseg" id="aseg0" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="-0.00"/><circle class="aseg-bg" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-18.75"/><circle class="aseg" id="aseg1" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="-18.75"/><circle class="aseg-bg" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-37.50"/><circle class="aseg" id="aseg2" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="-37.50"/><circle class="aseg-bg" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-56.25"/><circle class="aseg" id="aseg3" cx="70" cy="70" r="62" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="-56.25"/>
+        <circle class="hp-track" cx="70" cy="70" r="51" pathLength="100" stroke-dasharray="75 100"/>
+        <circle class="hp-lag" id="hpLag" cx="70" cy="70" r="51" pathLength="100" stroke-dasharray="75 100"/>
+        <circle class="hp-arc" id="hpArc" cx="70" cy="70" r="51" pathLength="100" stroke-dasharray="75 100"/>
+      </g>
+      <polygon class="core" points="70.0,30.0 104.6,50.0 104.6,90.0 70.0,110.0 35.4,90.0 35.4,50.0"/>
+      <polygon class="core-line" points="70.0,30.0 104.6,50.0 104.6,90.0 70.0,110.0 35.4,90.0 35.4,50.0"/>
+    </svg>
+    <div class="vnum"><b id="hpNum">100</b><span id="armorNum">50</span></div>
   </div>
   <div id="abilities"><div class="ab" id="ab0"></div><div class="ab" id="ab1"></div></div>
   <div id="weapons"><div class="wp" id="wp0"></div><div class="wp" id="wp1"></div></div>

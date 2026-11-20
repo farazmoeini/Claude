@@ -347,7 +347,7 @@ function onMessage(m) {
   switch (m.t) {
     case 'welcome': myClientId = m.id; break;
     case 'lobby': onLobby(m); break;
-    case 'start': startGame(m); break;
+    case 'start': MODELS.promise.then(() => startGame(m)); break;
     case 's': if (game) onSnapshot(m); break;
     case 'err': $('netErr').textContent = t(m.key); $('lobbyStatus').textContent = t(m.key); break;
     case 'left': lobby = null; showScreen('menu'); break;
@@ -619,7 +619,7 @@ function updateViewModel(me) {
   const W = WEAPONS[w[0]];
   const custom = makeModelWeapon(w[0]);
   if (custom) {
-    custom.position.set(0.22, -0.2, -0.5);
+    custom.position.set(0.26, -0.26, -0.62);
     custom.userData.z = custom.position.z; custom.userData.len = 0.6;
     camera.add(custom);
     game.viewModel = custom;
@@ -1342,9 +1342,22 @@ function updateHud(dt) {
   hudCd -= dt;
   if (hudCd > 0) return;
   hudCd = 0.1;
-  $('hpBar').style.width = `${me.hp}%`;
-  $('armorBar').style.width = `${me.armor}%`;
-  $('vitalsText').textContent = t('hud.hp', { hp: me.hp, armor: me.armor });
+  // Vitalkern: Lebensring (270°), heller Schweif zeigt den eben verlorenen Teil, Rüstung in vier Zellen
+  const hpF = clamp(me.hp / 100, 0, 1);
+  $('hpArc').setAttribute('stroke-dasharray', `${(75 * hpF).toFixed(2)} 100`);
+  $('hpLag').setAttribute('stroke-dasharray', `${(75 * hpF).toFixed(2)} 100`);
+  for (let i = 0; i < 4; i++) {
+    const f = clamp((me.armor - i * 25) / 25, 0, 1);
+    $('aseg' + i).setAttribute('stroke-dasharray', `${(17 * f).toFixed(2)} 100`);
+  }
+  $('hpNum').textContent = Math.max(0, me.hp);
+  $('armorNum').textContent = me.armor;
+  const vit = $('vitals');
+  vit.classList.toggle('low', me.hp < 30);
+  vit.classList.toggle('mid', me.hp >= 30 && me.hp < 60);
+  if (G.lastHp !== undefined && me.hp < G.lastHp) { vit.classList.remove('hit'); void vit.offsetWidth; vit.classList.add('hit'); }
+  G.lastHp = me.hp;
+  vit.title = t('hud.hp', { hp: me.hp, armor: me.armor });
   const Pd = G.pred;
   let pips = '';
   for (let i = 0; i < DASH_MAX; i++) {

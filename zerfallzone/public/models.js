@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
-export const MODELS = { ready: false, character: null, weapons: {}, manifest: null };
+export const MODELS = { ready: false, character: null, weapons: {}, manifest: null, promise: Promise.resolve() };
 
 const CLIP_GUESS = {
   idle: /idle|stand|breath/i,
@@ -15,7 +15,12 @@ const CLIP_GUESS = {
 };
 
 /** Lädt das Modellpaket, falls vorhanden. Fehler werden protokolliert, das Spiel läuft mit eingebauten Figuren weiter. */
-export async function loadModelPack(base = 'models/') {
+export function loadModelPack(base = 'models/') {
+  // höchstens 20 s warten, danach mit eingebauten Figuren weiter
+  MODELS.promise = Promise.race([loadPack(base), new Promise((r) => setTimeout(r, 20000))]);
+  return MODELS.promise;
+}
+async function loadPack(base) {
   let manifest;
   try {
     const r = await fetch(base + 'manifest.json', { cache: 'no-cache' });
@@ -25,12 +30,23 @@ export async function loadModelPack(base = 'models/') {
   const loader = new GLTFLoader();
   const load = (file) => new Promise((res, rej) => loader.load(base + file, res, undefined, rej));
   try {
+    const cache = new Map();
+    const loadOnce = (file) => { if (!cache.has(file)) cache.set(file, load(file)); return cache.get(file); };
     if (manifest.character && manifest.character.file) {
-      const g = await load(manifest.character.file);
-      MODELS.character = { scene: g.scene, clips: g.animations, cfg: manifest.character };
+      const g = await loadOnce(manifest.character.file);
+      const cfg = { ...manifest.character };
+      // Größe automatisch: genaue Höhe inkl. Skelett messen und auf die gewünschte Körpergröße bringen
+      if (cfg.height) {
+        g.scene.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(g.scene, true);
+        const h = box.max.y - box.min.y;
+        if (h > 0) { cfg.scale = cfg.height / h; cfg.offsetY = cfg.offsetY ?? -box.min.y * cfg.scale; }
+      }
+      MODELS.character = { scene: g.scene, clips: g.animations, cfg };
+      if (cfg.weapon) { try { MODELS.handWeapon = (await loadOnce(cfg.weapon)).scene; } catch (e) { console.warn('Handwaffe fehlt:', e.message || e); } }
     }
     for (const [id, cfg] of Object.entries(manifest.weapons || {})) {
-      try { const g = await load(cfg.file); MODELS.weapons[id] = { scene: g.scene, cfg }; } catch (e) { console.warn('Waffenmodell fehlt:', id, e.message || e); }
+      try { const g = await loadOnce(cfg.file); MODELS.weapons[id] = { scene: g.scene, cfg }; } catch (e) { console.warn('Waffenmodell fehlt:', id, e.message || e); }
     }
     MODELS.manifest = manifest;
     MODELS.ready = true;
@@ -81,6 +97,17 @@ export function makeModelCharacter(teamCol, accent, outlineCol) {
   inner.traverse((o) => { if (!hand && o.isBone && o.name.toLowerCase().replace(/[^a-z_]/g, '').includes(handName.toLowerCase())) hand = o; });
   (hand || group).add(gun);
   if (!hand) gun.position.set(0.2, 1.2, -0.4);
+  if (MODELS.handWeapon) {
+    group.updateMatrixWorld(true);
+    const ws = new THREE.Vector3(); (hand || group).getWorldScale(ws);
+    const w = fitLength(MODELS.handWeapon.clone(true), cfg.weaponLength ?? 0.55);
+    const holder = new THREE.Group();
+    holder.add(w);
+    holder.scale.setScalar(1 / (ws.x || 1));
+    if (cfg.weaponRot) holder.rotation.set(...cfg.weaponRot);
+    if (cfg.weaponPos) holder.position.set(...cfg.weaponPos.map((v) => v / (ws.x || 1)));
+    gun.add(holder);
+  }
   const mixer = new THREE.AnimationMixer(inner);
   const clipNames = cfg.clips || {};
   const actions = {};
@@ -107,13 +134,25 @@ export function animateModelCharacter(rig, speed, airborne, dt) {
   rig.mixer.update(dt);
 }
 
+/** Modell so skalieren, dass seine längste Seite `len` Meter misst, und um den Ursprung zentrieren */
+function fitLength(o, len) {
+  o.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(o), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const s = len / Math.max(size.x, size.y, size.z, 1e-6);
+  const wrap = new THREE.Group();
+  o.position.sub(c);
+  wrap.add(o);
+  wrap.scale.setScalar(s);
+  wrap.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
+  return wrap;
+}
 /** Waffe in der Hand aus dem Modellpaket (für die Ich-Ansicht); null, wenn keine vorhanden */
 export function makeModelWeapon(id) {
   const W = MODELS.weapons[id];
   if (!W) return null;
-  const o = W.scene.clone(true);
   const c = W.cfg;
-  o.scale.setScalar(c.scale ?? 1);
+  const o = c.length ? fitLength(W.scene.clone(true), c.length) : W.scene.clone(true);
+  if (!c.length) o.scale.setScalar(c.scale ?? 1);
   if (c.rot) o.rotation.set(...c.rot);
   if (c.pos) o.position.set(...c.pos);
   o.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.frustumCulled = false; } });
