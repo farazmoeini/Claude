@@ -350,7 +350,7 @@ export function rayWorld(o, d, maxT, boxes) {
 /** Startwerte aller Bewegungs-Zustände (für Server, Snapshot und Client-Vorhersage) */
 export const MOVE_DEFAULTS = {
   onGround: false, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false, ghost: false,
-  coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, airT: 0, vaultV: 0, padT: 0,
+  coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, wrN: 0, airT: 0, vaultV: 0, padT: 0,
   zlId: -1, zlT: 0, zlDir: 1, zlV: 0, zlCd: 0, zipBuf: 0, grT: 0, grX: 0, grY: 0, grZ: 0, hang: 0, hangY: 0, updraft: false,
 };
 export const MOVE_FIELDS = Object.keys(MOVE_DEFAULTS);
@@ -379,6 +379,8 @@ export function movePlayer(p, inp, dt, ctx) {
   let wl = Math.hypot(wx, wz);
   if (wl > 1) { wx /= wl; wz /= wl; wl = 1; }
   const fwdHeld = inp.f || az > 0.5;
+  // Wandlauf: 0 = aus, 1 = nur mit gehaltenem Sprung (Standard), 2 = automatisch bei Wandkontakt
+  const wrMode = inp.wr === 0 || inp.wr === 2 ? inp.wr : 1;
   const sprint = inp.sprint && fwdHeld && !inp.aim;
   const speed = (p.ghost ? 12 : sprint ? 12.5 : 8.5) * ctx.speedMul;
   const hs = Math.hypot(p.vel.x, p.vel.z);
@@ -530,7 +532,7 @@ export function movePlayer(p, inp, dt, ctx) {
   if (p.slamming && p.onGround) { p.slamming = false; out.slam = true; }
   if (p.onGround) {
     if (!wasGround && fallV < -12) out.land = -fallV;
-    p.jumps = 0; p.climb = 1.1; p.coyote = 0.12; p.airT = 0; p.wrT = 0;
+    p.jumps = 0; p.climb = 1.1; p.coyote = 0.12; p.airT = 0; p.wrT = 0; p.wrN = 0;
     if (p.jumpBuf > 0) { p.vel.y = 9.5; p.jumps = 1; p.jumpBuf = 0; p.coyote = 0; p.onGround = false; } // gepufferter Sprung bei Landung
   } else p.airT += dt;
   p.lastWall = !!p.wallBox;
@@ -539,11 +541,15 @@ export function movePlayer(p, inp, dt, ctx) {
   if (p.wrT > 0) {
     p.wrT += dt;
     const contact = p.wallN && p.wallN[0] === p.wrNx && p.wallN[1] === p.wrNz;
-    if (!contact || p.onGround || p.wrT > 1.4) { p.wrT = 0; p.wrCd = 0.3; }
-  } else if (!p.onGround && p.wallN && !(p.wrCd > 0) && !p.ghost && p.airT > 0.05 && wl > 0.3 && p.wallBox.mx[1] - p.pos.y > 1.6) {
+    if (!contact || p.onGround || p.wrT > 1.2) { p.wrT = 0; p.wrCd = 0.6; }
+  } else if (wrMode && !p.onGround && p.wallN && !(p.wrCd > 0) && !p.ghost && p.airT > 0.12 && wl > 0.3 && p.wallBox.mx[1] - p.pos.y > 1.6
+    && p.wrN < 2 && (wrMode === 2 || inp.jumpHeld)) {
     const nx = p.wallN[0], nz = p.wallN[1], tx = -nz, tz = nx;
     const vt = preVx * tx + preVz * tz;
-    if (Math.abs(vt) > 6) {
+    // nur wenn man an der Wand entlang will, nicht frontal hinein (das ist Klettern)
+    const along = Math.abs(wx * tx + wz * tz) / (wl || 1);
+    if (Math.abs(vt) > 7 && along > 0.45) {
+      p.wrN++;
       const v = Math.sign(vt) * Math.max(Math.abs(vt), 11);
       p.wrT = 0.0001; p.wrNx = nx; p.wrNz = nz;
       p.vel.x = tx * v; p.vel.z = tz * v; p.vel.y = Math.max(p.vel.y, 3);

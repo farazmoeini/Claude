@@ -57,7 +57,9 @@ test('Wandlauf entlang einer Hauswand und Wandsprung weg von der Wand', () => {
   const p = player(1.2, 3, 30);
   p.vel.set(0, 2, -14);
   p.airT = 0.3;
-  const o = run(p, 40, { az: 1, ax: 0.6 }); // schräg in die Wand
+  const o0 = run(p, 3, { az: 1, ax: 0.6 });
+  assert.ok(!o0.wallrun, 'ohne gehaltenen Sprung kein Wandlauf');
+  const o = run(p, 40, { az: 1, ax: 0.6, jumpHeld: true }); // schräg in die Wand, Sprung gehalten
   assert.ok(o.wallrun, 'Wandlauf startet');
   assert.ok(p.wrT > 0);
   const y0 = p.pos.y;

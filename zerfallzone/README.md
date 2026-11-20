@@ -69,7 +69,7 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 | Rutschsprung | Während des Rutschens springen | Das Tempo bleibt in der Luft erhalten |
 | Verzeihende Sprünge | – | Bis 0,12 s nach dem Verlassen einer Kante zählt der Sprung noch als Bodensprung. Ein bis zu 0,13 s zu früh gedrückter Sprung wird bei der Landung nachgeholt |
 | Luftkontrolle | Stick in der Luft | Schwung bleibt erhalten, man lenkt, ohne abzubremsen. Der Doppelsprung lenkt den Schwung in die Stickrichtung um |
-| Wandlauf | Schräg an eine Hauswand springen (mind. 6 m/s entlang der Wand) | Bis 1,4 s an der Wand entlang, kaum Fallen, Kamera neigt sich. Danach ist der Doppelsprung wieder frei |
+| Wandlauf | Schräg an eine Hauswand springen und **Sprung (A) gedrückt halten** (mind. 7 m/s entlang der Wand, nicht frontal) | Bis 1,2 s an der Wand entlang, kaum Fallen, Kamera neigt sich. Höchstens zwei Wandläufe pro Sprung. In den Einstellungen umstellbar: *Sprung halten* (Standard), *Automatisch*, *Aus* |
 | Wandsprung | A beim Wandlauf | Stößt dich mit 9 m/s von der Wand weg. Ketten von Wand zu Wand möglich |
 | Klettern | Gegen eine Wand springen und A halten | Bis 1,1 s nach oben |
 | Hochziehen / Flanken | Gegen Kanten bis 2,3 m (Luft) bzw. 1,7 m (beim Laufen) | Fließend statt ruckartig. Das Sprinttempo bleibt nach dem Flanken erhalten |
@@ -123,11 +123,14 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 - **Zerfall als Markenzeichen:** Zerfallene Sektoren tragen ein wanderndes digitales Glitch-Muster in Rot und Cyan.
 - **Oberfläche:** schlicht und erwachsen: gedeckte Farben, dünne Schrift, kaum Kästen, nur Bernstein als Akzent für Warnungen. Vitalkern unten links (feiner Lebensring, vier Rüstungszellen, Zahl in der Mitte), Munition groß und dünn unten rechts, Fähigkeiten mit feiner Ladelinie, Fadenkreuz aus Punkt und vier feinen Linien.
 - **Kampf-Rückmeldung:** leuchtende Geschossspuren, schwebende Schadenszahlen (Kopftreffer gelb), Treffer-Kreuz, Splitter und Klang beim Rüstungsbruch (bei Gegnern räumlich), Banner bei eigenen Kills.
-- **Grafikeinstellungen** (Hauptmenü → *Grafik*, im Spiel über das Pausenmenü), komplett mit Controller bedienbar (↑/↓ wählen, ←/→ ändern, B zurück):
+- **Einstellungen** (Hauptmenü → *Einstellungen*, im Spiel über das Pausenmenü), komplett mit Controller bedienbar (↑/↓ wählen, ←/→ ändern, B zurück):
   - Voreinstellungen *Niedrig / Mittel / Hoch / Ultra*; jede Änderung einer Einzeloption macht daraus *Benutzerdefiniert*.
   - Anzeige: Auflösungsskalierung (50–200 %), Sichtfeld 60–110°, Helligkeit, Bildratenbegrenzung (30–240 FPS oder unbegrenzt), FPS-Anzeige, Vollbild.
   - Qualität: Texturqualität 1K/2K/4K*, Schatten (Aus/Niedrig/Mittel/Hoch = 1024/2048/4096er-Karte), Kantenglättung (Aus, MSAA 2×/4×/8×), Umgebungsverdeckung, Leuchteffekte, Farbabstimmung, anisotrope Filterung 1–16×*, Sichtweite, Effektqualität (Rauch, Splitter, Hülsen).
   - Komfort: Kamerawackeln an/aus.
+  - Audio: Ausgabegerät (Lautsprecher, Kopfhörer, Headset, Monitor … – wird beim Wechsel sofort umgeschaltet) und Wiedergabe *Kopfhörer (3D-Klang)*, *Lautsprecher (Stereo)* oder *Mono*.
+  - Steuerung: Zielhilfe für Controller (*Aus / Niedrig / Standard / Stark*) und Wandlauf-Modus.
+- **Zielhilfe (nur Controller):** Der rechte Stick wird langsamer, solange das Fadenkreuz auf einem Gegner liegt; beim Bewegen, Zielen oder Schießen folgt der Blick einem nahen Gegner ein Stück; beim Drücken von LT springt der Blick kurz Richtung Gegner. Nur bei freier Sicht, nie durch Wände, nie auf Teammitglieder. Maus und Tastatur bekommen keine Hilfe.
   - Alles wirkt sofort, außer den mit * markierten Optionen (laden beim Verlassen des Menüs neu). 1k-Texturen liegen im Repository; 2k und 4k lädt `npm run assets -- 2k 4k` von Poly Haven (rund 310 MB, jede Datei per Prüfsumme geprüft). Der GitHub-Build der PC-App lädt sie automatisch mit. Fehlt eine Auflösung, nimmt das Spiel die nächstkleinere.
   - Bildschirmfoto: `docs/grafik.png`.
 - **Glänzende Scheiben:** Fassaden haben eine eigene Rauheits- und Metallkarte. Fensterscheiben spiegeln Himmel und Stadt, Wände bleiben matt.

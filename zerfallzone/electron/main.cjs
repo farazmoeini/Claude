@@ -18,6 +18,11 @@ async function startEmbeddedServer() {
 async function createWindow() {
   try { info = await startEmbeddedServer(); }
   catch (e) { console.error(e); dialog.showErrorBox('Zerfallzone', `Der Spielserver konnte nicht starten:\n${e.message}`); app.quit(); return; }
+  // Namen der Audio-Ausgabegeräte für die Geräteauswahl im Spiel (nur für den eingebauten Server)
+  const { session } = require('electron');
+  const own = (origin) => { try { const u = new URL(origin); return u.hostname === 'localhost' && Number(u.port) === info.port; } catch { return false; } };
+  session.defaultSession.setPermissionCheckHandler((wc, permission, origin) => (permission === 'media' || permission === 'speaker-selection') && own(origin));
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => cb(permission === 'speaker-selection' && own(details.requestingUrl || '')));
   const win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: '#05060d', title: 'Zerfallzone', autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },

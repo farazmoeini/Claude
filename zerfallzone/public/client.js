@@ -22,7 +22,7 @@ const GFX_PRESETS = {
   hoch: { scale: 1, tex: '2k', shadows: 2, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1, effects: 1 },
   ultra: { scale: 1.25, tex: '4k', shadows: 3, aa: 4, ao: true, bloom: true, grade: true, aniso: 16, draw: 1.3, effects: 1 },
 };
-const GFX_FREE = { fov: 78, brightness: 1, fpsCap: 0, showFps: false, shake: true };
+const GFX_FREE = { fov: 78, brightness: 1, fpsCap: 0, showFps: false, shake: true, audioOut: 'default', audioMode: 'hp', assist: 2, wallrun: 1 };
 const gfx = (() => {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('zz-gfx')); } catch { /* ohne Speicher */ }
@@ -135,6 +135,7 @@ function applyGfx() {
   effects.quality = gfx.effects;
   fxOn = gfx.effects > 0;
   $('fps').classList.toggle('hidden', !gfx.showFps);
+  applyAudioSettings();
 }
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -163,8 +164,29 @@ function initAudio() {
     const comp = actx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.2;
     master.connect(comp).connect(actx.destination);
+    applyAudioSettings();
   } catch { actx = null; }
 }
+// Ausgabegerät und Wiedergabeart (Kopfhörer = 3D-Klang, Lautsprecher = Stereo, Mono)
+let audioDevices = [{ id: 'default', label: '' }];
+async function refreshAudioDevices() {
+  try {
+    const list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+    audioDevices = [{ id: 'default', label: '' }, ...list.map((d, i) => ({ id: d.deviceId, label: d.label || `${t('gfx.audioOut')} ${i + 1}` }))];
+  } catch { /* keine Geräteliste verfügbar */ }
+}
+function applyAudioSettings() {
+  if (!actx) return;
+  if (actx.setSinkId) {
+    const want = gfx.audioOut === 'default' ? '' : gfx.audioOut;
+    if ((actx.sinkId || '') !== want) actx.setSinkId(want).catch(() => { gfx.audioOut = 'default'; saveGfx(); });
+  }
+  const mono = gfx.audioMode === 'mono';
+  actx.destination.channelCount = mono ? 1 : Math.min(2, actx.destination.maxChannelCount || 2);
+  actx.destination.channelCountMode = 'explicit';
+  actx.destination.channelInterpretation = 'speakers';
+}
+navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshAudioDevices());
 function setVolume(v) { volume = v; store.set('vol', v); if (master) master.gain.setTargetAtTime(v, actx.currentTime, 0.05); }
 /** Gefiltertes Rauschen (Knall, Schritt, Zischen) */
 function noise(dest, { type = 'bandpass', f = 1500, f1 = null, q = 1, dur = 0.1, vol = 0.3, delay = 0 }) {
@@ -207,7 +229,7 @@ function spatial(pos, { gain = 1, ref = 5, roll = 1.1, maxDist = 160 } = {}) {
   const d = camera.position.distanceTo(pos);
   if (d > maxDist) return null;
   const pan = actx.createPanner();
-  pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse';
+  pan.panningModel = gfx.audioMode === 'hp' ? 'HRTF' : 'equalpower'; pan.distanceModel = 'inverse';
   pan.refDistance = ref; pan.rolloffFactor = roll; pan.maxDistance = maxDist;
   if (pan.positionX) { pan.positionX.value = pos.x; pan.positionY.value = pos.y; pan.positionZ.value = pos.z; } else pan.setPosition(pos.x, pos.y, pos.z);
   const free = audible(pos);
@@ -340,7 +362,7 @@ $('nameInput').addEventListener('change', () => store.set('name', $('nameInput')
 $('sensInput').value = sens;
 $('volInput').value = volume;
 $('volInput').addEventListener('input', () => { initAudio(); setVolume(+$('volInput').value); tone(660, 660, 0.05, 0.1); });
-const renderFxBtn = () => { $('fxBtn').textContent = (gfx.preset === 'custom' ? t('gfx.custom') : t('gfx.p.' + gfx.preset)) + '  ›'; };
+const renderFxBtn = () => { $('fxBtn').textContent = `${t('gfx.g.quality')}: ${gfx.preset === 'custom' ? t('gfx.custom') : t('gfx.p.' + gfx.preset)}  ›`; };
 $('fxBtn').addEventListener('click', () => openSettings());
 renderFxBtn();
 $('sensInput').addEventListener('input', () => { sens = +$('sensInput').value; store.set('sens', sens); });
@@ -1222,20 +1244,52 @@ function padMenus(P) {
   if (P.edge(BTN.A) && i >= 0) { initAudio(); items[i].click(); }
   if (P.edge(BTN.B) && screen.id === 'overlay' && game && !game.over && !game.eliminatedPlace) $('ovResume').click();
 }
-/** leichte Zielhilfe: Blick wird langsamer, wenn ein Gegner nahe am Fadenkreuz ist */
-function aimAssistFactor() {
+// ---------------------------------------------------------------- Zielhilfe (nur Controller)
+// Stärke je Einstellung: Aus, Niedrig, Standard, Stark
+const ASSIST_K = [0, 0.5, 0.8, 1.1];
+const wrapAng = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+/** Nächster sichtbarer Gegner nahe am Fadenkreuz: { dyaw, dpitch, err, cone, d } oder null */
+function assistTarget(coneMul = 1) {
   const G = game;
-  if (!G || !G.last) return 1;
-  const dir = aimDir(yaw, pitch);
+  if (!G || !G.last) return null;
   const cp = camera.position;
+  let best = null;
   for (const e of G.last.ents) {
-    if (e[0] === G.you || !(e[7] & 1) || G.meta.get(e[0]).team === G.myTeam || (e[7] & 4)) continue;
+    if (e[0] === G.you || !(e[7] & 1) || G.meta.get(e[0])?.team === G.myTeam || (e[7] & 4)) continue;
     const dx = e[1] - cp.x, dy = e[2] + 1.1 - cp.y, dz = e[3] - cp.z;
     const d = Math.hypot(dx, dy, dz);
-    if (d > 90 || d < 0.5) continue;
-    if ((dx * dir.x + dy * dir.y + dz * dir.z) / d > Math.cos(Math.max(0.035, 1.2 / d))) return 0.5;
+    if (d > 110 || d < 0.8) continue;
+    const dyaw = wrapAng(Math.atan2(-dx, -dz) - yaw), dpitch = Math.asin(dy / d) - pitch;
+    const err = Math.hypot(dyaw, dpitch);
+    const cone = Math.max(0.05, 1.6 / d) * coneMul;
+    if (err > cone || (best && err >= best.err)) continue;
+    if (rayWorld([cp.x, cp.y, cp.z], [dx / d, dy / d, dz / d], d, G.world.boxes.concat(G.walls)) < d - 0.6) continue; // verdeckt
+    best = { dyaw, dpitch, err, cone, d };
   }
-  return 1;
+  return best;
+}
+/**
+ * Zielhilfe wie in Konsolen-Shootern:
+ * - Bremsen: der rechte Stick wird langsamer, solange das Fadenkreuz auf einem Gegner liegt
+ * - Mitziehen: bewegt man sich, zielt oder schießt, folgt der Blick einem Gegner nahe am Fadenkreuz ein Stück
+ * - Anvisieren: beim Drücken von LT springt der Blick ein Stück Richtung Gegner
+ * Gibt den Bremsfaktor für den rechten Stick zurück.
+ */
+function aimAssist(P, dt, firing) {
+  const k = ASSIST_K[gfx.assist] || 0;
+  if (!k) return 1;
+  if (P.edge(BTN.LT)) pad.snapT = 0.16;
+  pad.snapT = Math.max(0, (pad.snapT || 0) - dt);
+  const tg = assistTarget(pad.snapT > 0 ? 2.4 : 1 + 0.4 * k);
+  if (!tg) return 1;
+  const near = 1 - tg.err / tg.cone; // 0 am Rand, 1 in der Mitte
+  let pull = 0;
+  if (pad.snapT > 0) pull = 9 * k;
+  else if (Math.abs(P.lx) + Math.abs(P.ly) > 0.2 || Math.abs(P.rx) + Math.abs(P.ry) > 0.1 || firing || P.now[BTN.LT]) pull = 3.2 * k * near;
+  const a = Math.min(1, pull * dt);
+  yaw += tg.dyaw * a;
+  pitch = clamp(pitch + tg.dpitch * a, -1.5, 1.5);
+  return 1 - 0.45 * k * near;
 }
 const keyLabel = (k) => (pad.active ? { F: 'X', Q: 'LB', E: 'RB' }[k] || k : k);
 
@@ -1253,14 +1307,14 @@ function sendInput(dt, P) {
     zip: pressed.has('KeyF') && !G.nearLoot,
     fire: locked && !paused && mouseDown, aim: locked && !paused && rightDown, reload: k('KeyR'),
     use: pressed.has('KeyF'), useHeld: k('KeyF'), q: pressed.has('KeyQ'), e: pressed.has('KeyE'),
-    w1: pressed.has('Digit1'), w2: pressed.has('Digit2'), swap: wheelSwap,
+    w1: pressed.has('Digit1'), w2: pressed.has('Digit2'), swap: wheelSwap, wr: gfx.wallrun,
   };
   pressed = new Set();
   wheelSwap = false;
   if (P && !paused && $('overlay').classList.contains('hidden')) {
     const zoomed = P.now[BTN.LT] && G.me.weapons[G.me.cur] && WEAPONS[G.me.weapons[G.me.cur][0]].zoom;
     const curve = (v) => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
-    const s = 3.2 * sens * dt * (zoomed ? 0.35 : P.now[BTN.LT] ? 0.6 : 1) * aimAssistFactor();
+    const s = 3.2 * sens * dt * (zoomed ? 0.35 : P.now[BTN.LT] ? 0.6 : 1) * aimAssist(P, dt, P.now[BTN.RT]);
     yaw -= curve(P.rx) * s;
     pitch = clamp(pitch - curve(P.ry) * s * 0.75, -1.5, 1.5);
     inp.yaw = yaw; inp.pitch = pitch;
@@ -1672,9 +1726,16 @@ const GFX_ROWS = [
   { k: 'effects', vals: [0, 1], fmt: (v) => t(v ? 'gq.high' : 'gq.low'), preset: true },
   { group: 'gfx.g.comfort' },
   { k: 'shake', vals: [true, false], fmt: onoff },
+  { group: 'gfx.g.audio' },
+  { k: 'audioOut', vals: () => audioDevices.map((d) => d.id), fmt: (v) => audioDevices.find((d) => d.id === v)?.label || t('gq.default') },
+  { k: 'audioMode', vals: ['hp', 'stereo', 'mono'], fmt: (v) => t('gq.am.' + v) },
+  { group: 'gfx.g.control' },
+  { k: 'assist', vals: [0, 1, 2, 3], fmt: (v) => t(['gq.off', 'gq.low', 'gq.std', 'gq.strong'][v]) },
+  { k: 'wallrun', vals: [1, 2, 0], fmt: (v) => t(['gq.off', 'gq.wrHold', 'gq.wrAuto'][v]) },
 ];
 let settingsFrom = 'menu', gfxAtOpen = null;
 function openSettings() {
+  refreshAudioDevices().then(() => { if (!$('settings').classList.contains('hidden')) renderSettings(); });
   settingsFrom = ['overlay', 'menu', 'lobby'].find((id) => !$(id).classList.contains('hidden')) || (game ? 'overlay' : 'menu');
   gfxAtOpen = { tex: gfx.tex, aniso: gfx.aniso };
   renderSettings();
@@ -1709,8 +1770,9 @@ function renderSettings() {
     } else {
       b.innerHTML = `<i>‹</i>${esc(row.fmt(gfx[row.k]))}<i>›</i>`;
       const step = (dir) => {
-        const i = row.vals.indexOf(gfx[row.k]);
-        gfx[row.k] = row.vals[((i < 0 ? 0 : i) + dir + row.vals.length) % row.vals.length];
+        const vals = typeof row.vals === 'function' ? row.vals() : row.vals;
+        const i = vals.indexOf(gfx[row.k]);
+        gfx[row.k] = vals[((i < 0 ? 0 : i) + dir + vals.length) % vals.length];
         if (row.preset) gfx.preset = 'custom';
         saveGfx(); applyGfx(); renderSettings(); renderFxBtn();
         $('setRows').querySelector(`[data-k="${row.k}"]`)?.focus();
@@ -1762,5 +1824,5 @@ window.__zz = {
   get game() { return game; }, get conn() { return conn; }, get lobby() { return lobby; },
   keys, pad, get lang() { return lang; }, models: MODELS,
   playSeed: (seed, mode = 'solo') => { initAudio(); if (conn) conn.close(); conn = new LocalConn(onMessage); conn.start(mode, botConfig, playerName(), seed); },
-  setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
+  setLook: (y, p) => { yaw = y; pitch = p; }, getLook: () => [yaw, pitch], assistTarget: (m) => assistTarget(m), camPos: () => camera.position.toArray(), press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
 };
