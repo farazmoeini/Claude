@@ -23,9 +23,13 @@ Figuren, Grafik, Sounds und Code sind komplett eigen.
 |---|---|---|
 | Spielfeld schrumpft | Statt eines runden Gases fallen einzelne Stadtsektoren weg, in Wellen und mit Vorwarnung, und die Gebäude darin lösen sich auf | Dynamische Zone, siehe unten |
 | Vertikalität | Viel Bewegung über Dächer, Sprungfelder, Doppelsprung, Klettern | Doppelsprung, Wandklettern (Leertaste + W), Kante hochziehen, Sprungfelder mit 30 m/s |
-| Waffenfortschritt | Doppelte Waffen verschmelzen zu stärkeren Stufen statt Seltenheitsfarben | 4 Waffen, Stufen I bis IV: +15 % Schaden und +20 % Magazin pro Stufe |
-| Fähigkeiten als Beute | Fähigkeiten liegen in der Welt und belegen zwei Slots | 5 eigene Fähigkeiten (Sprung, Bollwerk, Scan, Heilung, Katapult). Doppelte senken die Abklingzeit |
+| Waffenfortschritt | Doppelte Waffen verschmelzen zu stärkeren Stufen statt Seltenheitsfarben | 6 Waffen (MP, Salvengewehr, Schrotflinte, Railgun, Präzisionspistole, Granatwerfer), Stufen I bis IV: +15 % Schaden und +20 % Magazin pro Stufe |
+| Fähigkeiten als Beute | Fähigkeiten liegen in der Welt und belegen zwei Slots | 10 eigene Fähigkeiten: Sprung (Blinzeln), Bollwerk (Wand), Scan, Heilung, Katapult, Tarnung, Schockwelle, Mine, Stampfer, Bastion (−75 % Schaden). Doppelte senken die Abklingzeit |
 | Alternatives Siegziel | Im Finale erscheint ein Objekt, das man halten muss | Der Kern erscheint im letzten Sektor. Wer ihn 30 s allein hält, gewinnt. Oder als Letzter überleben |
+| Zweite Chance | Ausgeschiedene Spieler bleiben als Geist im Spiel und können zurückkommen | Einmal pro Runde wirst du zum Geist: schneller und unsichtbar für Bots. Du hast 45 s, um eine von 3 grünen Rückkehrsäulen zu erreichen und dort 3 s F zu halten. Dann kommst du mit 60 HP und einer Funke I zurück |
+| Wechselnde Regeln | Zufällige Events verändern die Runde | Stadt-Events alle 45–70 s für 25 s: Niedrige Schwerkraft, Endlose Munition, Schnelle Fähigkeiten, Radar, Turbo |
+| Bewegung | Rutschen, Sprünge, Fähigkeiten zur Bewegung | Rutschen (Strg/C beim Sprinten), Raketensprung mit dem Mörser, Stampfer aus der Luft |
+| Finale | Wer das Siegobjekt trägt, ist für alle sichtbar | Wer im Kernbereich steht, wird aufgedeckt, und Bots greifen ihn bevorzugt an |
 | Schnelle Runden | Runden von 10 bis 15 Minuten | Etwa 5 bis 6 Minuten pro Runde |
 
 ## Dynamische Zone
@@ -52,6 +56,8 @@ und auch die Leuchtfarbe des Bots steht für die Stufe.
 | Schwer (orange) | ×0,85 | 0,3–0,5 s | ×1,15 | 95 m | heilt sich, flieht aus dem Zerfall, bessere Waffen und Rüstung |
 | Elite (rot) | ×0,5 | 0,15–0,28 s | voll | 120 m | zielt oft auf den Kopf, ausweichen per Sprung, startet mit Waffenstufe +1 und 50 Rüstung |
 
+Schwere und Elite-Bots setzen auf kurze Distanz die Schockwelle ein. Getarnte Spieler sehen Bots nur auf unter 6 m.
+
 ## Technik
 
 - **Welt** (`buildWorld`): 64 Sektoren mit je 4 Grundstücken und Gebäuden von 4 bis 50 m Höhe, zur Mitte hin höher. Dazu Dachaufbauten, Deckungskisten und Sprungfelder. Straßen liegen alle 25 m und dienen den Bots als Wegenetz.
@@ -68,6 +74,6 @@ eine ganze Runde simuliert (alle Zerfallswellen, Kern, Spielende, Bot-Auswahl im
 
 ## Ideen für danach
 
-Online-Mehrspieler (WebSocket-Server mit autoritativer Simulation), zerstörbare
-Gebäude im Zerfall, Zuschauer- oder Geistermodus nach dem Ausscheiden, Bots, die
-Dächer gezielt erklettern.
+Online-Mehrspieler (WebSocket-Server mit autoritativer Simulation), Squads mit
+Bot-Mitspielern (Geister könnten dann durch Kills der Mitspieler zurückkehren),
+Bots, die Dächer gezielt erklettern.

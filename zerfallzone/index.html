@@ -13,6 +13,8 @@
 <div id="hud" class="hidden">
   <canvas id="minimap" width="200" height="200"></canvas>
   <div id="phase"><div id="phaseTitle">Landung</div><div id="phaseTimer"></div></div>
+  <div id="event" class="hidden"></div>
+  <div id="ghostInfo" class="hidden"></div>
   <div id="stats"><span id="alive">16</span> übrig · <span id="kills">0</span> Kills</div>
   <div id="feed"></div>
   <div id="crosshair"><div id="hitmarker"></div></div>
@@ -38,6 +40,7 @@
         <table>
           <tr><td>WASD</td><td>Laufen</td></tr>
           <tr><td>Shift</td><td>Sprinten</td></tr>
+          <tr><td>Strg / C</td><td>Rutschen (beim Sprinten)</td></tr>
           <tr><td>Leertaste</td><td>Sprung, Doppelsprung, an Wänden klettern</td></tr>
           <tr><td>Maus</td><td>Zielen / Schießen, rechts: Zoom</td></tr>
           <tr><td>1 / 2 / Mausrad</td><td>Waffe wechseln</td></tr>
@@ -54,6 +57,8 @@
           <li>Leuchtende Rauten sind Fähigkeiten. Doppelte verkürzen die Abklingzeit.</li>
           <li>Ist nur noch ein Sektor übrig, erscheint dort der Kern. Halte ihn 30 s oder sei der Letzte.</li>
           <li>Blaue Felder auf der Straße schleudern dich aufs Dach.</li>
+          <li>Wirst du ausgeschaltet, wirst du einmal pro Runde zum Geist: Erreiche in 45 s eine grüne Rückkehrsäule und halte F.</li>
+          <li>Stadt-Events wie niedrige Schwerkraft, endlose Munition oder Radar ändern zwischendurch die Regeln.</li>
         </ul>
       </div>
     </div>

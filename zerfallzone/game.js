@@ -27,8 +27,11 @@ const WEAPONS = {
   puls: { name: 'Puls', desc: 'Salvengewehr', color: 0x7dff6b, dmg: 15, rate: 0.42, mag: 24, reload: 1.8, spread: 0.012, range: 120, pellets: 1, burst: 3, auto: true },
   hagel: { name: 'Hagel', desc: 'Schrotflinte', color: 0xff9b2c, dmg: 11, rate: 0.85, mag: 6, reload: 2.0, spread: 0.085, range: 28, pellets: 9, auto: false },
   lanze: { name: 'Lanze', desc: 'Railgun', color: 0xff4dd2, dmg: 60, rate: 1.0, mag: 5, reload: 2.2, spread: 0, range: 250, pellets: 1, auto: false, zoom: true },
+  dorn: { name: 'Dorn', desc: 'Präzisionspistole', color: 0xd9e4ff, dmg: 26, rate: 0.28, mag: 10, reload: 1.3, spread: 0.004, range: 150, pellets: 1, auto: false, len: 0.35 },
+  moerser: { name: 'Mörser', desc: 'Granatwerfer', color: 0xff5c2c, dmg: 70, rate: 0.85, mag: 4, reload: 2.4, spread: 0, range: 100, pellets: 1, auto: false, projectile: true },
 };
 const WEAPON_IDS = Object.keys(WEAPONS);
+const BOT_WEAPON_IDS = WEAPON_IDS.filter((id) => !WEAPONS[id].projectile);
 const LEVEL_NAMES = ['', 'I', 'II', 'III', 'IV'];
 const lvlDmg = (lvl) => 1 + (lvl - 1) * 0.15;
 const lvlMag = (w, lvl) => Math.round(w.mag * (1 + (lvl - 1) * 0.2));
@@ -39,9 +42,25 @@ const ABILITIES = {
   scan: { name: 'Scan', desc: 'Gegner sichtbar', cd: 20 },
   heilung: { name: 'Heilung', desc: '+60 HP über 3 s', cd: 18 },
   katapult: { name: 'Katapult', desc: 'Superhoher Sprung', cd: 10 },
+  tarnung: { name: 'Tarnung', desc: 'Unsichtbar 6 s', cd: 22 },
+  schockwelle: { name: 'Schockwelle', desc: 'Stößt Gegner weg', cd: 14 },
+  mine: { name: 'Mine', desc: 'Explodiert bei Nähe', cd: 12 },
+  stampfer: { name: 'Stampfer', desc: 'Aus der Luft einschlagen', cd: 12 },
+  bastion: { name: 'Bastion', desc: '−75 % Schaden für 4 s', cd: 20 },
 };
 const ABILITY_IDS = Object.keys(ABILITIES);
 const abilityCd = (a) => ABILITIES[a.id].cd * (1 - (a.level - 1) * 0.15);
+
+// Stadt-Events: alle 45–70 s für 25 s
+const EVENTS = [
+  { id: 'schwerelos', name: 'Niedrige Schwerkraft', desc: 'Alle springen höher' },
+  { id: 'munition', name: 'Endlose Munition', desc: 'Magazine leeren sich nicht' },
+  { id: 'aufladung', name: 'Schnelle Fähigkeiten', desc: 'Abklingzeiten ×3 schneller' },
+  { id: 'radar', name: 'Radar', desc: 'Alle Gegner sichtbar' },
+  { id: 'turbo', name: 'Turbo', desc: '+35 % Tempo für alle' },
+];
+let cityEvent = null, nextEventAt = 75, gravMul = 1;
+const ev = (id) => cityEvent && cityEvent.id === id;
 
 const BOT_NAMES = ['Vex', 'Nyra', 'Kobalt', 'Ion', 'Rhea', 'Spektr', 'Lumen', 'Orca', 'Taiga', 'Flux', 'Zinn', 'Mira', 'Quarz', 'Sable', 'Juno', 'Pixel', 'Nova', 'Haze'];
 
@@ -352,7 +371,7 @@ function sfxShot(kind, vol = 1) {
   src.buffer = noiseBuf;
   const f = actx.createBiquadFilter();
   f.type = 'bandpass';
-  f.frequency.value = { funke: 2200, puls: 1500, hagel: 700, lanze: 3500 }[kind] || 1500;
+  f.frequency.value = { funke: 2200, puls: 1500, hagel: 700, lanze: 3500, dorn: 2800, moerser: 400 }[kind] || 1500;
   const g = actx.createGain();
   const dur = kind === 'hagel' ? 0.25 : kind === 'lanze' ? 0.35 : 0.1;
   g.gain.setValueAtTime(0.35 * vol, actx.currentTime);
@@ -423,7 +442,7 @@ function createBot(i, diffId) {
   e.mesh = g; e.ghost = ghost; e.gunMesh = gun;
   e.ai = { path: [], goal: null, scanCd: rand(0, 0.3), target: null, strafe: 1, strafeCd: 0, stuckT: 0, lastPos: new THREE.Vector3(), jumpCd: 0, abilityCd: rand(5, 15) };
   const lvlBonus = diffId === 'elite' ? 1 : diffId === 'schwer' && Math.random() < 0.5 ? 1 : 0;
-  e.weapons[0] = newWeapon(pick(WEAPON_IDS), Math.min(4, randi(1, 2) + lvlBonus));
+  e.weapons[0] = newWeapon(pick(BOT_WEAPON_IDS), Math.min(4, randi(1, 2) + lvlBonus));
   e.armor = clamp(randi(0, 2) * 25 + (diffId === 'elite' ? 50 : diffId === 'schwer' ? 25 : 0), 0, 100);
   return e;
 }
@@ -453,7 +472,9 @@ function updateBot(b, dt) {
     const eye = { x: b.pos.x, y: b.pos.y + EYE, z: b.pos.z };
     for (const e of entities) {
       if (e === b || !e.alive) continue;
-      const d = b.pos.distanceTo(e.pos);
+      let d = b.pos.distanceTo(e.pos);
+      if (e.cloak > 0 && d > 6) continue; // getarnt
+      if (core && Math.hypot(e.pos.x - core.pos.x, e.pos.z - core.pos.z) < 5) d *= 0.5; // Kernträger zuerst
       if (d < bestD && hasLOS(eye, { x: e.pos.x, y: e.pos.y + 1.2, z: e.pos.z })) { best = e; bestD = d; }
     }
     if (best && best !== ai.target) b.fireCd = Math.max(b.fireCd, rand(...b.diff.react)); // Reaktionszeit
@@ -467,7 +488,7 @@ function updateBot(b, dt) {
   // In Gefahr? Sofort raus.
   if (sectors[sectorOf(b.pos.x, b.pos.z)].state === 2 && ai.goal && sectors[sectorOf(ai.goal.x, ai.goal.z)].state !== 0) planPath(b, randomSafeNode());
 
-  const speed = 7.5;
+  const speed = 7.5 * (ev('turbo') ? 1.35 : 1);
   let mx = 0, mz = 0;
   const t = ai.target;
   if (ai.path.length) {
@@ -496,7 +517,7 @@ function updateBot(b, dt) {
   const accel = b.onGround ? 12 : 3;
   b.vel.x += (mx * speed - b.vel.x) * Math.min(1, accel * dt);
   b.vel.z += (mz * speed - b.vel.z) * Math.min(1, accel * dt);
-  b.vel.y -= GRAV * dt;
+  b.vel.y -= GRAV * gravMul * dt;
   ai.jumpCd -= dt;
   if (b.onGround && ai.jumpCd <= 0 && (t ? Math.random() < b.diff.jump : b.wallBox)) { b.vel.y = 9; ai.jumpCd = 1.2; }
   moveEntity(b, dt);
@@ -510,9 +531,10 @@ function updateBot(b, dt) {
   }
 
   // Fähigkeit: Heilung, wenn verletzt
-  ai.abilityCd -= dt;
+  ai.abilityCd -= dt * (ev('aufladung') ? 3 : 1);
   if (b.diff.abil && ai.abilityCd <= 0) {
     if (b.hp < 55) { b.healLeft = 50; ai.abilityCd = 18; }
+    else if (t && b.pos.distanceTo(t.pos) < 7) { explode(new THREE.Vector3(b.pos.x, b.pos.y + 1, b.pos.z), 8, 25, b, { noSelf: true, push: 22, color: 0xb06cff }); ai.abilityCd = 14; }
     else if (sectors[sectorOf(b.pos.x, b.pos.z)].state === 2 && b.onGround) { b.vel.y = 24; ai.abilityCd = 12; } // Katapult raus
   }
 
@@ -559,9 +581,16 @@ function checkJumpPad(e) {
 // ---------------------------------------------------------------- Waffen
 function fireWeapon(shooter, origin, dir, w, shots = 1) {
   const W = WEAPONS[w.id];
+  if (W.projectile) {
+    if (w.ammo <= 0) return;
+    if (!ev('munition')) w.ammo--;
+    launchProjectile(shooter, origin.clone().addScaledVector(dir, 0.8), dir, w);
+    sfxShot(w.id, 1);
+    return;
+  }
   for (let s = 0; s < shots; s++) {
     if (w.ammo <= 0) break;
-    w.ammo--;
+    if (!ev('munition')) w.ammo--;
     for (let p = 0; p < W.pellets; p++) {
       const sp = W.spread * (shooter.isPlayer && player.zoomed ? 0.3 : 1) + (s > 0 ? 0.008 : 0);
       const d = dir.clone();
@@ -585,6 +614,7 @@ function fireWeapon(shooter, origin, dir, w, shots = 1) {
 
 function damage(target, amount, source) {
   if (!target.alive) return;
+  if (target.shieldT > 0) amount *= 0.25;
   if (target.armor > 0) {
     const absorbed = Math.min(target.armor, amount * 0.7);
     target.armor -= absorbed;
@@ -605,8 +635,10 @@ function kill(target, source) {
   // Beute fallen lassen
   for (const w of target.weapons) if (w) spawnLoot('weapon', w.id, w.level, target.pos.x + rand(-1, 1), target.pos.y, target.pos.z + rand(-1, 1));
   spawnLoot('health', null, 1, target.pos.x, target.pos.y, target.pos.z);
-  if (target.isPlayer) endGame(false);
-  else checkWin();
+  if (target.isPlayer) {
+    if (!player.usedRevive && !core && state === 'play') enterGhost();
+    else endGame(false);
+  } else checkWin();
 }
 
 // ---------------------------------------------------------------- Beute
@@ -659,7 +691,7 @@ function spawnAllLoot() {
     return randomStreetSpot();
   };
   for (let i = 0; i < 110; i++) { const s = spot(); spawnLoot('weapon', pick(WEAPON_IDS), Math.random() < 0.15 ? 2 : 1, ...s); }
-  for (let i = 0; i < 45; i++) { const s = spot(); spawnLoot('ability', pick(ABILITY_IDS), 1, ...s); }
+  for (let i = 0; i < 70; i++) { const s = spot(); spawnLoot('ability', pick(ABILITY_IDS), 1, ...s); }
   for (let i = 0; i < 50; i++) { const s = spot(); spawnLoot('health', null, 1, ...s); }
   for (let i = 0; i < 50; i++) { const s = spot(); spawnLoot('armor', null, 1, ...s); }
 }
@@ -747,7 +779,7 @@ function autoPickup() {
 const tempWalls = [];
 function useAbility(slot) {
   const a = player.abilities[slot];
-  if (!a || a.cd > 0 || !player.alive) return;
+  if (!a || a.cd > 0 || !player.alive || player.ghost) return;
   const fwd = new THREE.Vector3();
   camera.getWorldDirection(fwd);
   switch (a.id) {
@@ -788,9 +820,187 @@ function useAbility(slot) {
       player.vel.y = 26; player.jumps = 1;
       sfxTone(250, 1500, 0.4, 0.2, 'triangle');
       break;
+    case 'tarnung':
+      player.cloak = 6;
+      sfxTone(1200, 200, 0.5, 0.15, 'sine');
+      break;
+    case 'schockwelle':
+      explode(new THREE.Vector3(player.pos.x, player.pos.y + 1, player.pos.z), 8, 30, player, { noSelf: true, push: 24, color: 0xb06cff });
+      break;
+    case 'mine': {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 12), new THREE.MeshBasicMaterial({ color: 0xff3355 }));
+      m.position.set(player.pos.x, player.pos.y + 0.08, player.pos.z);
+      scene.add(m);
+      mines.push({ pos: player.pos.clone(), mesh: m, owner: player, arm: 0.8, life: 90, dmg: 75 });
+      if (mines.length > 3) { const old = mines.shift(); scene.remove(old.mesh); }
+      sfxTone(800, 600, 0.15, 0.15, 'square');
+      break;
+    }
+    case 'stampfer':
+      player.slamT = player.onGround ? 0.3 : 0.01;
+      if (player.onGround) player.vel.y = 11;
+      sfxTone(400, 900, 0.3, 0.15, 'triangle');
+      break;
+    case 'bastion':
+      player.shieldT = 4;
+      sfxTone(300, 300, 0.6, 0.15, 'square');
+      break;
   }
   a.cd = abilityCd(a);
 }
+// ---------------------------------------------------------------- Projektile, Explosionen, Minen
+const projectiles = [];
+const mines = [];
+const booms = [];
+const projGeo = new THREE.SphereGeometry(0.2, 8, 8);
+const boomGeo = new THREE.SphereGeometry(1, 16, 12);
+function launchProjectile(owner, origin, dir, w) {
+  const m = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color: WEAPONS[w.id].color }));
+  m.position.copy(origin);
+  scene.add(m);
+  projectiles.push({ owner, pos: origin.clone(), vel: dir.clone().multiplyScalar(45), mesh: m, life: 4, dmg: WEAPONS[w.id].dmg * lvlDmg(w.level) });
+}
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.vel.y -= GRAV * 0.5 * gravMul * dt;
+    const step = p.vel.length() * dt;
+    const d = p.vel.clone().normalize();
+    const res = traceShot([p.pos.x, p.pos.y, p.pos.z], [d.x, d.y, d.z], step, p.owner);
+    p.life -= dt;
+    if (res.t < step || p.life <= 0) {
+      explode(p.pos.clone().addScaledVector(d, Math.min(res.t, step) - 0.1), 4.5, p.dmg, p.owner);
+      scene.remove(p.mesh);
+      projectiles.splice(i, 1);
+      continue;
+    }
+    p.pos.addScaledVector(d, step);
+    p.mesh.position.copy(p.pos);
+  }
+}
+/** Flächenschaden mit Rückstoß. Eigenschaden 30 % (Raketensprung möglich). */
+function explode(pos, radius, dmg, source, opts = {}) {
+  let hitSomeone = false;
+  for (const e of entities) {
+    if (!e.alive) continue;
+    if (opts.noSelf && e === source) continue;
+    const c = new THREE.Vector3(e.pos.x, e.pos.y + 0.9, e.pos.z);
+    const dist = c.distanceTo(pos);
+    if (dist > radius) continue;
+    const f = 1 - (dist / radius) * 0.6;
+    const push = c.clone().sub(pos);
+    push.y = Math.max(push.y, 0.4);
+    e.vel.addScaledVector(push.normalize(), (opts.push || 14) * f);
+    damage(e, dmg * f * (e === source ? 0.3 : 1), source);
+    if (e !== source) hitSomeone = true;
+  }
+  if (hitSomeone && source && source.isPlayer) hitmarker(false);
+  const m = new THREE.Mesh(boomGeo, new THREE.MeshBasicMaterial({ color: opts.color || 0xff9b2c, transparent: true, opacity: 0.7, depthWrite: false }));
+  m.position.copy(pos);
+  scene.add(m);
+  booms.push({ m, life: 0.35, r: radius });
+  const vol = clamp(1 - pos.distanceTo(player.pos) / 120, 0.05, 1);
+  sfxShot('hagel', vol);
+  sfxTone(160, 40, 0.5, 0.25 * vol, 'sawtooth');
+}
+function updateMines(dt) {
+  for (let i = mines.length - 1; i >= 0; i--) {
+    const m = mines[i];
+    m.arm -= dt; m.life -= dt;
+    m.mesh.material.color.set(Math.sin(gameTime * 10) > 0 ? 0xff3355 : 0x330008);
+    let boom = m.life <= 0;
+    if (m.arm <= 0) for (const e of entities) if (e.alive && e !== m.owner && Math.hypot(e.pos.x - m.pos.x, e.pos.z - m.pos.z) < 3 && Math.abs(e.pos.y - m.pos.y) < 2) boom = true;
+    if (boom) {
+      if (m.life > 0) explode(m.pos.clone().setY(m.pos.y + 0.4), 4.5, m.dmg, m.owner, { noSelf: true });
+      scene.remove(m.mesh);
+      mines.splice(i, 1);
+    }
+  }
+  for (let i = booms.length - 1; i >= 0; i--) {
+    const b = booms[i];
+    b.life -= dt;
+    b.m.scale.setScalar(b.r * (1 - b.life / 0.35) + 0.3);
+    b.m.material.opacity = b.life / 0.35 * 0.7;
+    if (b.life <= 0) { scene.remove(b.m); b.m.material.dispose(); booms.splice(i, 1); }
+  }
+}
+
+// ---------------------------------------------------------------- Stadt-Events
+function updateEvents(dt) {
+  if (!cityEvent && gameTime >= nextEventAt && !core) {
+    cityEvent = { ...pick(EVENTS), t: 25 };
+    pushFeed(`Stadt-Event: ${cityEvent.name}!`, true);
+    sfxTone(400, 1600, 0.8, 0.15, 'triangle');
+  }
+  if (cityEvent) {
+    cityEvent.t -= dt;
+    if (cityEvent.t <= 0 || core) { cityEvent = null; nextEventAt = gameTime + rand(45, 70); }
+  }
+  gravMul = ev('schwerelos') ? 0.45 : 1;
+  if (ev('radar')) for (const b of bots) if (b.alive) b.revealed = Math.max(b.revealed, 0.2);
+  const el = $('event');
+  if (cityEvent) { el.classList.remove('hidden'); el.innerHTML = `<b>${cityEvent.name}</b> · ${cityEvent.desc} · ${Math.ceil(cityEvent.t)} s`; }
+  else el.classList.add('hidden');
+}
+
+// ---------------------------------------------------------------- Geistermodus
+let beacons = [];
+function enterGhost() {
+  const p = player;
+  p.ghost = true; p.ghostT = 45; p.usedRevive = true; p.reviveHold = 0;
+  p.weapons = [null, null]; p.cur = 0; p.reloading = 0; p.cloak = 0; p.shieldT = 0;
+  updateViewModel();
+  // Drei Rückkehrsäulen in sicheren Sektoren, die nächsten zuerst
+  const safe = sectors.map((s, i) => i).filter((i) => sectors[i].state === 0);
+  safe.sort((a, b) => {
+    const ca = sectorCenter(a), cb = sectorCenter(b);
+    return Math.hypot(ca.x - p.pos.x, ca.z - p.pos.z) - Math.hypot(cb.x - p.pos.x, cb.z - p.pos.z);
+  });
+  for (const i of safe.slice(1, 4).concat(safe.slice(0, 1)).slice(0, 3)) {
+    const c = sectorCenter(i);
+    const g = new THREE.Group();
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 200, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x3dff9a, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+    beam.position.y = 100;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.12, 8, 32), new THREE.MeshBasicMaterial({ color: 0x3dff9a }));
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.2;
+    g.add(beam, ring);
+    g.position.set(c.x, 0, c.z);
+    scene.add(g);
+    beacons.push({ x: c.x, z: c.z, mesh: g, sector: i });
+  }
+  document.body.classList.add('ghostmode');
+  pushFeed('Du bist ein Geist! Erreiche eine grüne Rückkehrsäule.', true);
+  sfxTone(600, 80, 1.2, 0.2, 'sine');
+}
+function clearBeacons() {
+  for (const b of beacons) scene.remove(b.mesh);
+  beacons = [];
+  document.body.classList.remove('ghostmode');
+}
+function updateGhost(dt) {
+  const p = player;
+  p.ghostT -= dt;
+  beacons = beacons.filter((b) => { if (sectors[b.sector].state === 2) { scene.remove(b.mesh); return false; } return true; });
+  if (p.ghostT <= 0 || !beacons.length) { clearBeacons(); p.ghost = false; endGame(false); return; }
+  let near = null;
+  for (const b of beacons) if (Math.hypot(b.x - p.pos.x, b.z - p.pos.z) < 3 && p.pos.y < 3) near = b;
+  if (near && keys.KeyF) {
+    p.reviveHold += dt;
+    if (p.reviveHold >= 3) {
+      clearBeacons();
+      p.ghost = false; p.alive = true; p.hp = 60; p.armor = 0;
+      p.weapons[0] = newWeapon('funke', 1); p.cur = 0;
+      updateViewModel();
+      pushFeed('Du bist zurück!', true);
+      sfxTone(200, 1200, 0.8, 0.2, 'triangle');
+    }
+  } else p.reviveHold = Math.max(0, p.reviveHold - dt);
+  $('ghostInfo').classList.remove('hidden');
+  $('ghostInfo').innerHTML = near
+    ? `Halte <b>F</b>: Rückkehr ${Math.floor(p.reviveHold / 3 * 100)} %`
+    : `Geist · ${fmt(p.ghostT)} · Erreiche eine grüne Rückkehrsäule`;
+}
+
 function updateTempWalls(dt) {
   for (let i = tempWalls.length - 1; i >= 0; i--) {
     const w = tempWalls[i];
@@ -815,7 +1025,7 @@ function updateViewModel() {
   if (!w) { viewModel = null; return; }
   const W = WEAPONS[w.id];
   viewModel = new THREE.Group();
-  const len = w.id === 'lanze' ? 0.9 : w.id === 'funke' ? 0.5 : 0.7;
+  const len = W.len || (w.id === 'lanze' ? 0.9 : w.id === 'funke' ? 0.5 : 0.7);
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, len), new THREE.MeshStandardMaterial({ color: 0x1c2240, emissive: W.color, emissiveIntensity: 0.25 }));
   const strip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, len * 0.9), new THREE.MeshBasicMaterial({ color: W.color }));
   strip.position.set(0.055, 0.03, 0);
@@ -840,11 +1050,26 @@ function updatePlayer(dt) {
   if (keys.KeyA) wish.sub(right);
   if (wish.lengthSq()) wish.normalize();
   const sprint = keys.ShiftLeft && keys.KeyW && !p.zoomed;
-  const speed = sprint ? 12.5 : 8.5;
-  const accel = p.onGround ? 14 : 4;
-  p.vel.x += (wish.x * speed - p.vel.x) * Math.min(1, accel * dt);
-  p.vel.z += (wish.z * speed - p.vel.z) * Math.min(1, accel * dt);
-  p.vel.y -= GRAV * dt;
+  const speed = (p.ghost ? 12 : sprint ? 12.5 : 8.5) * (ev('turbo') ? 1.35 : 1);
+  // Rutschen: Strg oder C beim Sprinten
+  if ((keys.ControlLeft || keys.KeyC) && p.onGround && sprint && !(p.slideT > 0) && !(p.slideCd > 0)) {
+    p.slideT = 0.8; p.slideCd = 1.2;
+    const dir = new THREE.Vector3(p.vel.x, 0, p.vel.z).normalize();
+    p.vel.x = dir.x * 17; p.vel.z = dir.z * 17;
+    sfxTone(300, 120, 0.3, 0.08, 'sawtooth');
+  }
+  p.slideCd = Math.max(0, (p.slideCd || 0) - dt);
+  if (p.slideT > 0) {
+    p.slideT -= dt;
+    p.vel.x *= 1 - 1.3 * dt; p.vel.z *= 1 - 1.3 * dt;
+  } else {
+    const accel = p.onGround ? 14 : 4;
+    p.vel.x += (wish.x * speed - p.vel.x) * Math.min(1, accel * dt);
+    p.vel.z += (wish.z * speed - p.vel.z) * Math.min(1, accel * dt);
+  }
+  // Stampfer
+  if (p.slamT > 0) { p.slamT -= dt; if (p.slamT <= 0) { p.vel.y = -45; p.slamming = true; } }
+  p.vel.y -= GRAV * gravMul * dt;
 
   // Klettern an Wänden: Leertaste + vorwärts gegen eine Wand
   if (p.lastWall && keys.Space && keys.KeyW && p.climb > 0 && !p.onGround) {
@@ -852,6 +1077,10 @@ function updatePlayer(dt) {
     p.climb -= dt;
   }
   moveEntity(p, dt);
+  if (p.slamming && p.onGround) {
+    p.slamming = false;
+    explode(new THREE.Vector3(p.pos.x, p.pos.y + 0.5, p.pos.z), 6.5, 50, p, { noSelf: true, push: 18, color: 0xffd34d });
+  }
   if (p.onGround) { p.jumps = 0; p.climb = 1.1; }
   p.lastWall = p.wallBox;
   // Kante hochziehen
@@ -864,6 +1093,17 @@ function updatePlayer(dt) {
   }
   checkJumpPad(p);
 
+  if (p.cloak > 0) p.cloak -= dt;
+  if (p.shieldT > 0) p.shieldT -= dt;
+  document.body.classList.toggle('cloaked', p.cloak > 0);
+  document.body.classList.toggle('shielded', p.shieldT > 0);
+  if (p.ghost) {
+    camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    updateGhost(dt);
+    return;
+  }
+  $('ghostInfo').classList.add('hidden');
   // Heilung über Zeit
   for (const e of entities) {
     if (e.alive && e.healLeft > 0) {
@@ -877,7 +1117,8 @@ function updatePlayer(dt) {
   const targetFov = p.zoomed ? 28 : rightDown ? 62 : sprint ? 84 : 78;
   camera.fov += (targetFov - camera.fov) * Math.min(1, 12 * dt);
   camera.updateProjectionMatrix();
-  camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
+  const eye = p.slideT > 0 ? 0.9 : EYE;
+  camera.position.set(p.pos.x, p.pos.y + eye, p.pos.z);
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
   if (viewModel) {
     viewModel.visible = !p.zoomed;
@@ -912,7 +1153,7 @@ function updatePlayer(dt) {
     }
   }
   // Fähigkeiten-Abklingzeit
-  for (const a of p.abilities) if (a && a.cd > 0) a.cd -= dt;
+  for (const a of p.abilities) if (a && a.cd > 0) a.cd -= dt * (ev('aufladung') ? 3 : 1);
   autoPickup();
 }
 function shootPlayer(w) {
@@ -921,6 +1162,7 @@ function shootPlayer(w) {
   camera.getWorldDirection(dir);
   fireWeapon(player, camera.position.clone(), dir, w, 1);
   player.recoil = 1;
+  player.cloak = 0; // Schießen hebt die Tarnung auf
   pitch = Math.min(1.5, pitch + (w.id === 'lanze' ? 0.03 : w.id === 'hagel' ? 0.04 : 0.006));
 }
 
@@ -1058,11 +1300,12 @@ function updateCore(dt) {
   if (!core) return;
   core.spin.rotation.y += dt; core.spin.rotation.x += dt * 0.5;
   const inside = entities.filter((e) => e.alive && Math.hypot(e.pos.x - core.pos.x, e.pos.z - core.pos.z) < 5 && e.pos.y < 4);
+  for (const e of inside) if (!e.isPlayer) e.revealed = Math.max(e.revealed, 0.3); // Kernträger sichtbar
   if (inside.length === 1) {
     const e = inside[0];
     const v = (core.progress.get(e) || 0) + dt;
     core.progress.set(e, v);
-    if (v >= 30) { if (e.isPlayer) endGame(true); else { for (const x of entities) if (x !== e && x.alive) kill(x, e); } }
+    if (v >= 30) { if (e.isPlayer) endGame(true); else { for (const x of entities) if (x !== e && x.alive) kill(x, e); endGame(false); } }
   }
   const mine = core.progress.get(player) || 0;
   $('corebar').classList.remove('hidden');
@@ -1109,6 +1352,7 @@ function drawMinimap() {
     if (b.temp || b.mx[1] < 3) continue;
     mm.fillRect((b.mn[0] + HALF) * S, (b.mn[2] + HALF) * S, (b.mx[0] - b.mn[0]) * S, (b.mx[2] - b.mn[2]) * S);
   }
+  for (const b of beacons) { mm.fillStyle = '#3dff9a'; mm.beginPath(); mm.arc((b.x + HALF) * S, (b.z + HALF) * S, 5, 0, 7); mm.fill(); }
   if (core) { mm.fillStyle = '#ffd34d'; mm.beginPath(); mm.arc((core.pos.x + HALF) * S, (core.pos.z + HALF) * S, 5, 0, 7); mm.fill(); }
   for (const b of bots) {
     if (!b.alive || b.revealed <= 0) continue;
@@ -1164,7 +1408,7 @@ function updateHud(dt) {
     const cdTxt = a.cd > 0 ? `${a.cd.toFixed(1)} s` : 'bereit';
     el.innerHTML = `<span class="key">${key}</span> ${A.name} <span class="lvl" style="color:#ffd34d">${LEVEL_NAMES[a.level]}</span><br><small>${cdTxt}</small><div class="cd" style="width:${a.cd > 0 ? (1 - a.cd / abilityCd(a)) * 100 : 100}%"></div>`;
   }
-  const near = nearestLoot(2.6);
+  const near = player.ghost ? null : nearestLoot(2.6);
   $('prompt').innerHTML = near ? lootLabel(near) : '';
   drawMinimap();
 }
@@ -1176,6 +1420,12 @@ function clearScene() {
   for (const w of tempWalls) scene.remove(w.b.mesh);
   tempWalls.length = 0;
   if (core) scene.remove(core.mesh);
+  for (const p of projectiles) scene.remove(p.mesh);
+  for (const m of mines) scene.remove(m.mesh);
+  for (const b of booms) scene.remove(b.m);
+  projectiles.length = 0; mines.length = 0; booms.length = 0;
+  clearBeacons();
+  cityEvent = null; nextEventAt = 75; gravMul = 1;
   loot = []; bots = []; entities = []; core = null;
   $('feed').innerHTML = '';
   $('corebar').classList.add('hidden');
@@ -1213,13 +1463,16 @@ function startGame() {
 
 function checkWin() {
   if (state !== 'play') return;
-  if (player.alive && entities.filter((e) => e.alive).length === 1) endGame(true);
+  const alive = entities.filter((e) => e.alive).length;
+  if (player.alive && alive === 1) endGame(true);
+  if (player.ghost && alive <= 1) { clearBeacons(); endGame(false); }
 }
 
 function endGame(won) {
   if (state !== 'play') return;
   state = 'over';
   const placement = entities.filter((e) => e.alive).length + (won ? 0 : 1);
+  document.body.classList.remove('ghostmode', 'cloaked', 'shielded');
   document.exitPointerLock?.();
   $('menu').classList.remove('hidden');
   $('play').textContent = 'Neue Runde';
@@ -1237,6 +1490,9 @@ function tick(dt) {
   updateDecay(dt);
   updateCore(dt);
   updateTempWalls(dt);
+  updateProjectiles(dt);
+  updateMines(dt);
+  updateEvents(dt);
   updateFx(dt);
   for (const it of loot) {
     it.mesh.rotation.y += dt * 1.5;
@@ -1306,7 +1562,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Digit2' && player.weapons[1]) { player.cur = 1; player.reloading = 0; updateViewModel(); }
   if (e.code === 'KeyQ') useAbility(0);
   if (e.code === 'KeyE') useAbility(1);
-  if (e.code === 'KeyF') { const it = nearestLoot(2.6); if (it) pickUp(it); }
+  if (e.code === 'KeyF' && !player.ghost) { const it = nearestLoot(2.6); if (it) pickUp(it); }
 });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
@@ -1357,6 +1613,6 @@ requestAnimationFrame(frame);
 window.__zz = {
   get state() { return state; }, get player() { return player; }, get bots() { return bots; },
   get entities() { return entities; }, get decay() { return decay; }, get core() { return core; },
-  get loot() { return loot; }, sectors: () => sectors, startGame, tick, keys,
+  get loot() { return loot; }, get beacons() { return beacons; }, get cityEvent() { return cityEvent; }, sectors: () => sectors, startGame, tick, keys,
   setGameTime: (t) => { gameTime = t; },
 };
