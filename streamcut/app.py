@@ -64,6 +64,7 @@ def worker(job_id: str, video: Path, opts: dict) -> None:
 @app.post("/api/jobs")
 async def create_job(
     file: UploadFile = File(...),
+    chat: UploadFile | None = File(None),
     layout: str = Form("center"),
     num_clips: int = Form(5),
     min_len: float = Form(20),
@@ -84,7 +85,11 @@ async def create_job(
     video = d / f"source{suffix}"
     with video.open("wb") as fh:
         shutil.copyfileobj(file.file, fh, length=16 * 1024 * 1024)
-    opts = dict(layout=layout, num_clips=num_clips, min_len=min_len, max_len=max_len,
+    chat_path = ""
+    if chat is not None and chat.filename:
+        chat_path = str(d / "chat.txt")
+        Path(chat_path).write_bytes(await chat.read())
+    opts = dict(chat_path=chat_path, layout=layout, num_clips=num_clips, min_len=min_len, max_len=max_len,
                 language=language if language != "auto" else None, captions=captions,
                 cam=dict(x=cam_x, y=cam_y, w=cam_w, h=cam_h))
     jobs[job_id] = dict(id=job_id, filename=file.filename, status="queued", stage="In Warteschlange",

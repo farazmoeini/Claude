@@ -133,6 +133,56 @@ def transcribe(wav_samples: np.ndarray, language: str | None, progress: Callable
     return words
 
 
+# ---------------------------------------------------------------- optional: chat activity
+CHAT_DELAY = 4.0  # viewers react a few seconds after the moment happens
+CHAT_HYPE = {"kekw", "lul", "omegalul", "pog", "pogchamp", "poggers", "w", "ww", "www", "clip", "clipit",
+             "lol", "lmao", "haha", "xd", "pepelaugh", "monkas", "omg", "wtf", "!clip", "krass", "digga"}
+
+
+def _ts(s: str) -> float | None:
+    m = re.match(r"\[?(\d+):(\d{2})(?::(\d{2}))?(?:\.\d+)?\]?$", s.strip())
+    if not m:
+        return None
+    a, b, c = m.group(1), m.group(2), m.group(3)
+    return int(a) * 3600 + int(b) * 60 + int(c) if c is not None else int(a) * 60 + int(b)
+
+
+def parse_chat(raw: bytes) -> list[tuple[float, str]]:
+    """Accepts TwitchDownloader JSON ({comments:[{content_offset_seconds, message:{body}}]})
+    or text lines like '[0:12:34] user: message' / '00:12:34 user: message'."""
+    text = raw.decode("utf-8", errors="replace").lstrip("\ufeff")
+    out: list[tuple[float, str]] = []
+    if text.lstrip().startswith("{"):
+        data = json.loads(text)
+        for c in data.get("comments", []):
+            t = c.get("content_offset_seconds")
+            body = (c.get("message") or {}).get("body", "") if isinstance(c.get("message"), dict) else str(c.get("message", ""))
+            if t is not None:
+                out.append((float(t), body))
+        return out
+    for line in text.splitlines():
+        parts = line.strip().split(" ", 1)
+        if len(parts) == 2:
+            t = _ts(parts[0])
+            if t is not None:
+                out.append((t, parts[1]))
+    return out
+
+
+def chat_curve(msgs: list[tuple[float, str]], n_frames: int) -> np.ndarray:
+    """Messages per frame (+ emote/hype bonus), shifted back by CHAT_DELAY, smoothed, z-scored."""
+    raw = np.zeros(n_frames)
+    for t, body in msgs:
+        i = int(max(0.0, t - CHAT_DELAY) / HOP)
+        if 0 <= i < n_frames:
+            words = {w.strip(".,!?:").lower() for w in body.split()}
+            raw[i] += 1 + 1.5 * len(words & CHAT_HYPE)
+    k = max(1, int(5 / HOP))
+    smooth = np.convolve(raw, np.ones(k) / k, mode="same")
+    std = smooth.std()
+    return np.zeros(n_frames) if std == 0 else np.clip((smooth - smooth.mean()) / std, -2, 5)
+
+
 # ---------------------------------------------------------------- 4: candidates
 
 def _norm(t: str) -> str:
@@ -140,7 +190,8 @@ def _norm(t: str) -> str:
 
 
 def find_candidates(
-    words: list[Word], loud: np.ndarray, duration: float, min_len: float, max_len: float, n: int
+    words: list[Word], loud: np.ndarray, duration: float, min_len: float, max_len: float, n: int,
+    chat: np.ndarray | None = None,
 ) -> list[Clip]:
     target = (min_len + max_len) / 2
     step = 2.0
@@ -177,8 +228,13 @@ def find_candidates(
         silence_pen = 0.0 if dens > 0.8 else (0.8 - dens) * 2
         hook_n = int(5 / HOP)
         hook = float(seg[:hook_n].max()) + 0.8 * float(hype[a:a + hook_n].sum())
+        chat_bonus = 0.0
+        if chat is not None and len(chat):
+            cseg = chat[a:b]
+            if len(cseg):
+                chat_bonus = 1.2 * float(np.sort(cseg)[-max(1, len(cseg) // 10):].mean()) + 0.6 * float(cseg[:hook_n * 2].max())
         return float(1.0 * peak + 0.3 * seg.mean() + 0.6 * hype[a:b].sum() + 0.3 * min(dens, 3)
-                     + 0.8 * hook - silence_pen)
+                     + 0.8 * hook - silence_pen + chat_bonus)
 
     cands: list[Clip] = []
     if duration <= min_len:
@@ -437,8 +493,17 @@ def process(video: Path, workdir: Path, opts: dict, report: Callable[[str, float
     else:
         loud = np.zeros(max(1, int(info["duration"] / HOP)))
 
+    chat = None
+    if opts.get("chat_path"):
+        try:
+            msgs = parse_chat(Path(opts["chat_path"]).read_bytes())
+            chat = chat_curve(msgs, len(loud)) if msgs else None
+            opts["chat_messages"] = len(msgs)
+        except Exception as e:  # a broken chat file must not break clipping
+            opts["chat_error"] = str(e)[:200]
+
     report("Highlights werden gesucht", 0.70)
-    cands = find_candidates(words, loud, info["duration"], min_len, max_len, n * 3 if words else n)
+    cands = find_candidates(words, loud, info["duration"], min_len, max_len, n * 3 if words else n, chat)
     clips, note = ai_refine(cands, words, n, language) if words else (
         sorted(cands[:n], key=lambda c: c.start), "Kein Ton: Clips nach Lautstärke ausgewählt.")
 
@@ -447,5 +512,9 @@ def process(video: Path, workdir: Path, opts: dict, report: Callable[[str, float
         out = workdir / f"clip_{i + 1:02d}.mp4"
         render_clip(video, c, words, out, layout, info, opts.get("cam", {}), opts.get("captions", True))
         c.file = out.name
+    if opts.get("chat_messages"):
+        note += f" Chat-Aktivität berücksichtigt ({opts['chat_messages']} Nachrichten)."
+    elif opts.get("chat_error"):
+        note += f" Chat-Datei konnte nicht gelesen werden: {opts['chat_error']}"
     report("Fertig", 1.0)
     return {"info": info, "note": note, "clips": [asdict(c) for c in clips]}

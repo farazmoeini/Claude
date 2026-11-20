@@ -9,6 +9,7 @@ fertige 9:16-Clips mit animierten Untertiteln, bereit für TikTok, Shorts und Re
 |---|---|
 | Transkription | Whisper läuft lokal und kostet nichts pro Minute. Wortgenaue Zeitstempel, Deutsch, Englisch oder automatisch erkannt |
 | Highlight-Erkennung | Lautstärke-Spitzen, Hype-Wörter und Phrasen auf Deutsch und Englisch („oh mein Gott“, „clip das“, „let's go“), Sprechdichte, Bonus für einen starken Hook in den ersten 5 s |
+| Chat-Aktivität (optional) | Chat-Log hochladen (TwitchDownloader-JSON oder Textzeilen wie `[0:12:34] user: KEKW`). Nachrichten-Spitzen und Emotes (KEKW, W, Clip …) zählen als stärkstes Hype-Signal. Die Reaktionsverzögerung des Chats (ca. 4 s) wird herausgerechnet |
 | Schnittpunkte | Schnitte liegen auf Sprechpausen, Clips beginnen und enden nicht mitten im Wort |
 | KI-Bewertung (optional) | Claude wählt die besten Kandidaten und schreibt Titel, Beschreibung und Hashtags |
 | Layouts | **Mitte** (Talk), **Split** (Facecam oben, Gameplay unten, Position der Facecam einstellbar), **Blur** (ganzes Bild mit unscharfem Hintergrund) |
@@ -20,6 +21,7 @@ fertige 9:16-Clips mit animierten Untertiteln, bereit für TikTok, Shorts und Re
 ```bash
 pip install -r requirements.txt     # ffmpeg muss installiert sein
 uvicorn app:app --port 8000          # dann http://localhost:8000 öffnen
+python -m pytest -q                  # Tests (ohne Video und Modell)
 ```
 
 Optionale Umgebungsvariablen:
@@ -42,11 +44,10 @@ wenn man `device="cuda"` setzt.
 ## Nächste Schritte zum verkaufbaren Produkt
 
 1. **Twitch- und YouTube-Link statt Upload**, nur für eigene VODs (Login über Twitch-OAuth)
-2. **Chat-Aktivität als Signal**: Peaks in Chat-Nachrichten pro Sekunde sind das stärkste Hype-Signal
-3. **Facecam automatisch erkennen** (Gesichtserkennung) statt manueller Position
-4. **Accounts und Bezahlung** (Stripe). Free: 3 Clips/Monat mit Wasserzeichen. Pro: ca. 15 €/Monat
-5. **Direkt posten** über die TikTok- und YouTube-API
-6. **Clip-Editor**: Start und Ende verschieben, Untertitel korrigieren
+2. **Facecam automatisch erkennen** (Gesichtserkennung) statt manueller Position
+3. **Accounts und Bezahlung** (Stripe). Free: 3 Clips/Monat mit Wasserzeichen. Pro: ca. 15 €/Monat
+4. **Direkt posten** über die TikTok- und YouTube-API
+5. **Clip-Editor**: Start und Ende verschieben, Untertitel korrigieren
 
 ## Aufbau
 

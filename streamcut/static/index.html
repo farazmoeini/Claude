@@ -57,6 +57,7 @@
       <div><label>Max. Länge (s)</label><input id="max" type="number" min="10" max="180" value="50"></div>
       <div><label>Sprache</label>
         <select id="lang"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="auto">Automatisch</option></select></div>
+      <div><label>Chat-Log (optional)</label><input type="file" id="chat" accept=".json,.txt,.log"></div>
       <div><label>Untertitel</label><select id="caps"><option value="true">An</option><option value="false">Aus</option></select></div>
     </div>
     <div id="camfields">
@@ -104,6 +105,7 @@ $("form").onsubmit = e => {
   if (!file) return;
   const fd = new FormData();
   fd.append("file", file);
+  if ($("chat").files[0]) fd.append("chat", $("chat").files[0]);
   fd.append("layout", $("layout").value);
   fd.append("num_clips", $("num").value);
   fd.append("min_len", $("min").value);
