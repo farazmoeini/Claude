@@ -44,6 +44,26 @@ Zulassung im PlayStation-Partners-Programm von Sony, ein Dev-Kit und eine Engine
 Konsolen-Unterstützung (Unity, Unreal). Das wäre ein eigener Port. Die Spiellogik in
 `shared/sim.js` und das Netzwerkprotokoll sind dafür als Vorlage nutzbar.
 
+## Bewegung
+
+Alles steckt in `movePlayer` (`shared/sim.js`). Server und Client rechnen damit identisch,
+deshalb fühlt es sich online genauso direkt an wie offline.
+
+| Technik | Wie | Details |
+|---|---|---|
+| Sprinten | Stick ganz nach vorn (automatisch) oder L3 · Shift | 12,5 m/s |
+| Dash | B tippen · V / Maus-Seitentaste | 24 m/s für 0,16 s, am Boden und in der Luft, 2 Ladungen, je 2,2 s Aufladen. Anzeige unter dem Fadenkreuz |
+| Rutschen | B halten · Strg / C, beim Sprinten oder mit Schwung | Startet mit mindestens 15 m/s, auch direkt aus dem Dash (Dash-Rutscher, bis 22 m/s) |
+| Rutschsprung | Während des Rutschens springen | Das Tempo bleibt in der Luft erhalten |
+| Verzeihende Sprünge | – | Bis 0,12 s nach dem Verlassen einer Kante zählt der Sprung noch als Bodensprung. Ein bis zu 0,13 s zu früh gedrückter Sprung wird bei der Landung nachgeholt |
+| Luftkontrolle | Stick in der Luft | Schwung bleibt erhalten, man lenkt, ohne abzubremsen. Der Doppelsprung lenkt den Schwung in die Stickrichtung um |
+| Wandlauf | Schräg an eine Hauswand springen (mind. 6 m/s entlang der Wand) | Bis 1,4 s an der Wand entlang, kaum Fallen, Kamera neigt sich. Danach ist der Doppelsprung wieder frei |
+| Wandsprung | A beim Wandlauf | Stößt dich mit 9 m/s von der Wand weg. Ketten von Wand zu Wand möglich |
+| Klettern | Gegen eine Wand springen und A halten | Bis 1,1 s nach oben |
+| Hochziehen / Flanken | Gegen Kanten bis 2,3 m (Luft) bzw. 1,7 m (beim Laufen) | Fließend statt ruckartig. Das Sprinttempo bleibt nach dem Flanken erhalten |
+| Schnell fallen | B halten in der Luft · Strg / C | 2,8-fache Schwerkraft |
+| Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung und Landung |
+
 ## Controller
 
 Xbox-, PlayStation- und die meisten USB- oder Bluetooth-Controller funktionieren in der
@@ -52,11 +72,11 @@ sofort erkannt. Bewegt man die Maus, schaltet die Anzeige wieder auf Tastatur um
 
 | Taste | Aktion |
 |---|---|
-| Linker Stick | Laufen (analog), drücken (L3): Sprinten |
+| Linker Stick | Laufen (analog), ganz nach vorn: automatisch sprinten, L3 schaltet Sprinten um |
 | Rechter Stick | Umsehen, mit leichter Zielhilfe in der Nähe von Gegnern |
 | RT / R2 · LT / L2 | Schießen · Zielen / Zoom |
-| A / ✕ | Sprung, Doppelsprung, Klettern |
-| B / ○ | Rutschen |
+| A / ✕ | Sprung, Doppelsprung, Wandsprung, Klettern |
+| B / ○ | Tippen: Dash · Halten: Rutschen am Boden / schnell fallen in der Luft |
 | X / □ | Aufheben, an der Säule halten für die Rückkehr, sonst Nachladen |
 | Y / △ | Waffe wechseln |
 | LB / RB (L1 / R1) | Fähigkeit 1 / 2 |
@@ -147,7 +167,7 @@ zerfallzone/
 npm test
 ```
 
-Getestet werden: dieselbe Welt aus demselben Seed, komplette Runden in Solo, Duos und
+Getestet werden: Dash und Aufladen, verzeihende Sprünge (Coyote-Time und Sprungpuffer), Wandlauf und Wandsprung, Flanken mit erhaltenem Tempo, Rutschsprung, schnelles Fallen, dieselbe Welt aus demselben Seed, komplette Runden in Solo, Duos und
 Trios mit Gewinner und Platzierungen, kein Eigenbeschuss, Geist-Rückkehr per Teamkill,
 Solo-Rückkehr an der Säule. Dazu lief ein Browser-Test mit zwei Spielern: Raum
 erstellen, mit Code beitreten, Trio starten, beide im selben Team, Bewegung beim

@@ -1,7 +1,7 @@
 // Zerfallzone – Client: Darstellung, Eingabe, Vorhersage, Lobby, Offline-Modus
 import * as THREE from 'three';
 import {
-  Sim, generateWorld, applyDissolve, movePlayer, aimDir, MOVE_FIELDS, sectorOf,
+  Sim, generateWorld, applyDissolve, movePlayer, aimDir, MOVE_FIELDS, MOVE_DEFAULTS, DASH_MAX, DASH_REGEN, sectorOf,
   WEAPONS, ABILITIES, DIFFS, DIFF_IDS, MODES, LEVEL_NAMES, EVENTS, TEAM_COLORS, BOT_LIMIT, CORE_TIME, WARN,
   HALF, SECTOR, NS, EYE, lvlMag, abilityCd, clamp,
 } from './shared/sim.js';
@@ -100,7 +100,8 @@ const SND = {
   ghost: [600, 80, 1.2, 0.2, 'sine'], fuse: [500, 1500, 0.3, 0.2, 'triangle'], pickup: [600, 900, 0.12, 0.15, 'sine'],
   heal: [400, 800, 0.2, 0.15, 'sine'], armor: [300, 700, 0.2, 0.15, 'sine'], warn: [600, 400, 0.6, 0.15, 'sawtooth'],
   core: [200, 800, 1.2, 0.2, 'sawtooth'], event: [400, 1600, 0.8, 0.15, 'triangle'], dj: [500, 900, 0.12, 0.08, 'sine'],
-  revive: [200, 1200, 0.8, 0.2, 'triangle'],
+  revive: [200, 1200, 0.8, 0.2, 'triangle'], dash: [900, 2400, 0.12, 0.12, 'sawtooth'], wallrun: [180, 260, 0.35, 0.06, 'triangle'],
+  walljump: [500, 1100, 0.14, 0.1, 'triangle'], mantle: [250, 500, 0.12, 0.08, 'triangle'], land: [120, 50, 0.15, 0.15, 'sine'], nodash: [200, 160, 0.08, 0.06, 'square'],
   ab_sprung: [1800, 300, 0.25, 0.2, 'square'], ab_bollwerk: [200, 600, 0.3, 0.2, 'triangle'], ab_scan: [900, 900, 0.5, 0.15, 'sine'],
   ab_heilung: [500, 1000, 0.6, 0.15, 'sine'], ab_katapult: [250, 1500, 0.4, 0.2, 'triangle'], ab_tarnung: [1200, 200, 0.5, 0.15, 'sine'],
   ab_schockwelle: [300, 80, 0.3, 0.15, 'sawtooth'], ab_mine: [800, 600, 0.15, 0.15, 'square'], ab_stampfer: [400, 900, 0.3, 0.15, 'triangle'],
@@ -316,7 +317,7 @@ function startGame(pkt) {
     meta: new Map(pkt.ents.map((e) => [e.id, e])), myTeam: pkt.ents.find((e) => e.id === pkt.you).team,
     decayAt: new Array(NS * NS).fill(-1), walls: [], wallMeshes: new Map(), boxMeshes: new Map(),
     ents: new Map(), lootMeshes: new Map(), snaps: [], last: null, me: null,
-    pred: { pos: new THREE.Vector3(), vel: new THREE.Vector3(), onGround: false, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false, ghost: false },
+    pred: { pos: new THREE.Vector3(), vel: new THREE.Vector3(), ...MOVE_DEFAULTS }, landDip: 0, roll: 0,
     havePred: false, seq: 0, pending: [], camOffset: new THREE.Vector3(),
     tracers: [], booms: [], feed: [], over: null, eliminatedPlace: 0, mineMeshes: [], projMeshes: [], beaconMeshes: [], coreMesh: null,
     hitTimer: 0, vignette: 0, recoil: 0, viewModel: null, vmKey: '',
@@ -498,11 +499,11 @@ function onSnapshot(s) {
     const before = P.pos.clone();
     P.pos.set(s.me.x, s.me.y, s.me.z);
     P.vel.set(s.me.vx, s.me.vy, s.me.vz);
-    P.onGround = s.me.og; P.jumps = s.me.jumps; P.climb = s.me.climb; P.slideT = s.me.slideT; P.slideCd = s.me.slideCd;
-    P.slamT = s.me.slamT; P.slamming = s.me.slamming; P.lastWall = s.me.lw; P.ghost = s.me.ghost;
+    for (const f of MOVE_FIELDS) P[f] = s.me.m[f] ?? MOVE_DEFAULTS[f];
     G.pending = G.pending.filter((i) => i.seq > s.me.seq);
     const ctx = predCtx();
     if (s.me.alive || s.me.ghost) for (const inp of G.pending) movePlayer(P, inp, inp.dt, ctx);
+    P.wallBox = null;
     if (G.havePred) {
       const diff = before.sub(P.pos);
       if (diff.length() < 3) G.camOffset.add(diff); else G.camOffset.set(0, 0, 0);
@@ -848,6 +849,7 @@ function sendInput(dt, P) {
     t: 'in', seq: ++G.seq, dt, yaw, pitch,
     f: k('KeyW'), b: k('KeyS'), l: k('KeyA'), r: k('KeyD'),
     jump: pressed.has('Space'), jumpHeld: k('Space'), sprint: k('ShiftLeft') || k('ShiftRight'), slide: k('ControlLeft') || k('KeyC'),
+    dash: pressed.has('KeyV') || pressed.has('Mouse3') || pressed.has('Mouse4'),
     fire: locked && !paused && mouseDown, aim: locked && !paused && rightDown, reload: k('KeyR'),
     use: pressed.has('KeyF'), useHeld: k('KeyF'), q: pressed.has('KeyQ'), e: pressed.has('KeyE'),
     w1: pressed.has('Digit1'), w2: pressed.has('Digit2'), swap: wheelSwap,
@@ -864,9 +866,15 @@ function sendInput(dt, P) {
     inp.ax = +P.lx.toFixed(3); inp.az = +(-P.ly).toFixed(3);
     if (P.edge(BTN.L3)) pad.sprint = !pad.sprint;
     if (-P.ly < 0.3) pad.sprint = false;
+    // B: tippen = Dash, halten = Rutschen am Boden / schnell fallen in der Luft
+    pad.bHeld = P.now[BTN.B] ? (pad.bHeld || 0) + dt : 0;
+    inp.dash ||= P.edge(BTN.B);
+    // automatisch sprinten, wenn der Stick ganz nach vorn gedrückt ist
+    const autoSprint = -P.ly > 0.85 && Math.abs(P.lx) < 0.55;
     const nearSomething = !!G.nearLoot || (G.me.ghost && G.me.nearBeacon);
     inp.jump ||= P.edge(BTN.A); inp.jumpHeld ||= P.now[BTN.A];
-    inp.slide ||= P.now[BTN.B]; inp.sprint ||= pad.sprint;
+    inp.slide ||= pad.bHeld > 0.14; inp.sprint ||= pad.sprint || autoSprint;
+    G.padSprint = pad.sprint || autoSprint;
     inp.fire ||= P.now[BTN.RT]; inp.aim ||= P.now[BTN.LT];
     inp.use ||= P.edge(BTN.X) && nearSomething; inp.useHeld ||= P.now[BTN.X];
     inp.reload ||= P.edge(BTN.X) && !nearSomething;
@@ -876,8 +884,17 @@ function sendInput(dt, P) {
   if (paused && !conn.online) return null;
   // eigene Bewegung sofort vorhersagen
   if (G.me.alive || G.me.ghost) {
+    const before = G.pred.dashN;
     const out = movePlayer(G.pred, inp, dt, predCtx());
+    G.pred.wallBox = null;
     if (out.dj) playSnd('dj');
+    if (out.dash) { playSnd('dash'); rumble(0.5, 0.2, 90); }
+    else if (inp.dash && before === 0 && !G.me.ghost) playSnd('nodash');
+    if (out.wallrun) { playSnd('wallrun'); rumble(0.2, 0, 120); }
+    if (out.walljump) playSnd('walljump');
+    if (out.mantle) playSnd('mantle');
+    if (out.slide) rumble(0.3, 0.1, 150);
+    if (out.land) { G.landDip = Math.min(0.45, out.land / 70); playSnd('land'); rumble(0, Math.min(0.8, out.land / 40), 100); }
   }
   G.pending.push(inp);
   if (G.pending.length > 120) G.pending.shift();
@@ -905,6 +922,7 @@ document.addEventListener('mousedown', (e) => {
   if (!game || document.pointerLockElement !== canvas) return;
   if (e.button === 0) mouseDown = true;
   if (e.button === 2) rightDown = true;
+  if (e.button === 3 || e.button === 4) pressed.add('Mouse' + e.button);
 });
 document.addEventListener('mouseup', (e) => {
   if (e.button === 0) mouseDown = false;
@@ -981,6 +999,13 @@ function updateHud(dt) {
   $('hpBar').style.width = `${me.hp}%`;
   $('armorBar').style.width = `${me.armor}%`;
   $('vitalsText').textContent = `HP ${me.hp} · Rüstung ${me.armor}`;
+  const Pd = G.pred;
+  let pips = '';
+  for (let i = 0; i < DASH_MAX; i++) {
+    const fill = i < Pd.dashN ? 1 : i === Pd.dashN ? Pd.dashRegen / DASH_REGEN : 0;
+    pips += `<span class="pip" style="--f:${Math.round(fill * 100)}%"></span>`;
+  }
+  $('dash').innerHTML = me.ghost ? '' : pips;
   const aliveCount = s.ents.filter((e) => e[7] & 1).length;
   $('alive').textContent = aliveCount;
   const teamsAlive = new Set(s.ents.filter((e) => e[7] & 1).map((e) => G.meta.get(e[0]).team)).size;
@@ -1108,14 +1133,25 @@ function updateCamera(dt) {
   const G = game, me = G.me;
   if (!me) return;
   G.camOffset.multiplyScalar(Math.max(0, 1 - dt * 12));
-  const eye = G.pred.slideT > 0 ? 0.9 : EYE;
-  camera.position.set(G.pred.pos.x + G.camOffset.x, G.pred.pos.y + eye + G.camOffset.y, G.pred.pos.z + G.camOffset.z);
-  camera.rotation.set(pitch, yaw, 0, 'YXZ');
+  const P = G.pred;
+  const eye = P.slideT > 0 && P.onGround ? 0.9 : EYE;
+  G.landDip = Math.max(0, G.landDip - dt * 1.6);
+  const dip = Math.sin(Math.min(1, G.landDip / 0.45) * Math.PI) * G.landDip;
+  camera.position.set(P.pos.x + G.camOffset.x, P.pos.y + eye - dip + G.camOffset.y, P.pos.z + G.camOffset.z);
+  // beim Wandlauf von der Wand weg neigen
+  let rollTarget = 0;
+  if (P.wrT > 0) {
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw); // rechts
+    rollTarget = (P.wrNx * rx + P.wrNz * rz) * 0.14;
+  }
+  G.roll += (rollTarget - G.roll) * Math.min(1, dt * 10);
+  camera.rotation.set(pitch, yaw, G.roll, 'YXZ');
   const w = me.weapons && me.weapons[me.cur];
   const aiming = rightDown || G.padAim;
   const zoomed = aiming && w && WEAPONS[w[0]].zoom;
-  const sprint = (keys.ShiftLeft && keys.KeyW || pad.sprint) && !aiming;
-  const target = zoomed ? 28 : aiming ? 62 : sprint ? 84 : 78;
+  const sprint = (keys.ShiftLeft && keys.KeyW || G.padSprint) && !aiming;
+  const hspeed = Math.hypot(P.vel.x, P.vel.z);
+  const target = zoomed ? 28 : aiming ? 62 : 78 + clamp((hspeed - 8.5) * 0.9, 0, 16);
   camera.fov += (target - camera.fov) * Math.min(1, 12 * dt);
   camera.updateProjectionMatrix();
   G.recoil = Math.max(0, G.recoil - dt * 8);

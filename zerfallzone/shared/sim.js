@@ -174,6 +174,7 @@ export function moveEntity(e, dt, boxes) {
   const r = 0.45;
   e.onGround = false;
   e.wallBox = null;
+  e.wallN = null;
   e.pos.x += e.vel.x * dt;
   for (const b of boxes) {
     if (b.gone || e.pos.y >= b.mx[1] - 0.001 || e.pos.y + BODY_H <= b.mn[1]) continue;
@@ -181,7 +182,7 @@ export function moveEntity(e, dt, boxes) {
     if (e.pos.x + r > b.mn[0] && e.pos.x - r < b.mx[0]) {
       const pl = e.pos.x + r - b.mn[0], pr = b.mx[0] - (e.pos.x - r);
       e.pos.x += pl < pr ? -pl : pr;
-      e.vel.x = 0; e.wallBox = b;
+      e.vel.x = 0; e.wallBox = b; e.wallN = [pl < pr ? -1 : 1, 0];
     }
   }
   e.pos.z += e.vel.z * dt;
@@ -191,7 +192,7 @@ export function moveEntity(e, dt, boxes) {
     if (e.pos.z + r > b.mn[2] && e.pos.z - r < b.mx[2]) {
       const pl = e.pos.z + r - b.mn[2], pr = b.mx[2] - (e.pos.z - r);
       e.pos.z += pl < pr ? -pl : pr;
-      e.vel.z = 0; e.wallBox = b;
+      e.vel.z = 0; e.wallBox = b; e.wallN = [0, pl < pr ? -1 : 1];
     }
   }
   const prevY = e.pos.y;
@@ -245,58 +246,174 @@ export function rayWorld(o, d, maxT, boxes) {
   return best;
 }
 
-/** Bewegung eines gesteuerten Spielers. Identisch auf Client (Vorhersage) und Server. */
+/** Startwerte aller Bewegungs-Zustände (für Server, Snapshot und Client-Vorhersage) */
+export const MOVE_DEFAULTS = {
+  onGround: false, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false, ghost: false,
+  coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, airT: 0, vaultV: 0,
+};
+export const MOVE_FIELDS = Object.keys(MOVE_DEFAULTS);
+export const DASH_MAX = 2, DASH_REGEN = 2.2;
+const MAX_SPEED = 30;
+
+/**
+ * Bewegung eines gesteuerten Spielers. Identisch auf Client (Vorhersage) und Server.
+ * Enthält: verzeihende Sprünge (Coyote-Time + Sprungpuffer), Schwung in der Luft, Dash mit Ladungen,
+ * Rutschen mit Tempo-Mitnahme, Wandlauf + Wandsprung, Klettern, Hochziehen/Flanken, schnelles Fallen.
+ * Rückgabe: Ereignisse für Klang und Kamera ({ dash, slide, dj, walljump, wallrun, mantle, land, pad, slam }).
+ */
 export function movePlayer(p, inp, dt, ctx) {
   const out = {};
+  for (const k in MOVE_DEFAULTS) if (p[k] === undefined) p[k] = MOVE_DEFAULTS[k];
   const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw);
+  const fx = -sy, fz = -cy; // vorwärts
   let wx = 0, wz = 0;
-  if (inp.f) { wx -= sy; wz -= cy; }
-  if (inp.b) { wx += sy; wz += cy; }
+  if (inp.f) { wx += fx; wz += fz; }
+  if (inp.b) { wx -= fx; wz -= fz; }
   if (inp.r) { wx += cy; wz -= sy; }
   if (inp.l) { wx -= cy; wz += sy; }
   // Analoger Stick (Controller): ax = rechts, az = vorwärts, jeweils −1…1
   const ax = clamp(+inp.ax || 0, -1, 1), az = clamp(+inp.az || 0, -1, 1);
-  if (ax || az) { wx += -sy * az + cy * ax; wz += -cy * az - sy * ax; }
-  const wl = Math.hypot(wx, wz);
-  if (wl > 1) { wx /= wl; wz /= wl; }
+  if (ax || az) { wx += fx * az + cy * ax; wz += fz * az - sy * ax; }
+  let wl = Math.hypot(wx, wz);
+  if (wl > 1) { wx /= wl; wz /= wl; wl = 1; }
   const fwdHeld = inp.f || az > 0.5;
   const sprint = inp.sprint && fwdHeld && !inp.aim;
   const speed = (p.ghost ? 12 : sprint ? 12.5 : 8.5) * ctx.speedMul;
-  if (inp.slide && p.onGround && sprint && !(p.slideT > 0) && !(p.slideCd > 0) && !p.ghost) {
-    p.slideT = 0.8; p.slideCd = 1.2;
-    const l = Math.hypot(p.vel.x, p.vel.z) || 1;
-    p.vel.x = p.vel.x / l * 17; p.vel.z = p.vel.z / l * 17;
+  const hs = Math.hypot(p.vel.x, p.vel.z);
+
+  // Zeitgeber
+  p.coyote = Math.max(0, p.coyote - dt);
+  p.jumpBuf = Math.max(0, p.jumpBuf - dt);
+  p.slideCd = Math.max(0, p.slideCd - dt);
+  p.wrCd = Math.max(0, p.wrCd - dt);
+  if (p.dashN < DASH_MAX) { p.dashRegen += dt; if (p.dashRegen >= DASH_REGEN) { p.dashN++; p.dashRegen = 0; } } else p.dashRegen = 0;
+
+  // Dash: kurzer Schub in Laufrichtung (ohne Eingabe: Blickrichtung), am Boden und in der Luft
+  if (inp.dash && p.dashN > 0 && !p.ghost && !(p.dashT > 0)) {
+    let dx = wx, dz = wz;
+    if (wl < 0.2) { dx = fx; dz = fz; } else { dx /= wl; dz /= wl; }
+    const v = Math.max(24 * ctx.speedMul, p.vel.x * dx + p.vel.z * dz);
+    p.vel.x = dx * v; p.vel.z = dz * v;
+    if (!p.onGround) p.vel.y = Math.max(p.vel.y, 1.5);
+    p.dashT = 0.16; p.dashN--; p.wrT = 0;
+    out.dash = true;
+  }
+  // Rutschen: beim Sprinten oder mit Schwung (z. B. direkt nach einem Dash)
+  if (inp.slide && p.onGround && !(p.slideT > 0) && !(p.slideCd > 0) && !p.ghost && (sprint || hs > 10)) {
+    const v = Math.min(22, Math.max(hs + 3, 15));
+    const dx = hs > 1 ? p.vel.x / hs : fx, dz = hs > 1 ? p.vel.z / hs : fz;
+    p.vel.x = dx * v; p.vel.z = dz * v;
+    p.slideT = 0.85; p.slideCd = 0.9;
     out.slide = true;
   }
-  p.slideCd = Math.max(0, (p.slideCd || 0) - dt);
-  if (p.slideT > 0) {
+  if (p.slamT > 0) { p.slamT -= dt; if (p.slamT <= 0) { p.vel.y = -45; p.slamming = true; } }
+
+  // Springen: Puffer + Coyote-Time, Wandsprung, Doppelsprung
+  let jumped = false;
+  if (inp.jump) p.jumpBuf = 0.13;
+  if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0)) {
+    p.vel.y = 9.5; p.jumps = 1; p.jumpBuf = 0; p.coyote = 0; jumped = true;
+    if (p.slideT > 0) { p.slideT = 0; out.slidejump = true; } // Tempo aus dem Rutschen bleibt erhalten
+  } else if (inp.jump && p.wrT > 0) {
+    p.vel.x += p.wrNx * 9; p.vel.z += p.wrNz * 9; p.vel.y = 10;
+    p.wrT = 0; p.wrCd = 0.35; p.jumps = 1; p.jumpBuf = 0; jumped = true;
+    out.walljump = true;
+  } else if (inp.jump && !p.onGround && p.jumps < 2 && !p.lastWall) {
+    p.vel.y = 9; p.jumps = 2; p.jumpBuf = 0;
+    // Doppelsprung lenkt den Schwung in die gewünschte Richtung um
+    if (wl > 0.2) {
+      const h = Math.hypot(p.vel.x, p.vel.z), v = Math.max(h * 0.9, speed);
+      p.vel.x = p.vel.x * 0.3 + (wx / wl) * v * 0.7; p.vel.z = p.vel.z * 0.3 + (wz / wl) * v * 0.7;
+    }
+    out.dj = true;
+  }
+
+  // Horizontal
+  const grounded = p.onGround && !jumped;
+  if (p.dashT > 0) {
+    p.dashT -= dt;
+  } else if (p.slideT > 0 && grounded) {
     p.slideT -= dt;
-    p.vel.x *= 1 - 1.3 * dt; p.vel.z *= 1 - 1.3 * dt;
-  } else {
-    const accel = p.onGround ? 14 : 4;
+    const k = 1 - 1.1 * dt;
+    p.vel.x *= k; p.vel.z *= k;
+  } else if (grounded) {
+    const accel = 14;
     p.vel.x += (wx * speed - p.vel.x) * Math.min(1, accel * dt);
     p.vel.z += (wz * speed - p.vel.z) * Math.min(1, accel * dt);
+  } else {
+    if (p.slideT > 0) p.slideT -= dt;
+    // Luft: Schwung bleibt, man kann lenken, aber nicht über das bisherige Tempo hinaus beschleunigen
+    const cap = Math.max(hs, speed);
+    p.vel.x += wx * 30 * dt; p.vel.z += wz * 30 * dt;
+    let nh = Math.hypot(p.vel.x, p.vel.z);
+    if (nh > cap) { p.vel.x *= cap / nh; p.vel.z *= cap / nh; nh = cap; }
+    if (nh > speed) { const k = 1 - 0.35 * dt; p.vel.x *= k; p.vel.z *= k; }
   }
-  if (p.slamT > 0) { p.slamT -= dt; if (p.slamT <= 0) { p.vel.y = -45; p.slamming = true; } }
-  if (inp.jump) {
-    if (p.onGround) { p.vel.y = 9.5; p.jumps = 1; }
-    else if (p.jumps < 2 && !p.lastWall) { p.vel.y = 9; p.jumps = 2; out.dj = true; }
+  // Wandlauf: Tempo entlang der Wand halten und leicht an die Wand drücken
+  if (p.wrT > 0) {
+    const tx = -p.wrNz, tz = p.wrNx;
+    const vt = p.vel.x * tx + p.vel.z * tz;
+    const v = Math.sign(vt || 1) * Math.max(Math.abs(vt), 10);
+    p.vel.x = tx * v - p.wrNx * 1.5; p.vel.z = tz * v - p.wrNz * 1.5;
+    if (p.vel.y < -1.5) p.vel.y = -1.5;
   }
-  p.vel.y -= GRAV * ctx.gravMul * dt;
-  if (p.lastWall && inp.jumpHeld && fwdHeld && p.climb > 0 && !p.onGround) {
+
+  // Vertikal
+  let g = GRAV * ctx.gravMul;
+  if (p.dashT > 0) g = 0;
+  else if (p.wrT > 0) g *= 0.25;
+  else if (inp.slide && !p.onGround && p.airT > 0.12 && !p.ghost) { g *= 2.8; out.fastfall = true; }
+  p.vel.y = Math.max(-45, p.vel.y - g * dt);
+  if (p.lastWall && inp.jumpHeld && fwdHeld && p.climb > 0 && !p.onGround && !(p.wrT > 0)) {
     p.vel.y = Math.max(p.vel.y, 7);
     p.climb -= dt;
   }
+  const h2 = Math.hypot(p.vel.x, p.vel.z);
+  if (h2 > MAX_SPEED) { p.vel.x *= MAX_SPEED / h2; p.vel.z *= MAX_SPEED / h2; }
+
+  const preVx = p.vel.x, preVz = p.vel.z, fallV = p.vel.y, wasGround = p.onGround;
   moveEntity(p, dt, ctx.boxes);
   if (p.slamming && p.onGround) { p.slamming = false; out.slam = true; }
-  if (p.onGround) { p.jumps = 0; p.climb = 1.1; }
+  if (p.onGround) {
+    if (!wasGround && fallV < -12) out.land = -fallV;
+    p.jumps = 0; p.climb = 1.1; p.coyote = 0.12; p.airT = 0; p.wrT = 0;
+    if (p.jumpBuf > 0) { p.vel.y = 9.5; p.jumps = 1; p.jumpBuf = 0; p.coyote = 0; p.onGround = false; } // gepufferter Sprung bei Landung
+  } else p.airT += dt;
   p.lastWall = !!p.wallBox;
-  if (p.wallBox && fwdHeld && !p.onGround) {
-    const top = p.wallBox.mx[1];
-    if (top - p.pos.y < 1.9 && top - p.pos.y > 0) {
-      p.pos.y = top + 0.02; p.vel.y = 1;
-      p.pos.x -= sy * 0.3; p.pos.z -= cy * 0.3;
+
+  // Wandlauf beenden oder beginnen
+  if (p.wrT > 0) {
+    p.wrT += dt;
+    const contact = p.wallN && p.wallN[0] === p.wrNx && p.wallN[1] === p.wrNz;
+    if (!contact || p.onGround || p.wrT > 1.4) { p.wrT = 0; p.wrCd = 0.3; }
+  } else if (!p.onGround && p.wallN && !(p.wrCd > 0) && !p.ghost && p.airT > 0.05 && wl > 0.3 && p.wallBox.mx[1] - p.pos.y > 1.6) {
+    const nx = p.wallN[0], nz = p.wallN[1], tx = -nz, tz = nx;
+    const vt = preVx * tx + preVz * tz;
+    if (Math.abs(vt) > 6) {
+      const v = Math.sign(vt) * Math.max(Math.abs(vt), 11);
+      p.wrT = 0.0001; p.wrNx = nx; p.wrNz = nz;
+      p.vel.x = tx * v; p.vel.z = tz * v; p.vel.y = Math.max(p.vel.y, 3);
+      p.jumps = 1;
+      out.wallrun = true;
     }
+  }
+  // Hochziehen an Kanten (in der Luft) und Flanken über niedrige Hindernisse (beim Laufen)
+  if (p.wallBox && fwdHeld && !(p.wrT > 0) && p.vel.y < 6) {
+    const rise = p.wallBox.mx[1] - p.pos.y;
+    const ok = p.onGround ? rise > 0.3 && rise < 1.7 && Math.hypot(preVx, preVz) > 4 : rise > 0 && rise < 2.3;
+    if (ok) {
+      p.vel.y = Math.sqrt(2 * GRAV * ctx.gravMul * (rise + 0.3));
+      p.vaultV = Math.max(p.vaultV, Math.min(16, Math.max(Math.hypot(preVx, preVz), speed)));
+      p.vel.x += fx * 4; p.vel.z += fz * 4;
+      p.onGround = false;
+      out.mantle = true;
+    }
+  }
+  // Nach dem Flanken das vorherige Tempo zurückgeben, sobald die Kante frei ist
+  if (p.vaultV > 0 && !out.mantle) {
+    if (!p.wallBox && !p.onGround) {
+      p.vel.x = fx * p.vaultV; p.vel.z = fz * p.vaultV; p.vaultV = 0;
+    } else if (p.onGround && !p.wallBox) p.vaultV = 0;
   }
   if (checkJumpPad(p, ctx.pads)) { out.pad = true; p.jumps = 1; }
   return out;
@@ -308,8 +425,6 @@ export function checkJumpPad(e, pads) {
   }
   return false;
 }
-/** Felder, die der Client für die Vorhersage braucht */
-export const MOVE_FIELDS = ['onGround', 'jumps', 'climb', 'slideT', 'slideCd', 'slamT', 'slamming', 'lastWall', 'ghost'];
 
 // ---------------------------------------------------------------- Simulation
 export class Sim {
@@ -373,7 +488,7 @@ export class Sim {
     const e = {
       id, name, isBot, diff: diff || null, team, alive: true, ghost: false, soloGhost: false, left: false,
       hp: 100, armor: isBot ? 0 : 50, pos: new V(), vel: new V(), yaw: 0, pitch: 0,
-      onGround: false, wallBox: null, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false,
+      ...MOVE_DEFAULTS, wallBox: null, wallN: null,
       weapons: [null, null], cur: 0, abilities: [null, null],
       fireCd: 0, burstLeft: 0, burstCd: 0, reloading: 0, healLeft: 0, rev: {}, cloak: 0, shieldT: 0,
       kills: 0, usedRevive: false, ghostT: 0, reviveHold: 0, beacons: [], seq: 0, lastFire: false, aim: false,
@@ -1098,7 +1213,7 @@ export class Sim {
     if (me) {
       snap.me = {
         seq: me.seq, x: me.pos.x, y: me.pos.y, z: me.pos.z, vx: me.vel.x, vy: me.vel.y, vz: me.vel.z,
-        og: me.onGround, jumps: me.jumps, climb: me.climb, slideT: me.slideT, slideCd: me.slideCd, slamT: me.slamT, slamming: me.slamming, lw: me.lastWall,
+        m: Object.fromEntries(MOVE_FIELDS.map((f) => [f, typeof me[f] === 'number' ? Math.round(me[f] * 1e4) / 1e4 : me[f]])),
         hp: Math.ceil(me.hp), armor: Math.ceil(me.armor), alive: me.alive, ghost: me.ghost, soloGhost: me.soloGhost,
         ghostT: r2(me.ghostT), reviveHold: r2(me.reviveHold), nearBeacon: !!me.nearBeacon, beacons: me.beacons.map((b) => [b.x, b.z]),
         weapons: me.weapons.map((w) => (w ? [w.id, w.level, w.ammo] : null)), cur: me.cur, reloading: r2(me.reloading),

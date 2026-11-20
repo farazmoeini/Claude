@@ -118,3 +118,6 @@ button { font-family: inherit; }
 #lobbyStatus { color: #ffd34d; min-height: 1.2em; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #ffd34d; outline-offset: 2px; }
+
+#dash { position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%); display: flex; gap: 5px; }
+#dash .pip { width: 16px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #2cf3ff var(--f), #ffffff22 var(--f)); }
