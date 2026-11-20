@@ -22,7 +22,9 @@ on:
         type: boolean
         default: false
 
-concurrency: { group: tellerblick-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: tellerblick-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   TB_API_BASE: ${{ secrets.TB_API_BASE || 'https://api.example.de' }}
