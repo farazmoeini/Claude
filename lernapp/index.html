@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>PrüfFit</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --text:#141824; --muted:#667085; --line:#e4e7ef; --brand:#4f46e5; --brand2:#eef0ff; --ok:#16a34a; --okbg:#e8f8ee; --bad:#dc2626; --badbg:#fdecec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1117; --card:#181b24; --text:#eceef4; --muted:#98a0b3; --line:#2a2f3d; --brand:#8b85ff; --brand2:#24234a; --okbg:#12301f; --badbg:#3a1717; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Inter,sans-serif; }
+  main { max-width: 680px; margin:0 auto; padding: 16px 16px 96px; }
+  header { display:flex; align-items:center; gap:10px; margin: 4px 0 18px; }
+  header h1 { font-size: 22px; margin:0; letter-spacing:-.02em; }
+  header .back { margin-left:auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; }
+  .muted { color:var(--muted); font-size:14px; }
+  h2 { font-size:19px; margin:0 0 6px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:0; border-radius:12px; padding:12px 16px; font:600 15px/1.1 inherit; cursor:pointer; background:var(--brand); color:#fff; }
+  .btn.ghost { background:var(--brand2); color:var(--brand); }
+  .btn.small { padding:8px 12px; font-size:14px; }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .btns { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
+  .ring { --p:0; width:74px; height:74px; border-radius:50%; background: conic-gradient(var(--brand) calc(var(--p)*1%), var(--line) 0); display:grid; place-items:center; flex:none; }
+  .ring span { width:58px; height:58px; border-radius:50%; background:var(--card); display:grid; place-items:center; font-weight:700; font-size:15px; }
+  .row { display:flex; gap:14px; align-items:center; }
+  .q { font-size:18px; font-weight:600; margin: 6px 0 14px; }
+  .opt { display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; background:var(--card); color:var(--text); border:2px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; font:inherit; cursor:pointer; }
+  .opt .box { width:22px; height:22px; border-radius:6px; border:2px solid var(--muted); flex:none; margin-top:1px; display:grid; place-items:center; font-size:14px; }
+  .opt.sel { border-color:var(--brand); }
+  .opt.sel .box { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .opt.right { border-color:var(--ok); background:var(--okbg); }
+  .opt.wrong { border-color:var(--bad); background:var(--badbg); }
+  .explain { border-left:4px solid var(--brand); background:var(--brand2); padding:10px 12px; border-radius:8px; margin-top:6px; }
+  .bar { height:8px; background:var(--line); border-radius:99px; overflow:hidden; }
+  .bar div { height:100%; background:var(--brand); }
+  .tag { display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--brand2); color:var(--brand); }
+  .footer { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .footer .in { max-width:680px; margin:0 auto; display:flex; gap:10px; align-items:center; }
+  .footer .btn { flex:1; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td { padding:6px 0; border-bottom:1px solid var(--line); }
+  td:last-child { text-align:right; }
+  .big { font-size:40px; font-weight:800; letter-spacing:-.03em; }
+  .pass { color:var(--ok); } .fail { color:var(--bad); }
+  a { color:var(--brand); }
+  input[type=file] { display:none; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<input type="file" id="importFile" accept=".json,application/json">
+<script>
+"use strict";
+// ---------------------------------------------------------------- storage (fail-safe)
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const $app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const DAY = 86400000;
+let catalogs = [];       // loaded catalogs
+let cur = null;          // current catalog
+let session = null;      // current learn/exam session
+
+// ---------------------------------------------------------------- catalogs
+async function loadCatalogs() {
+  const builtIn = [];
+  try {
+    const idx = await (await fetch("catalogs/index.json")).json();
+    for (const f of idx) {
+      try { builtIn.push(await (await fetch("catalogs/" + f)).json()); } catch {}
+    }
+  } catch {}
+  const imported = store.get("pf:imported", []);
+  catalogs = [...builtIn, ...imported.filter(c => !builtIn.some(b => b.id === c.id))];
+}
+
+function validateCatalog(c) {
+  if (!c || typeof c !== "object" || !c.id || !c.title || !Array.isArray(c.questions) || !c.questions.length)
+    throw new Error("Katalog braucht id, title und questions[].");
+  c.questions.forEach((q, i) => {
+    if (!q.id || !q.q || !Array.isArray(q.options) || q.options.length < 2 || !Array.isArray(q.correct) || !q.correct.length)
+      throw new Error(`Frage ${i + 1}: id, q, options[] (mind. 2) und correct[] nötig.`);
+    if (q.correct.some(x => x < 0 || x >= q.options.length)) throw new Error(`Frage ${q.id}: correct zeigt auf eine nicht vorhandene Antwort.`);
+  });
+  c.exam = Object.assign({ questions: Math.min(20, c.questions.length), minutes: 20, pass_percent: 80 }, c.exam || {});
+  return c;
+}
+
+document.getElementById("importFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try {
+    const c = validateCatalog(JSON.parse(await f.text()));
+    const imported = store.get("pf:imported", []).filter(x => x.id !== c.id);
+    imported.push(c); store.set("pf:imported", imported);
+    await loadCatalogs(); home();
+    alert(`„${c.title}“ importiert (${c.questions.length} Fragen).`);
+  } catch (err) { alert("Import fehlgeschlagen: " + err.message); }
+});
+
+// ---------------------------------------------------------------- progress + spaced repetition (SM-2)
+const progKey = c => "pf:prog:" + c.id;
+const getProg = c => store.get(progKey(c), {});
+const setProg = (c, p) => store.set(progKey(c), p);
+
+function review(card, quality) {           // quality 0..5
+  card = Object.assign({ ef: 2.5, reps: 0, interval: 0, due: 0, right: 0, wrong: 0 }, card);
+  if (quality >= 3) {
+    card.reps += 1; card.right += 1;
+    card.interval = card.reps === 1 ? 1 : card.reps === 2 ? 3 : Math.round(card.interval * card.ef);
+  } else {
+    card.reps = 0; card.wrong += 1; card.interval = 0;
+  }
+  card.ef = Math.max(1.3, card.ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+  // wrong answers come back in the same session (10 min), right ones after `interval` days
+  card.due = Date.now() + (card.interval ? card.interval * DAY : 10 * 60 * 1000);
+  card.last = quality >= 3;
+  return card;
+}
+
+function mastery(card) {                   // 0..1 per question
+  if (!card || !card.last) return 0;
+  return Math.min(1, card.reps / 3);
+}
+function readiness(c) {
+  const p = getProg(c);
+  return Math.round(100 * c.questions.reduce((s, q) => s + mastery(p[q.id]), 0) / c.questions.length);
+}
+function counts(c) {
+  const p = getProg(c), now = Date.now();
+  let neu = 0, due = 0, wrong = 0;
+  for (const q of c.questions) {
+    const k = p[q.id];
+    if (!k) neu++; else if (k.due <= now) due++;
+    if (k && !k.last) wrong++;
+  }
+  return { neu, due, wrong };
+}
+
+// ---------------------------------------------------------------- views
+function header(title, back = true) {
+  return `<header><h1>${esc(title)}</h1>${back ? '<button class="btn ghost small back" onclick="home()">← Übersicht</button>' : ""}</header>`;
+}
+
+function home() {
+  session = null; cur = null;
+  const list = catalogs.map((c, i) => {
+    const r = readiness(c), n = counts(c);
+    return `<div class="card">
+      <div class="row"><div class="ring" style="--p:${r}"><span>${r}%</span></div>
+        <div><h2>${esc(c.title)}</h2><div class="muted">${c.questions.length} Fragen · ${n.due} fällig · ${n.neu} neu</div>
+        <div class="muted">Prüfungsreife: ${r >= 85 ? "bereit ✅" : r >= 50 ? "auf gutem Weg" : "am Anfang"}</div></div></div>
+      <div class="btns">
+        <button class="btn" onclick="startLearn(${i})">Lernen</button>
+        <button class="btn ghost" onclick="startExam(${i})">Prüfung simulieren</button>
+        <button class="btn ghost" onclick="startLearn(${i}, 'wrong')" ${n.wrong ? "" : "disabled"}>Fehler üben (${n.wrong})</button>
+        <button class="btn ghost" onclick="stats(${i})">Statistik</button>
+      </div></div>`;
+  }).join("");
+  $app.innerHTML = header("PrüfFit", false) +
+    `<p class="muted" style="margin-top:-10px">Lernen mit Wiederholung im richtigen Abstand – funktioniert offline.</p>` +
+    (list || `<div class="card">Kein Katalog gefunden.</div>`) +
+    `<div class="card"><h2>Eigenen Fragenkatalog laden</h2>
+      <p class="muted">JSON-Datei im PrüfFit-Format (siehe README). Fortschritt bleibt auf diesem Gerät gespeichert.</p>
+      <button class="btn ghost small" onclick="document.getElementById('importFile').click()">Katalog importieren</button>
+      <button class="btn ghost small" onclick="resetAll()">Fortschritt zurücksetzen</button></div>`;
+}
+
+function resetAll() {
+  if (!confirm("Gesamten Lernfortschritt auf diesem Gerät löschen?")) return;
+  catalogs.forEach(c => { try { localStorage.removeItem(progKey(c)); localStorage.removeItem("pf:exams:" + c.id); } catch {} });
+  home();
+}
+
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// ---- learn mode
+function startLearn(i, mode = "due") {
+  cur = catalogs[i];
+  const p = getProg(cur), now = Date.now();
+  let queue;
+  if (mode === "wrong") queue = cur.questions.filter(q => p[q.id] && !p[q.id].last);
+  else {
+    const due = cur.questions.filter(q => p[q.id] && p[q.id].due <= now).sort((a, b) => p[a.id].due - p[b.id].due);
+    const neu = shuffle(cur.questions.filter(q => !p[q.id]));
+    queue = [...due, ...neu].slice(0, 15);
+  }
+  if (!queue.length) {
+    const next = Math.min(...cur.questions.map(q => p[q.id]?.due ?? Infinity));
+    $app.innerHTML = header(cur.title) + `<div class="card"><h2>Alles erledigt 🎉</h2><p class="muted">Nächste Wiederholung: ${isFinite(next) ? new Date(next).toLocaleString("de-DE") : "–"}</p>
+      <button class="btn" onclick="startExam(${i})">Prüfung simulieren</button></div>`;
+    return;
+  }
+  session = { type: "learn", i, queue, pos: 0, right: 0, done: 0, requeued: new Set() };
+  showQuestion();
+}
+
+function showQuestion() {
+  const s = session, q = s.queue[s.pos];
+  s.order = shuffle(q.options.map((_, k) => k));
+  s.sel = new Set(); s.answered = false;
+  const total = s.type === "exam" ? s.queue.length : s.queue.length;
+  const multi = q.correct.length > 1;
+  $app.innerHTML = header(cur.title) +
+    `<div class="row" style="margin-bottom:10px"><div class="bar" style="flex:1"><div style="width:${100 * s.pos / total}%"></div></div>
+      <span class="muted">${s.pos + 1}/${total}</span>${s.type === "exam" ? '<span class="tag" id="timer"></span>' : ""}</div>
+    <div class="card"><span class="tag">${esc(q.topic || "Frage")}</span>
+      <div class="q">${esc(q.q)}</div>
+      ${multi ? '<div class="muted" style="margin:-8px 0 10px">Mehrere Antworten richtig</div>' : ""}
+      <div id="opts">${s.order.map(k => `<button class="opt" data-k="${k}"><span class="box"></span><span>${esc(q.options[k])}</span></button>`).join("")}</div>
+      <div id="fb"></div></div>
+    <div class="footer"><div class="in"><button class="btn" id="act" disabled>${s.type === "exam" ? "Weiter" : "Antwort prüfen"}</button></div></div>`;
+  document.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    if (s.answered) return;
+    const k = +b.dataset.k;
+    if (!multi) { s.sel.clear(); document.querySelectorAll(".opt").forEach(x => { x.classList.remove("sel"); x.querySelector(".box").textContent = ""; }); }
+    if (s.sel.has(k)) { s.sel.delete(k); b.classList.remove("sel"); b.querySelector(".box").textContent = ""; }
+    else { s.sel.add(k); b.classList.add("sel"); b.querySelector(".box").textContent = "✓"; }
+    document.getElementById("act").disabled = s.sel.size === 0;
+  });
+  document.getElementById("act").onclick = () => s.type === "exam" ? examAnswer() : learnAnswer();
+  if (s.type === "exam") tickTimer();
+}
+
+const isRight = (q, sel) => sel.size === q.correct.length && q.correct.every(k => sel.has(k));
+
+function learnAnswer() {
+  const s = session, q = s.queue[s.pos], act = document.getElementById("act");
+  if (!s.answered) {
+    s.answered = true;
+    const ok = isRight(q, s.sel);
+    document.querySelectorAll(".opt").forEach(b => {
+      const k = +b.dataset.k;
+      if (q.correct.includes(k)) b.classList.add("right"); else if (s.sel.has(k)) b.classList.add("wrong");
+    });
+    document.getElementById("fb").innerHTML = `<p class="${ok ? "pass" : "fail"}" style="font-weight:700;margin:6px 0">${ok ? "Richtig!" : "Leider falsch."}</p>` +
+      (q.explanation ? `<div class="explain">${esc(q.explanation)}</div>` : "");
+    const p = getProg(cur); p[q.id] = review(p[q.id], ok ? 4 : 1); setProg(cur, p);
+    s.done++;
+    if (ok) s.right++;
+    else if (!s.requeued.has(q.id)) { s.requeued.add(q.id); s.queue.push(q); }  // wrong → once more at the end of this round
+    act.textContent = "Weiter"; act.disabled = false;
+    return;
+  }
+  s.pos++;
+  if (s.pos >= s.queue.length) {
+    $app.innerHTML = header(cur.title) + `<div class="card"><h2>Runde geschafft</h2>
+      <p class="big">${Math.round(100 * s.right / s.done)}%</p><p class="muted">${s.right} von ${s.done} Antworten richtig · Prüfungsreife jetzt ${readiness(cur)}%</p>
+      <div class="btns"><button class="btn" onclick="startLearn(${s.i})">Weiterlernen</button><button class="btn ghost" onclick="home()">Übersicht</button></div></div>`;
+    return;
+  }
+  showQuestion();
+}
+
+// ---- exam mode
+function startExam(i) {
+  cur = catalogs[i];
+  const n = Math.min(cur.exam.questions, cur.questions.length);
+  session = { type: "exam", i, queue: shuffle(cur.questions).slice(0, n), pos: 0, answers: [], end: Date.now() + cur.exam.minutes * 60000 };
+  showQuestion();
+}
+let timerId = null;
+function tickTimer() {
+  clearInterval(timerId);
+  const upd = () => {
+    const el = document.getElementById("timer"); if (!el || !session || session.type !== "exam") return clearInterval(timerId);
+    const left = Math.max(0, session.end - Date.now());
+    el.textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left % 60000 / 1000)).padStart(2, "0")}`;
+    if (!left) { clearInterval(timerId); finishExam(true); }
+  };
+  upd(); timerId = setInterval(upd, 1000);
+}
+function examAnswer() {
+  const s = session;
+  s.answers.push([...s.sel]);
+  s.pos++;
+  if (s.pos >= s.queue.length) finishExam(false); else showQuestion();
+}
+function finishExam(timeout) {
+  clearInterval(timerId);
+  const s = session; if (!s || s.finished) return; s.finished = true;
+  const results = s.queue.map((q, k) => ({ q, sel: new Set(s.answers[k] || []), ok: isRight(q, new Set(s.answers[k] || [])) }));
+  const right = results.filter(r => r.ok).length, pct = Math.round(100 * right / results.length);
+  const passed = pct >= cur.exam.pass_percent;
+  const p = getProg(cur);
+  results.forEach(r => { if (r.sel.size) p[r.q.id] = review(p[r.q.id], r.ok ? 4 : 1); });
+  setProg(cur, p);
+  const hist = store.get("pf:exams:" + cur.id, []); hist.push({ t: Date.now(), pct, passed }); store.set("pf:exams:" + cur.id, hist.slice(-50));
+  $app.innerHTML = header(cur.title) + `<div class="card"><h2>${timeout ? "Zeit abgelaufen – " : ""}Prüfungsergebnis</h2>
+    <p class="big ${passed ? "pass" : "fail"}">${pct}% ${passed ? "bestanden" : "nicht bestanden"}</p>
+    <p class="muted">${right} von ${results.length} richtig · Bestehensgrenze ${cur.exam.pass_percent}%</p>
+    <div class="btns"><button class="btn" onclick="startExam(${s.i})">Neue Prüfung</button><button class="btn ghost" onclick="startLearn(${s.i}, 'wrong')">Fehler üben</button></div></div>` +
+    results.filter(r => !r.ok).map(r => `<div class="card"><span class="tag">${esc(r.q.topic || "")}</span><div class="q">${esc(r.q.q)}</div>
+      ${r.q.options.map((o, k) => `<div class="opt ${r.q.correct.includes(k) ? "right" : r.sel.has(k) ? "wrong" : ""}" style="cursor:default"><span class="box">${r.sel.has(k) ? "✓" : ""}</span><span>${esc(o)}</span></div>`).join("")}
+      ${r.q.explanation ? `<div class="explain">${esc(r.q.explanation)}</div>` : ""}</div>`).join("");
+}
+
+// ---- stats
+function stats(i) {
+  cur = catalogs[i];
+  const p = getProg(cur), topics = {};
+  for (const q of cur.questions) {
+    const t = topics[q.topic || "Allgemein"] ??= { n: 0, m: 0, right: 0, wrong: 0 };
+    const k = p[q.id]; t.n++; t.m += mastery(k); if (k) { t.right += k.right; t.wrong += k.wrong; }
+  }
+  const exams = store.get("pf:exams:" + cur.id, []);
+  $app.innerHTML = header(cur.title) + `<div class="card"><h2>Prüfungsreife ${readiness(cur)}%</h2>
+    <p class="muted">Eine Frage zählt als sicher, wenn du sie 3× in Folge mit wachsendem Abstand richtig beantwortet hast.</p>
+    <table>${Object.entries(topics).map(([t, v]) => `<tr><td>${esc(t)}<div class="bar" style="margin-top:4px"><div style="width:${100 * v.m / v.n}%"></div></div></td><td>${Math.round(100 * v.m / v.n)}%</td></tr>`).join("")}</table></div>
+    <div class="card"><h2>Prüfungssimulationen</h2>${exams.length ? `<table>${exams.slice(-10).reverse().map(e => `<tr><td>${new Date(e.t).toLocaleString("de-DE")}</td><td class="${e.passed ? "pass" : "fail"}">${e.pct}%</td></tr>`).join("")}</table>` : '<p class="muted">Noch keine Prüfung simuliert.</p>'}</div>`;
+}
+
+// ---------------------------------------------------------------- boot
+if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+loadCatalogs().then(home);
+</script>
+</body>
+</html>
