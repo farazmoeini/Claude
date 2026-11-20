@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AngebotsBlitz</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --text:#16181d; --muted:#6b7280; --line:#e5e7eb; --brand:#ea580c; --brand2:#fff1e8; --ok:#15803d; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111317; --card:#1a1d23; --text:#eceef2; --muted:#9aa1ad; --line:#2b2f37; --brand:#fb923c; --brand2:#3a2414; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Inter,sans-serif; }
+  nav { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line); }
+  nav .in { max-width:1000px; margin:0 auto; padding:10px 16px; display:flex; gap:6px; align-items:center; overflow-x:auto; }
+  nav b { font-size:18px; margin-right:10px; white-space:nowrap; } nav b span { color:var(--brand); }
+  nav button { background:none; border:0; color:var(--muted); font:600 14px inherit; padding:8px 10px; border-radius:8px; cursor:pointer; white-space:nowrap; }
+  nav button.on { background:var(--brand2); color:var(--brand); }
+  main { max-width:1000px; margin:0 auto; padding:18px 16px 60px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  h2 { font-size:18px; margin:0 0 10px; }
+  label { display:block; font-size:12.5px; color:var(--muted); margin:8px 0 3px; }
+  input, select, textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+  textarea { min-height:90px; resize:vertical; }
+  .btn { background:var(--brand); color:#fff; border:0; border-radius:9px; padding:10px 14px; font:600 14px inherit; cursor:pointer; }
+  .btn.ghost { background:var(--brand2); color:var(--brand); }
+  .btn.small { padding:6px 10px; font-size:13px; }
+  .btn:disabled { opacity:.5; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .tbl { width:100%; border-collapse:collapse; font-size:14px; }
+  .tbl th { text-align:left; color:var(--muted); font-weight:600; font-size:12.5px; padding:6px 4px; border-bottom:1px solid var(--line); }
+  .tbl td { padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .tbl input { padding:5px 7px; }
+  .num { text-align:right; white-space:nowrap; }
+  .muted { color:var(--muted); font-size:13px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:600; background:var(--line); }
+  .pill.bezahlt, .pill.angenommen { background:#dcfce7; color:#166534; }
+  .pill.versendet { background:#dbeafe; color:#1e40af; }
+  .pill.abgelehnt, .pill.storniert { background:#fee2e2; color:#991b1b; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .kpi .v { font-size:24px; font-weight:800; letter-spacing:-.02em; }
+  .note { background:var(--brand2); border-radius:8px; padding:8px 10px; margin-top:10px; font-size:13.5px; }
+  .total { text-align:right; font-size:15px; margin-top:10px; }
+  .total b { font-size:20px; }
+  .mic.rec { background:var(--bad); color:#fff; }
+  @media (max-width:640px) { .hide-sm { display:none; } }
+</style>
+</head>
+<body>
+<nav><div class="in"><b>Angebots<span>Blitz</span></b>
+  <button data-v="neu" class="on">Neues Angebot</button><button data-v="docs">Dokumente</button>
+  <button data-v="prices">Preisliste</button><button data-v="customers">Kunden</button><button data-v="settings">Einstellungen</button>
+</div></nav>
+<main id="view"></main>
+<script>
+"use strict";
+const $v = document.getElementById("view");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const eur = x => (+x || 0).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+const dd = iso => iso ? new Date(iso + "T00:00").toLocaleDateString("de-DE") : "";
+async function api(path, opts = {}) {
+  const r = await fetch("/api" + path, { headers: opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}, ...opts,
+    body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body });
+  if (!r.ok) { let m = r.statusText; try { const j = await r.json(); m = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {} throw new Error(m); }
+  return r.json();
+}
+const fail = e => alert("Fehler: " + e.message);
+let settings = {}, prices = [], customers = [], edit = null;   // edit = document being edited
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.v));
+function show(v) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  ({ neu: viewNew, docs: viewDocs, prices: viewPrices, customers: viewCustomers, settings: viewSettings })[v]();
+}
+async function refresh() { [settings, prices, customers] = await Promise.all([api("/settings"), api("/prices"), api("/customers")]); }
+
+// ---------------------------------------------------------------- new quote / editor
+function viewNew(doc = null) {
+  edit = doc ? structuredClone(doc) : { id: null, kind: "quote", customer_id: null, title: "", intro: "", items: [] };
+  const isInv = edit.kind === "invoice";
+  $v.innerHTML = `
+  ${edit.id ? "" : `<div class="card"><h2>1. Auftrag beschreiben</h2>
+    <p class="muted" style="margin-top:-6px">Einfach so schreiben oder diktieren, wie man es beim Kunden notiert – z. B. „Bad 3 x 2,5 m, alte Fliesen raus, Abdichtung Dusche, Bodenfliesen 60x60, Wandfliesen 18 m², WC und Waschtisch neu, Silikon“.</p>
+    <textarea id="jobtext" placeholder="Auftragsbeschreibung …"></textarea>
+    <div class="row" style="margin-top:10px"><button class="btn" id="draftBtn">⚡ Positionen erzeugen</button>
+      <button class="btn ghost mic" id="mic" title="Diktieren">🎤 Diktieren</button><span class="muted" id="engine"></span></div>
+    <div id="draftNotes"></div></div>`}
+  <div class="card"><h2>${edit.id ? (isInv ? "Rechnung " : "Angebot ") + esc(edit.number) + " bearbeiten" : "2. Angebot prüfen"}</h2>
+    <div class="grid">
+      <div><label>Kunde</label><select id="cust"><option value="">– kein Kunde –</option>${customers.map(c => `<option value="${c.id}" ${c.id === edit.customer_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}<option value="new">+ Neuer Kunde …</option></select></div>
+      <div><label>Betreff</label><input id="title" value="${esc(edit.title)}" placeholder="z. B. Badsanierung EG"></div>
+      ${isInv ? `<div><label>Leistungsdatum</label><input id="sdate" type="date" value="${esc(edit.service_date || "")}"></div>` : ""}
+    </div>
+    <label>Einleitungstext (optional)</label><input id="intro" value="${esc(edit.intro)}" placeholder="Standardtext verwenden">
+    <table class="tbl" style="margin-top:14px"><thead><tr><th>Leistung</th><th class="num">Menge</th><th>Einh.</th><th class="num">EP netto</th><th class="num hide-sm">GP netto</th><th></th></tr></thead><tbody id="items"></tbody></table>
+    <div class="row" style="margin-top:10px"><select id="addPrice" style="max-width:420px"><option value="">+ Position aus Preisliste …</option>${prices.map(p => `<option value="${p.id}">${esc(p.name)} (${eur(p.price)}/${esc(p.unit)})</option>`).join("")}</select>
+      <button class="btn ghost small" id="addFree">+ Freie Position</button></div>
+    <div class="total" id="total"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" id="save">${edit.id ? "Speichern" : "Angebot speichern"}</button></div>
+  </div>`;
+  renderItems();
+  const cs = document.getElementById("cust");
+  cs.onchange = async () => {
+    if (cs.value !== "new") return;
+    const name = prompt("Name des Kunden:"); if (!name) { cs.value = ""; return; }
+    const address = prompt("Anschrift (Straße, PLZ Ort):", "") || "";
+    try { const c = await api("/customers", { method: "POST", body: { name, address } }); customers.push(c); cs.insertAdjacentHTML("afterbegin", `<option value="${c.id}">${esc(c.name)}</option>`); cs.value = c.id; } catch (e) { fail(e); }
+  };
+  document.getElementById("addPrice").onchange = e => {
+    const p = prices.find(x => x.id == e.target.value); if (!p) return;
+    edit.items.push({ price_id: p.id, description: p.name, qty: 1, unit: p.unit, price: p.price, note: "" }); e.target.value = ""; renderItems();
+  };
+  document.getElementById("addFree").onclick = () => { edit.items.push({ price_id: null, description: "", qty: 1, unit: "Stk", price: 0, note: "" }); renderItems(); };
+  document.getElementById("save").onclick = saveDoc;
+  if (!edit.id) {
+    document.getElementById("draftBtn").onclick = async () => {
+      const text = document.getElementById("jobtext").value.trim(); if (text.length < 3) return;
+      const b = document.getElementById("draftBtn"); b.disabled = true; b.textContent = "Erzeuge …";
+      try {
+        const d = await api("/draft", { method: "POST", body: { text } });
+        edit.items = d.items; if (d.title && !document.getElementById("title").value) document.getElementById("title").value = d.title;
+        document.getElementById("engine").textContent = d.engine === "claude" ? "Erstellt mit KI" : "Erstellt mit Preislisten-Regeln";
+        document.getElementById("draftNotes").innerHTML = (d.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join("");
+        renderItems();
+      } catch (e) { fail(e); } finally { b.disabled = false; b.textContent = "⚡ Positionen erzeugen"; }
+    };
+    setupMic();
+  }
+}
+
+function renderItems() {
+  const tb = document.getElementById("items"); if (!tb) return;
+  tb.innerHTML = edit.items.map((it, i) => `<tr>
+    <td><input data-i="${i}" data-k="description" value="${esc(it.description)}">${it.note ? `<div class="muted">${esc(it.note)}</div>` : ""}</td>
+    <td><input data-i="${i}" data-k="qty" type="number" step="0.01" value="${it.qty}" style="width:80px;text-align:right"></td>
+    <td><input data-i="${i}" data-k="unit" value="${esc(it.unit)}" style="width:70px"></td>
+    <td><input data-i="${i}" data-k="price" type="number" step="0.01" value="${it.price}" style="width:95px;text-align:right"></td>
+    <td class="num hide-sm">${eur(it.qty * it.price)}</td>
+    <td><button class="btn ghost small" data-del="${i}" title="Entfernen">✕</button></td></tr>`).join("") ||
+    `<tr><td colspan="6" class="muted">Noch keine Positionen.</td></tr>`;
+  tb.querySelectorAll("input").forEach(inp => inp.oninput = () => {
+    const it = edit.items[inp.dataset.i]; it[inp.dataset.k] = ["qty", "price"].includes(inp.dataset.k) ? parseFloat(inp.value) || 0 : inp.value; updateTotal();
+    const gp = inp.closest("tr").children[4]; gp.textContent = eur(it.qty * it.price);
+  });
+  tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { edit.items.splice(+b.dataset.del, 1); renderItems(); });
+  updateTotal();
+}
+function updateTotal() {
+  const net = edit.items.reduce((s, it) => s + Math.round(it.qty * it.price * 100) / 100, 0);
+  const rate = settings.kleinunternehmer ? 0 : settings.vat_rate;
+  const vat = Math.round(net * rate) / 100;
+  document.getElementById("total").innerHTML = `Netto ${eur(net)}${rate ? ` · ${rate} % USt. ${eur(vat)}` : " · § 19 UStG"}<br><b>Gesamt ${eur(net + vat)}</b>`;
+}
+async function saveDoc() {
+  const items = edit.items.filter(i => i.description.trim());
+  if (!items.length) return alert("Bitte mindestens eine Position anlegen.");
+  const body = { customer_id: +document.getElementById("cust").value || null, title: document.getElementById("title").value,
+    intro: document.getElementById("intro").value, items, service_date: document.getElementById("sdate")?.value || "" };
+  try {
+    const d = edit.id ? await api(`/documents/${edit.id}`, { method: "PUT", body }) : await api("/quotes", { method: "POST", body });
+    window.open(`/api/documents/${d.id}/pdf`, "_blank");
+    show("docs");
+  } catch (e) { fail(e); }
+}
+function setupMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, b = document.getElementById("mic");
+  if (!SR) { b.title = "Diktieren wird von diesem Browser nicht unterstützt (Chrome/Safari nutzen)"; b.disabled = true; return; }
+  let rec = null;
+  b.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = "de-DE"; rec.continuous = true; rec.interimResults = false;
+    const ta = document.getElementById("jobtext");
+    rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) ta.value += (ta.value ? ", " : "") + e.results[i][0].transcript.trim(); };
+    rec.onend = () => { rec = null; b.classList.remove("rec"); b.textContent = "🎤 Diktieren"; };
+    rec.start(); b.classList.add("rec"); b.textContent = "⏹ Stopp";
+  };
+}
+
+// ---------------------------------------------------------------- documents
+async function viewDocs() {
+  const [docs, k] = await Promise.all([api("/documents"), api("/dashboard")]);
+  $v.innerHTML = `<div class="kpis">
+    <div class="kpi"><div class="muted">Bezahlt ${new Date().getFullYear()}</div><div class="v">${eur(k.revenue_paid)}</div></div>
+    <div class="kpi"><div class="muted">Offene Rechnungen</div><div class="v">${eur(k.open_amount)}</div>${k.overdue.length ? `<div class="muted" style="color:var(--bad)">${k.overdue.length} überfällig</div>` : ""}</div>
+    <div class="kpi"><div class="muted">Offene Angebote</div><div class="v">${k.quotes_open}</div></div>
+    <div class="kpi"><div class="muted">Auftragsquote</div><div class="v">${k.win_rate == null ? "–" : k.win_rate + " %"}</div></div></div>
+  <div class="card"><h2>Angebote & Rechnungen</h2>
+  <table class="tbl"><thead><tr><th>Nr.</th><th class="hide-sm">Datum</th><th>Kunde / Betreff</th><th class="num">Brutto</th><th>Status</th><th></th></tr></thead><tbody>
+  ${docs.map(d => `<tr><td>${esc(d.number)}</td><td class="hide-sm">${dd(d.date)}</td><td>${esc(d.customer_name || "–")}<div class="muted">${esc(d.title)}</div></td>
+    <td class="num">${eur(d.totals.gross)}</td>
+    <td><select data-st="${d.id}">${(d.kind === "quote" ? ["entwurf","versendet","angenommen","abgelehnt"] : ["entwurf","versendet","bezahlt","storniert"]).map(s => `<option ${s === d.status ? "selected" : ""}>${s}</option>`).join("")}</select></td>
+    <td class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost small" href="/api/documents/${d.id}/pdf" target="_blank">PDF</a>
+      ${d.kind === "quote" ? `<button class="btn small" data-inv="${d.id}">→ Rechnung</button><button class="btn ghost small" data-edit="${d.id}">Bearbeiten</button>`
+        : d.status === "entwurf" ? `<button class="btn ghost small" data-edit="${d.id}">Bearbeiten</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">Noch keine Dokumente – leg oben ein Angebot an.</td></tr>`}
+  </tbody></table></div>`;
+  $v.querySelectorAll("[data-st]").forEach(s => s.onchange = () => api(`/documents/${s.dataset.st}/status`, { method: "POST", body: { status: s.value } }).then(viewDocs, fail));
+  $v.querySelectorAll("[data-inv]").forEach(b => b.onclick = async () => {
+    if (!confirm("Aus diesem Angebot eine Rechnung erstellen?")) return;
+    try { const inv = await api(`/documents/${b.dataset.inv}/invoice`, { method: "POST" }); window.open(`/api/documents/${inv.id}/pdf`, "_blank"); viewDocs(); } catch (e) { fail(e); }
+  });
+  $v.querySelectorAll("[data-edit]").forEach(b => b.onclick = async () => viewNew(await api(`/documents/${b.dataset.edit}`)));
+}
+
+// ---------------------------------------------------------------- prices
+function viewPrices() {
+  $v.innerHTML = `<div class="card"><h2>Preisliste (netto)</h2>
+    <p class="muted" style="margin-top:-6px">Stichwörter helfen beim automatischen Zuordnen (kommagetrennt, z. B. „silikon, fugen“). Die Beispielpreise sind Platzhalter – trag deine echten Preise ein.</p>
+    <table class="tbl"><thead><tr><th>Leistung</th><th>Einheit</th><th class="num">Preis</th><th class="hide-sm">Kategorie</th><th class="hide-sm">Stichwörter</th><th></th></tr></thead><tbody>
+    ${prices.map(p => `<tr data-id="${p.id}"><td><input data-k="name" value="${esc(p.name)}"></td><td><input data-k="unit" value="${esc(p.unit)}" style="width:80px"></td>
+      <td><input data-k="price" type="number" step="0.01" value="${p.price}" style="width:90px;text-align:right"></td>
+      <td class="hide-sm"><input data-k="category" value="${esc(p.category)}"></td><td class="hide-sm"><input data-k="keywords" value="${esc(p.keywords)}"></td>
+      <td><button class="btn ghost small" data-del="${p.id}">✕</button></td></tr>`).join("")}
+    </tbody></table>
+    <div class="row" style="margin-top:12px"><button class="btn ghost small" id="addP">+ Neue Leistung</button>
+      <label class="btn ghost small" style="margin:0;color:var(--brand)">CSV importieren<input type="file" accept=".csv" id="csv" hidden></label>
+      <span class="muted">CSV-Spalten: name;unit;price;category;keywords</span></div></div>`;
+  $v.querySelectorAll("tr[data-id] input").forEach(inp => inp.onchange = async () => {
+    const tr = inp.closest("tr"), body = {}; tr.querySelectorAll("input").forEach(i => body[i.dataset.k] = i.dataset.k === "price" ? parseFloat(i.value) || 0 : i.value);
+    try { await api(`/prices/${tr.dataset.id}`, { method: "PUT", body }); prices = await api("/prices"); } catch (e) { fail(e); }
+  });
+  $v.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { if (confirm("Leistung löschen?")) { await api(`/prices/${b.dataset.del}`, { method: "DELETE" }); prices = await api("/prices"); viewPrices(); } });
+  document.getElementById("addP").onclick = async () => {
+    const name = prompt("Bezeichnung der Leistung:"); if (!name) return;
+    const unit = prompt("Einheit (m², lfm, Stk, Std, pauschal):", "m²") || "Stk";
+    const price = parseFloat((prompt("Nettopreis in €:", "0") || "0").replace(",", ".")) || 0;
+    try { await api("/prices", { method: "POST", body: { name, unit, price } }); prices = await api("/prices"); viewPrices(); } catch (e) { fail(e); }
+  };
+  document.getElementById("csv").onchange = async e => {
+    const fd = new FormData(); fd.append("file", e.target.files[0]);
+    try { const r = await api("/prices/import", { method: "POST", body: fd }); alert(`${r.imported} Leistungen importiert.` + (r.errors.length ? "\n" + r.errors.join("\n") : "")); prices = await api("/prices"); viewPrices(); } catch (er) { fail(er); }
+  };
+}
+
+// ---------------------------------------------------------------- customers
+function viewCustomers() {
+  $v.innerHTML = `<div class="card"><h2>Kunden</h2><table class="tbl"><thead><tr><th>Name</th><th>Anschrift</th><th class="hide-sm">E-Mail</th><th class="hide-sm">Telefon</th></tr></thead><tbody>
+    ${customers.map(c => `<tr data-id="${c.id}"><td><input data-k="name" value="${esc(c.name)}"></td><td><textarea data-k="address" style="min-height:44px">${esc(c.address)}</textarea></td>
+      <td class="hide-sm"><input data-k="email" value="${esc(c.email)}"></td><td class="hide-sm"><input data-k="phone" value="${esc(c.phone)}"></td></tr>`).join("") || `<tr><td colspan="4" class="muted">Noch keine Kunden.</td></tr>`}
+    </tbody></table><button class="btn ghost small" id="addC" style="margin-top:12px">+ Neuer Kunde</button></div>`;
+  $v.querySelectorAll("tr[data-id] input, tr[data-id] textarea").forEach(inp => inp.onchange = async () => {
+    const tr = inp.closest("tr"), body = {}; tr.querySelectorAll("input,textarea").forEach(i => body[i.dataset.k] = i.value);
+    try { await api(`/customers/${tr.dataset.id}`, { method: "PUT", body }); customers = await api("/customers"); } catch (e) { fail(e); }
+  });
+  document.getElementById("addC").onclick = async () => {
+    const name = prompt("Name:"); if (!name) return;
+    try { await api("/customers", { method: "POST", body: { name, address: prompt("Anschrift:", "") || "" } }); customers = await api("/customers"); viewCustomers(); } catch (e) { fail(e); }
+  };
+}
+
+// ---------------------------------------------------------------- settings
+function viewSettings() {
+  const f = [["company","Firma"],["owner","Inhaber / Geschäftsführer"],["street","Straße"],["city","PLZ Ort"],["phone","Telefon"],["email","E-Mail"],
+    ["tax_number","Steuernummer"],["vat_id","USt-IdNr. (optional)"],["bank","Bank"],["iban","IBAN"],["vat_rate","USt.-Satz %"],["payment_days","Zahlungsziel (Tage)"],
+    ["quote_valid_days","Angebot gültig (Tage)"],["quote_prefix","Präfix Angebote"],["invoice_prefix","Präfix Rechnungen"],["footer","Schlusssatz"]];
+  $v.innerHTML = `<div class="card"><h2>Firmendaten</h2><div class="grid">${f.map(([k, l]) => `<div><label>${l}</label><input data-k="${k}" value="${esc(settings[k])}"></div>`).join("")}</div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:14px;color:var(--text)"><input type="checkbox" id="ku" style="width:auto" ${settings.kleinunternehmer ? "checked" : ""}> Kleinunternehmer nach § 19 UStG (keine Umsatzsteuer ausweisen)</label>
+    <button class="btn" id="saveS" style="margin-top:14px">Speichern</button></div>`;
+  document.getElementById("saveS").onclick = async () => {
+    const body = { kleinunternehmer: document.getElementById("ku").checked };
+    $v.querySelectorAll("[data-k]").forEach(i => body[i.dataset.k] = ["vat_rate","payment_days","quote_valid_days"].includes(i.dataset.k) ? parseFloat(i.value) || 0 : i.value);
+    try { settings = await api("/settings", { method: "PUT", body }); alert("Gespeichert."); } catch (e) { fail(e); }
+  };
+}
+
+refresh().then(() => viewNew()).catch(fail);
+</script>
+</body>
+</html>
