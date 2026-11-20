@@ -1,7 +1,5 @@
 # Zerfallzone
 
-![Kämpfer](docs/kaempfer.png)
-
 | Mittag | Abend | Nacht |
 |---|---|---|
 | ![Mittag](docs/mittag.png) | ![Abend](docs/abend.png) | ![Nacht](docs/nacht.png) |
@@ -100,13 +98,15 @@ werden die eingebauten Figuren verwendet. Anleitung: [`public/models/README.md`]
 Eigener Stil, komplett prozedural erzeugt (`public/visuals.js`). Die Kollision kommt
 unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 
-- **Tageszeit je Runde:** Mittag, Abend oder Nacht, abhängig vom Seed der Runde, damit online alle dieselbe sehen. Jede Tageszeit hat eigenes Licht, eigenen Himmel (Wolken, Sonnenscheibe, Abendrot, Sterne und Mond), eigenen Nebel, eigene Belichtung und Leuchtstärke.
+- **Tageszeit je Runde:** Mittag, Abend oder Nacht, abhängig vom Seed der Runde, damit online alle dieselbe sehen. Mittag und Abend nutzen einen physikalisch berechneten Himmel (Rayleigh- und Mie-Streuung), die Nacht einen eigenen Himmel mit Mond, Wolken und Sternen. Dazu natürlicher Dunst (exponentieller Nebel), eigene Belichtung und zurückhaltende Farbabstimmung je Tageszeit.
 - **Licht:** Sonne bzw. Mond mit Schattenwurf rund um den Spieler, filmisches Tonemapping (ACES), Leuchteffekt für Fenster, Werbung und Laternen.
 - **Architektur:** vier Fassadenarten mit Farbvarianten (Glastürme, Bürobauten mit Fensterbändern, Wohnhäuser mit Balkonen, Industriehallen aus Wellblech), Gesimse, Sockel, Dachbrüstungen mit Leuchtstreifen, Werbetafeln mit erfundenen Namen, Treppenhäuser. Fenster leuchten am Abend und in der Nacht.
 - **Dachaufbauten:** Klimageräte, Wassertanks und Lüfter. Sie haben Kollision und dienen als Deckung.
-- **Straßen:** Asphalt, Gehwege, gepflasterte Plätze, Mittellinien, Zebrastreifen, Straßenlaternen mit Lichtkegeln, Bäume, Betonsperren und eine Skyline am Horizont.
-- **Figuren:** eigener gepanzerter Soldat mit Helm und Visierschlitz, Plattenträger mit Magazintaschen, Schulterpanzern, Knieschonern, Rucksack und Handschuhen in gedeckten Farben. Die Teamfarbe zeigt sich nur als schmale Leuchtakzente. Jede Figur trägt sichtbar ihre aktuelle Waffe.
-- **Waffen:** eigene Modelle je Waffe (MP mit Rotpunkt, Salvengewehr mit Zielfernrohr, Schrotflinte mit Vorderschaft, Railgun mit Beschleunigerschienen und Spulen, Pistole, Granatwerfer mit Trommel). In der Ich-Ansicht mit Armen und Handschuhen.
+- **Straßen:** Asphalt mit Rissen, Flicken und Ölflecken, Gehwege, gepflasterte Plätze, Mittellinien, Zebrastreifen, Straßenlaternen mit Lichtkegeln, Bäume, Betonsperren und eine Skyline am Horizont.
+- **Autos:** geparkte Autos in normalen Lackfarben mit Scheiben, Felgen, Schein- und Rücklichtern. Sie sind echte Deckung, man kann auf sie klettern.
+- **Oberflächen:** Fassaden mit Regenschlieren und Schmutz am Fuß, Relief aus Normalenkarten (vertiefte Fenster, rauer Beton), spiegelnde Glastürme.
+- **Figuren:** eigener Soldat in realistischer Ausrüstung: Kampfanzug, Plattenträger mit Magazintaschen und Funkgerät, Gefechtshelm mit Nachtsichthalterung, Sturmhaube und Schutzbrille, Knieschoner, Rucksack und Handschuhe. Das Team erkennt man an der farbigen Armbinde und einem kleinen Blinklicht am Helm. Jede Figur trägt sichtbar ihre aktuelle Waffe.
+- **Waffen:** eigene Modelle je Waffe (MP mit Rotpunkt, Salvengewehr mit Zielfernrohr, Schrotflinte mit Vorderschaft, Railgun mit Beschleunigerschienen und Kupferspulen, Pistole, Granatwerfer mit Trommel) in realistischen Farben (schwarz eloxiert, Sandfarbe, Oliv). In der Ich-Ansicht mit Armen und Handschuhen, dazu fliegende Patronenhülsen und kleines Mündungsfeuer mit etwas Rauch.
 - **Effekte:** Mündungsfeuer mit Lichtblitz, Staub an Einschlägen, Rauch und Kamerawackeln bei Explosionen, aufsteigende Splitter über zerfallenden Sektoren, Waffenschwung beim Umsehen.
 - **Bildaufbereitung (hohe Qualität):** 4-fache Kantenglättung, Umgebungsverdeckung (GTAO) für Schatten in Ecken und Fugen, Himmelsreflexionen auf Glas, Metall und Waffen, Farbabstimmung und Vignette je Tageszeit.
 - **Lesbarkeit:** Figuren mit abgerundeter Panzerung und stilisierter Umrisslinie (Gegner dunkelrot, Team dunkelgrün), Kniegelenke, Oberkörperneigung und Rückstoß beim Schießen.

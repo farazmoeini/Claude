@@ -110,7 +110,7 @@ export function generateWorld(seed) {
   const add = (x0, x1, y0, y1, z0, z1, kind, edge) => {
     const b = { id: boxes.length, mn: [x0, y0, z0], mx: [x1, y1, z1], kind, edge, sector: sectorOf((x0 + x1) / 2, (z0 + z1) / 2), y0, h0: y1 - y0, off: R() * 1.5, gone: false, flicker: false };
     boxes.push(b);
-    if (kind !== 'crate') bySector[b.sector].push(b);
+    if (kind !== 'crate' && kind !== 'car') bySector[b.sector].push(b);
     return b;
   };
   for (let sz = 0; sz < NS; sz++) for (let sx = 0; sx < NS; sx++) {
@@ -150,7 +150,15 @@ export function generateWorld(seed) {
     const off = (R() < 0.5 ? 1 : -1) * 3.0;
     const t = r(-HALF + 5, HALF - 5);
     const cx = alongX ? t : line + off, cz = alongX ? line + off : t;
-    add(cx - 0.7, cx + 0.7, 0, r(1.0, 1.6), cz - 0.7, cz + 0.7, 'crate', 0xff4dd2);
+    // etwa die Hälfte als geparkte Autos (parallel zur Straße), nicht auf Kreuzungen oder Sprungfeldern
+    const nearCross = Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR) < 8 || Math.abs(((t + HALF) % SECTOR + SECTOR) % SECTOR - SECTOR) < 8;
+    const onPad = pads.some((p) => Math.hypot(p.x - cx, p.z - cz) < 3.5);
+    if (R() < 0.5 && !nearCross && !onPad) {
+      const hl = 2.2, hw = 0.92, coff = Math.sign(off) * 2.9;
+      const ccx = alongX ? t : line + coff, ccz = alongX ? line + coff : t;
+      const car = add(alongX ? ccx - hl : ccx - hw, alongX ? ccx + hl : ccx + hw, 0, 1.42, alongX ? ccz - hw : ccz - hl, alongX ? ccz + hw : ccz + hl, 'car', 0);
+      car.paint = Math.floor(R() * 8); car.alongX = alongX; car.flip = R() < 0.5;
+    } else if (!onPad) add(cx - 0.7, cx + 0.7, 0, r(1.0, 1.6), cz - 0.7, cz + 0.7, 'crate', 0xff4dd2);
   }
   // Gerichtete Sprungfelder: etwa jedes zweite schleudert auf ein nahes Dach
   const buildings = boxes.filter((b) => b.kind === 'building');
@@ -236,6 +244,8 @@ export function generateWorld(seed) {
     if (line <= -HALF) continue;
     const off = R() < 0.5 ? 2.6 : -2.6;
     const t = (alongX ? -HALF + sx * SECTOR : -HALF + sz * SECTOR) + r(8, 42);
+    const ux = alongX ? t : line + off, uz = alongX ? line + off : t;
+    if (boxes.some((q) => (q.kind === 'car' || q.kind === 'crate') && ux > q.mn[0] - 2.2 && ux < q.mx[0] + 2.2 && uz > q.mn[2] - 2.2 && uz < q.mx[2] + 2.2)) continue;
     updrafts.push({ x: alongX ? t : line + off, z: alongX ? line + off : t, r: 1.8, h: 55 });
   }
   return { seed, boxes, pads, bySector, ziplines, updrafts };

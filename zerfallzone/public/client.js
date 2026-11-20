@@ -69,7 +69,7 @@ const canvas = renderer.domElement;
 /** Maus einfangen. Ohne Klick des Spielers (z. B. Rundenstart durch den Host) lehnt der Browser ab – dann reicht ein Klick ins Bild. */
 function lockPointer() { try { const r = canvas.requestPointerLock && canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch { /* Klick ins Bild genügt */ } }
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.05, 900);
+const camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.05, 2600);
 scene.add(camera);
 const env = createEnvironment(scene, renderer);
 const effects = createEffects(scene);
@@ -724,8 +724,14 @@ function handleFx(f, s) {
       }
       if (mine) {
         const muzzle = G.viewModel ? G.viewModel.localToWorld(new THREE.Vector3(0, 0.01, -(G.viewModel.userData.len || 0.6) * 0.72)) : from;
-        effects.flash(muzzle, f.w === 'hagel' || f.w === 'lanze' ? 1.3 : 0.8, fxOn);
-      } else if (from.distanceTo(camera.position) < 150) effects.flash(new THREE.Vector3(...f.from), 1, fxOn && from.distanceTo(camera.position) < 40);
+        effects.flash(muzzle, f.w === 'hagel' || f.w === 'lanze' ? 0.75 : 0.45, fxOn);
+        if (Math.random() < 0.35) effects.smoke(muzzle, 1, 0.25, 0xd0d0d0, 0.4);
+        if (f.w !== 'lanze' && f.w !== 'moerser' && G.viewModel) {
+          const port = G.viewModel.localToWorld(new THREE.Vector3(0.04, 0.03, -0.05));
+          const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+          effects.casing(port, right.multiplyScalar(1.6 + Math.random()).add(new THREE.Vector3(0, 1.8 + Math.random(), 0)));
+        }
+      } else if (from.distanceTo(camera.position) < 150) effects.flash(new THREE.Vector3(...f.from), 0.6, fxOn && from.distanceTo(camera.position) < 40);
       if (mine) { rumble(0.25, f.w === 'hagel' || f.w === 'lanze' || f.w === 'moerser' ? 0.6 : 0.1, 60); G.recoil = 1; pitch = Math.min(1.5, pitch + (f.w === 'lanze' ? 0.03 : f.w === 'hagel' || f.w === 'moerser' ? 0.04 : f.w === 'dorn' ? 0.015 : 0.006)); }
       if (!mine) { const ve = G.ents.get(f.id); if (ve && ve.rig) ve.rig.kick = 1; }
       if (mine) sfxShot(f.w, 1);

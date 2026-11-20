@@ -113,8 +113,8 @@ test('Kein Fallschaden, auch aus 120 m Höhe', () => {
 
 test('Seilbahn: nur per Interaktion einhaken, mitfahren, mit Sprung lösen', () => {
   assert.ok(W.ziplines.length > 10, 'Karte hat Seilbahnen');
-  const z = W.ziplines[0];
-  const t = 0.3;
+  const z = W.ziplines.reduce((a, b) => (b.len > a.len ? b : a)); // längste Seilbahn, Start in der Mitte
+  const t = 0.5;
   const p = player(z.p0[0] + (z.p1[0] - z.p0[0]) * t, z.p0[1] + (z.p1[1] - z.p0[1]) * t - 2.0, z.p0[2] + (z.p1[2] - z.p0[2]) * t);
   p.vel.set(0, 1, 0); p.airT = 0.3;
   const none = movePlayer(p, inp(), DT, wctx);
