@@ -1,0 +1,30 @@
+# Production: API behind Caddy (automatic HTTPS via Let's Encrypt) + nightly backup.
+# On the server:  cp .env.example .env && nano .env && docker compose up -d --build
+services:
+  api:
+    build: ..
+    restart: unless-stopped
+    env_file: .env
+    volumes: ["tellerblick-data:/data"]
+    expose: ["8300"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: "${DOMAIN}"
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
+    depends_on: [api]
+
+  backup:
+    # Daily SQLite snapshot + photo archive into ./backups (keeps 14 days, see backup.sh).
+    # Also copy ./backups off the server, e.g. to a Hetzner Storage Box.
+    image: alpine:3.20
+    restart: unless-stopped
+    volumes: ["tellerblick-data:/data:ro", "./backups:/backups", "./backup.sh:/backup.sh:ro"]
+    entrypoint: ["/bin/sh", "/backup.sh"]
+
+volumes:
+  tellerblick-data:
+  caddy-data:

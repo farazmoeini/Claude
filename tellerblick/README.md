@@ -1,54 +1,57 @@
 # Tellerblick: Kalorien und Eiweiß per Foto
 
-Du fotografierst das Essen, die KI schätzt Gericht, Portion, Kalorien und Makros,
-und mit einem Tipp ist es eingetragen. Gebaut als Web-App, die auf dem Handy wie
-eine native App funktioniert.
+Du fotografierst das Essen, die KI schätzt Gericht, Portion, Kalorien und Makros, und mit
+einem Tipp ist es eingetragen. App für iOS und Android (Capacitor) mit eigenem Server in
+Deutschland und Abo über die App Stores.
+
+➡️ **Live schalten: [LAUNCH.md](LAUNCH.md)** (Schritt für Schritt, ohne Mac)
+
+## Aufbau
+
+```
+backend/   FastAPI-Server: Konten, Tagebuch, Foto-Analyse (Claude), Abo-Prüfung (RevenueCat), Tests
+web/       App-Oberfläche (HTML/JS, kein Build-Schritt). Dient auch als Web-Version
+mobile/    Capacitor-Projekt: native iOS- und Android-Apps (Kamera, In-App-Käufe, Icons, Splash)
+legal/     Datenschutzerklärung, Nutzungsbedingungen, Impressum (Vorlagen, ausfüllen!)
+deploy/    Docker Compose mit Caddy (automatisches HTTPS) und nächtlichem Backup
+store/     Store-Texte, Datenschutz-Angaben, Screenshots in allen Pflichtgrößen, Feature-Grafik
+Dockerfile Server-Image
+```
+
+Cloud-Builds: `.github/workflows/tellerblick.yml` führt die Tests aus, baut und startet das
+Server-Image und baut die Android-AAB sowie die iOS-App, mit Secrets auch signiert mit
+Upload zu TestFlight.
 
 ## Funktionen
 
-| Funktion | Details |
+| Bereich | Details |
 |---|---|
-| **Onboarding** | Tagesziel nach Mifflin-St Jeor (Grundumsatz × Aktivität ± Defizit für das Wunschtempo), Untergrenze 1.200 bzw. 1.500 kcal mit Warnhinweis. Eiweißziel in g pro kg, Fett 27 %, Rest Kohlenhydrate |
-| **Foto-Analyse** | Claude Vision erkennt jede Komponente einzeln, schätzt die Gramm und denkt an versteckte Fette. Mengen anpassen, dann skalieren die Makros mit. Komponenten lassen sich abwählen. Optionaler Hinweis wie „halbe Portion gegessen“ |
-| **Ohne KI nutzbar** | Lebensmittel-Datenbank mit typischen Portionen (z. B. „1 Ei (M)“, „1 Döner“) und eigene Einträge. Das Foto bleibt trotzdem am Eintrag |
-| **Tagebuch** | Ring mit den übrigen kcal, Balken für Eiweiß, Kohlenhydrate und Fett, vier Mahlzeiten, zurückblättern auf frühere Tage, löschen |
-| **Motivation** | Streak in Tagen, Lob beim Erreichen des Eiweißziels, Durchschnitt über 7 Tage, Tage mit erreichtem Eiweißziel |
-| **Gewicht** | Tageswerte und 7-Tage-Durchschnitt als Trendlinie (glättet Wasserschwankungen). Das Kalorienziel passt sich automatisch an das neue Gewicht an |
-| **Handy-tauglich** | Kamera direkt aus dem Browser, Dezimalkomma, Dark Mode |
+| **Konto** | Registrierung mit ausdrücklicher Einwilligung für Gesundheitsdaten (Art. 9 DSGVO), Login, Passwort vergessen per Mail, Abmelden auf allen Geräten |
+| **Datenschutz** | Daten pro Nutzer getrennt, Fotos nur über signierte, zeitlich begrenzte Links, Datenexport (Art. 15/20), Konto löschen inkl. aller Fotos (Apple 5.1.1(v)), scrypt-Passwort-Hashes, Rate-Limits |
+| **Onboarding** | Tagesziel nach Mifflin-St Jeor, Untergrenze 1.200/1.500 kcal, Eiweißziel pro kg |
+| **Foto-Analyse** | Claude Vision: Komponenten, Gramm, Makros. Mengen anpassen und Komponenten abwählen. Native Kamera bzw. Galerie |
+| **Eintragen** | Lebensmittel-Datenbank mit Portionen, „Zuletzt gegessen“, eigene Lebensmittel |
+| **Fortschritt** | Ring und Makro-Balken, Streak, 14-Tage-Kalorien, Gewichtstrend mit 7-Tage-Durchschnitt |
+| **Monetarisierung** | 3 Foto-Analysen kostenlos, dann Premium-Abo über RevenueCat (Apple/Google). Der Server prüft den Abo-Status selbst (Webhook + Cache). Fair-Use-Limit pro Tag gegen Kostenexplosion |
+| **Paywall** | Erfüllt die Store-Regeln: Preis, Laufzeit, Verlängerungshinweis, Wiederherstellen, Links zu Nutzungsbedingungen und Datenschutz |
 
-## Starten
+## Lokal entwickeln
 
 ```bash
-cd tellerblick
+cd backend
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=...         # optional, schaltet die Foto-Analyse ein
-uvicorn app:app --port 8300          # http://localhost:8300
+BILLING_MODE=off uvicorn app:app --port 8300     # http://localhost:8300 (alle Nutzer Premium)
+python -m pytest -q                              # 14 Tests: Isolation, Löschung, Paywall, Limits …
 ```
 
-`TELLERBLICK_MODEL` wählt das Claude-Modell (Standard `claude-opus-5-5`).
-Für viele Nutzer ist `claude-haiku-5-5` deutlich günstiger. Fotos werden vor der
-Analyse auf maximal 1280 px verkleinert, das spart Kosten und Zeit.
+Ohne `ANTHROPIC_API_KEY` ist die Foto-Analyse deaktiviert, alles andere funktioniert.
 
-## Hinweise
+Native App lokal (braucht Android Studio bzw. Xcode):
+```bash
+cd mobile && npm install
+TB_API_BASE=https://api.deine-domain.de npm run android   # oder: npm run ios
+```
 
-- Die Nährwerte in der Datenbank und aus der KI sind **Schätzungen**, keine medizinischen Angaben.
-- Gesundheitsdaten sind besonders geschützt (Art. 9 DSGVO). Vor dem Start mit echten Nutzern
-  braucht es Einwilligung, Datenschutzerklärung und Hosting in der EU.
+## Konfiguration (Server)
 
-## Weg zum Geld
-
-Das Erfolgsmodell der Kategorie: **Hard Paywall nach dem Onboarding**. Der Nutzer sieht sein
-persönliches Ziel, dann folgen ein Probezeitraum und ein Jahresabo (ca. 39–59 €).
-
-**Positionierung statt Kopie:** eine Nische mit klarem Problem, z. B.
-- **GLP-1 / Abnehmspritze:** Eiweiß-Tracking gegen Muskelverlust, kleine Portionen
-- **Kraftsport:** Eiweiß zuerst, schnelles Eintragen im Gym
-- **Deutsche Küche:** bessere Schätzung von Brot, Wurst und Kantinenessen
-
-**Nächste Schritte:**
-1. Accounts und Sync (z. B. Supabase)
-2. Barcode-Scanner (Open Food Facts)
-3. Stripe- oder RevenueCat-Abo
-4. Als App in die Stores mit Capacitor
-5. Erinnerungen per Push
-6. Content-Marketing mit Vorher-nachher-Clips, geschnitten mit StreamCut
+Alle Variablen mit Erklärung: [`deploy/.env.example`](deploy/.env.example).
