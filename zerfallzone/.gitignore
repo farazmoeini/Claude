@@ -1,2 +1,4 @@
 node_modules/
 dist/
+public/textures/*/2k/
+public/textures/*/4k/

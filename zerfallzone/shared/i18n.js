@@ -4,7 +4,7 @@
 export const LANGS = { de: 'Deutsch', en: 'English', es: 'Español', fr: 'Français' };
 
 const de = {
-  'tod.tag': 'Tageszeit: Mittag', 'tod.abend': 'Tageszeit: Abend', 'tod.nacht': 'Tageszeit: Nacht', 'hud.zip': 'Seilbahn nutzen', 'menu.vol': 'Lautstärke', 'menu.fx': 'Grafikqualität (Schatten, Leuchten)', 'menu.on': 'hoch', 'menu.off': 'niedrig',
+  'tod.tag': 'Tageszeit: Mittag', 'tod.abend': 'Tageszeit: Abend', 'tod.nacht': 'Tageszeit: Nacht', 'hud.zip': 'Seilbahn nutzen', 'menu.vol': 'Lautstärke', 'menu.fx': 'Grafikqualität', 'menu.q0': 'Niedrig', 'menu.q1': 'Hoch (2k)', 'menu.q2': 'Ultra (4k)', 'menu.on': 'hoch', 'menu.off': 'niedrig',
   'pick.title': 'Wähle deine Sprache', 'pick.hint': 'Du kannst sie später jederzeit im Menü ändern.',
   'menu.sub': 'Vertikaler Arena-Battle-Royale · Solo, Duos, Trios · offline gegen Bots oder online mit Freunden',
   'menu.name': 'Dein Name', 'menu.namePh': 'Spieler', 'menu.sens': 'Empfindlichkeit (Maus und Stick)', 'menu.lang': 'Sprache',
@@ -59,7 +59,7 @@ const de = {
 };
 
 const en = {
-  'tod.tag': 'Time of day: noon', 'tod.abend': 'Time of day: evening', 'tod.nacht': 'Time of day: night', 'hud.zip': 'Ride zipline', 'menu.vol': 'Volume', 'menu.fx': 'Graphics quality (shadows, glow)', 'menu.on': 'high', 'menu.off': 'low',
+  'tod.tag': 'Time of day: noon', 'tod.abend': 'Time of day: evening', 'tod.nacht': 'Time of day: night', 'hud.zip': 'Ride zipline', 'menu.vol': 'Volume', 'menu.fx': 'Graphics quality', 'menu.q0': 'Low', 'menu.q1': 'High (2K)', 'menu.q2': 'Ultra (4K)', 'menu.on': 'high', 'menu.off': 'low',
   'pick.title': 'Choose your language', 'pick.hint': 'You can change it any time later in the menu.',
   'menu.sub': 'Vertical arena battle royale · Solo, Duos, Trios · offline against bots or online with friends',
   'menu.name': 'Your name', 'menu.namePh': 'Player', 'menu.sens': 'Sensitivity (mouse and stick)', 'menu.lang': 'Language',
@@ -114,7 +114,7 @@ const en = {
 };
 
 const es = {
-  'tod.tag': 'Hora del día: mediodía', 'tod.abend': 'Hora del día: atardecer', 'tod.nacht': 'Hora del día: noche', 'hud.zip': 'Usar tirolina', 'menu.vol': 'Volumen', 'menu.fx': 'Calidad gráfica (sombras, brillo)', 'menu.on': 'alta', 'menu.off': 'baja',
+  'tod.tag': 'Hora del día: mediodía', 'tod.abend': 'Hora del día: atardecer', 'tod.nacht': 'Hora del día: noche', 'hud.zip': 'Usar tirolina', 'menu.vol': 'Volumen', 'menu.fx': 'Calidad gráfica', 'menu.q0': 'Baja', 'menu.q1': 'Alta (2K)', 'menu.q2': 'Ultra (4K)', 'menu.on': 'alta', 'menu.off': 'baja',
   'pick.title': 'Elige tu idioma', 'pick.hint': 'Puedes cambiarlo más tarde en el menú en cualquier momento.',
   'menu.sub': 'Battle royale vertical de arena · Solo, Dúos, Tríos · sin conexión contra bots o en línea con amigos',
   'menu.name': 'Tu nombre', 'menu.namePh': 'Jugador', 'menu.sens': 'Sensibilidad (ratón y stick)', 'menu.lang': 'Idioma',
@@ -169,7 +169,7 @@ const es = {
 };
 
 const fr = {
-  'tod.tag': 'Moment de la journée : midi', 'tod.abend': 'Moment de la journée : soir', 'tod.nacht': 'Moment de la journée : nuit', 'hud.zip': 'Prendre la tyrolienne', 'menu.vol': 'Volume', 'menu.fx': 'Qualité graphique (ombres, lueur)', 'menu.on': 'haute', 'menu.off': 'basse',
+  'tod.tag': 'Moment de la journée : midi', 'tod.abend': 'Moment de la journée : soir', 'tod.nacht': 'Moment de la journée : nuit', 'hud.zip': 'Prendre la tyrolienne', 'menu.vol': 'Volume', 'menu.fx': 'Qualité graphique', 'menu.q0': 'Basse', 'menu.q1': 'Haute (2K)', 'menu.q2': 'Ultra (4K)', 'menu.on': 'haute', 'menu.off': 'basse',
   'pick.title': 'Choisis ta langue', 'pick.hint': 'Tu pourras la changer plus tard dans le menu à tout moment.',
   'menu.sub': 'Battle royale vertical en arène · Solo, Duos, Trios · hors ligne contre des bots ou en ligne avec des amis',
   'menu.name': 'Ton nom', 'menu.namePh': 'Joueur', 'menu.sens': 'Sensibilité (souris et stick)', 'menu.lang': 'Langue',

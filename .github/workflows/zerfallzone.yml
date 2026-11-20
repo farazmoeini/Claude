@@ -42,6 +42,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: zerfallzone/package-lock.json }
       - run: npm ci
+      - name: 4k-Texturen von Poly Haven laden (CC0)
+        run: npm run assets -- 2k 4k
       - run: npx electron-builder ${{ matrix.target }} --publish never
         env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
       - uses: actions/upload-artifact@v4

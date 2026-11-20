@@ -16,8 +16,19 @@ const THREE_ADDONS = path.join(path.dirname(require.resolve('three')), '..', 'ex
 const TICK = 1 / 30;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.hdr': 'application/octet-stream' };
 
+const TEX_IDS = ['asphalt_02', 'concrete_pavers_02', 'white_plaster_rough_02', 'concrete_panels', 'worn_corrugated_iron', 'gravel_concrete', 'rough_concrete'];
+/** Welche Texturauflösungen liegen vollständig vor? (1k im Spiel, 2k/4k nach `npm run assets`) */
+function availableTextures() {
+  const out = [];
+  for (const r of ['1k', '2k', '4k']) {
+    const ok = TEX_IDS.every((id) => ['diff', 'nor'].every((k) => fs.existsSync(path.join(ROOT, 'public', 'textures', id, r === '1k' ? '' : r, k + '.jpg'))));
+    if (ok) out.push(r);
+  }
+  return out;
+}
 function serveStatic(req, res) {
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/api/assets') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }); res.end(JSON.stringify({ textures: availableTextures() })); return; }
   let file;
   if (url.pathname === '/vendor/three.module.js') file = THREE_FILE;
   else if (url.pathname.startsWith('/vendor/addons/')) file = path.join(THREE_ADDONS, path.normalize(url.pathname.slice(15)).replace(/^(\.\.[/\\])+/, ''));

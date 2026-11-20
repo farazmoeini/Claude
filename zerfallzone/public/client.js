@@ -14,10 +14,15 @@ import {
 import { LANGS, translate, guessLang } from './shared/i18n.js';
 import { MODELS, loadModelPack, makeModelCharacter, animateModelCharacter, makeModelWeapon } from './models.js';
 loadModelPack();
-loadPhotoTextures();
+// Grafikqualität: 0 = niedrig (1k, keine Schatten/Effekte), 1 = hoch (2k), 2 = ultra (4k, schärfere Schatten, volle Auflösung)
+let quality = (() => { try { const q = JSON.parse(localStorage.getItem('zz-quality')); if (q === 0 || q === 1 || q === 2) return q; const fx = JSON.parse(localStorage.getItem('zz-fx')); return fx === false ? 0 : 1; } catch { return 1; } })();
+const TEX_RES = ['1k', '2k', '4k'];
+/** Höchste vorhandene Texturauflösung bis zur gewünschten Stufe (2k/4k liegen nur nach `npm run assets` vor) */
+const photoReady = fetch('api/assets').then((r) => r.json()).catch(() => ({ textures: ['1k'] }))
+  .then((a) => { const want = TEX_RES.indexOf(TEX_RES[quality]); let res = '1k'; for (const r of a.textures || []) if (TEX_RES.indexOf(r) <= want && TEX_RES.indexOf(r) > TEX_RES.indexOf(res)) res = r; return loadPhotoTextures(res); });
 /** Rundenstart wartet auf Modelle, Foto-Texturen und Umgebungslichter (jeweils mit Zeitlimit) */
-const assetsReady = () => Promise.race([Promise.all([MODELS.promise, loadPhotoTextures(), env.hdrPromise]), new Promise((r) => setTimeout(r, 25000))]);
-import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime, loadPhotoTextures, PHOTO } from './visuals.js';
+const assetsReady = () => Promise.race([Promise.all([MODELS.promise, photoReady, env.hdrPromise]), new Promise((r) => setTimeout(r, 30000))]);
+import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime, loadPhotoTextures, PHOTO, setMaxAnisotropy } from './visuals.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -64,7 +69,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 // ---------------------------------------------------------------- Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio, (() => { try { return JSON.parse(localStorage.getItem('zz-quality')) === 2 ? 2 : 1.5; } catch { return 1.5; } })()));
 renderer.setSize(innerWidth, innerHeight);
 renderer.domElement.id = 'game';
 document.body.prepend(renderer.domElement);
@@ -90,8 +95,10 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = new ShaderPass(GradeShader);
 composer.addPass(grade);
-let fxOn = store.get('fx', true);
+let fxOn = quality > 0;
 env.setShadows(fxOn);
+env.setShadowSize(quality === 2 ? 4096 : 2048);
+setMaxAnisotropy(renderer.capabilities.getMaxAnisotropy());
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -296,8 +303,14 @@ $('nameInput').addEventListener('change', () => store.set('name', $('nameInput')
 $('sensInput').value = sens;
 $('volInput').value = volume;
 $('volInput').addEventListener('input', () => { initAudio(); setVolume(+$('volInput').value); tone(660, 660, 0.05, 0.1); });
-const renderFxBtn = () => { $('fxBtn').textContent = fxOn ? t('menu.on') : t('menu.off'); $('fxBtn').classList.toggle('on', fxOn); };
-$('fxBtn').addEventListener('click', () => { fxOn = !fxOn; store.set('fx', fxOn); env.setShadows(fxOn); renderFxBtn(); });
+const renderFxBtn = () => { $('fxBtn').textContent = t('menu.q' + quality); $('fxBtn').classList.toggle('on', quality > 0); };
+$('fxBtn').addEventListener('click', () => {
+  quality = (quality + 1) % 3;
+  store.set('quality', quality);
+  // Texturauflösung und Bildschärfe brauchen einen Neustart der Grafik
+  if (!game) { location.reload(); return; }
+  fxOn = quality > 0; env.setShadows(fxOn); env.setShadowSize(quality === 2 ? 4096 : 2048); renderFxBtn();
+});
 renderFxBtn();
 $('sensInput').addEventListener('input', () => { sens = +$('sensInput').value; store.set('sens', sens); });
 const defaultServer = location.protocol.startsWith('http') ? location.host : 'localhost:7777';

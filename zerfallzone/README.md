@@ -17,6 +17,14 @@ bis zu 40 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusamm
 | **Aus dem Quellcode als App** | Node.js 20+ | `npm install && npm run app` |
 | **Eigener Online-Server** (VPS) | Docker | `docker build -t zerfallzone . && docker run -p 7777:7777 zerfallzone` |
 
+### Hochauflösende Texturen
+
+```bash
+npm run assets -- 4k     # oder 2k, oder 2k 4k
+```
+
+Danach im Hauptmenü **Grafikqualität: Ultra (4k)** wählen.
+
 ### PC-App herunterladen
 
 GitHub baut die App automatisch, sobald sich etwas in `zerfallzone/` ändert
@@ -115,6 +123,8 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 - **Zerfall als Markenzeichen:** Zerfallene Sektoren tragen ein wanderndes digitales Glitch-Muster in Rot und Cyan.
 - **Oberfläche:** schlicht und erwachsen: gedeckte Farben, dünne Schrift, kaum Kästen, nur Bernstein als Akzent für Warnungen. Vitalkern unten links (feiner Lebensring, vier Rüstungszellen, Zahl in der Mitte), Munition groß und dünn unten rechts, Fähigkeiten mit feiner Ladelinie, Fadenkreuz aus Punkt und vier feinen Linien.
 - **Kampf-Rückmeldung:** leuchtende Geschossspuren, schwebende Schadenszahlen (Kopftreffer gelb), Treffer-Kreuz, Splitter und Klang beim Rüstungsbruch (bei Gegnern räumlich), Banner bei eigenen Kills.
+- **Grafikqualität (Hauptmenü):** *Niedrig* (1k-Texturen, ohne Schatten und Effekte), *Hoch* (2k-Texturen), *Ultra* (4k-Texturen, 4096er-Schattenkarte, volle Bildschirmauflösung, maximale anisotrope Filterung). 1k liegt im Repository; 2k und 4k lädt `npm run assets -- 2k 4k` von Poly Haven (rund 310 MB, jede Datei per Prüfsumme geprüft). Der GitHub-Build der PC-App lädt sie automatisch mit. Fehlt eine Auflösung, nimmt das Spiel die nächstkleinere.
+- **Glänzende Scheiben:** Fassaden haben eine eigene Rauheits- und Metallkarte. Fensterscheiben spiegeln Himmel und Stadt, Wände bleiben matt.
 - **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Unter **Grafikqualität: niedrig** sind Schatten und Leuchteffekt aus.
 
 ## Sprachen

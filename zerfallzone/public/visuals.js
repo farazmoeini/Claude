@@ -182,6 +182,7 @@ export function createEnvironment(scene, renderer) {
     sun.position.set(tx + d.x * 350, d.y * 350, tz + d.z * 350);
   };
   env.setShadows = (on) => { renderer.shadowMap.enabled = on; sun.castShadow = on; };
+  env.setShadowSize = (n) => { if (sun.shadow.mapSize.x === n) return; sun.shadow.mapSize.set(n, n); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } };
   env.apply('tag');
   return env;
 }
@@ -192,7 +193,7 @@ function tex(c, repeat = true) {
   const t = new THREE.CanvasTexture(c);
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = MAX_ANISO;
   return t;
 }
 function grain(g, w, h, amount, alpha = 0.06) {
@@ -207,12 +208,17 @@ const ENV_MATS = new Set();
 export function envMat(m, base) { m.userData.envBase = base; m.envMapIntensity = base * ENV_INT.value; ENV_MATS.add(m); return m; }
 // ---------------------------------------------------------------- Foto-Texturen (Poly Haven, CC0) – siehe public/ASSETS-LICENSES.md
 const PHOTO_IDS = ['asphalt_02', 'concrete_pavers_02', 'white_plaster_rough_02', 'concrete_panels', 'worn_corrugated_iron', 'gravel_concrete', 'rough_concrete'];
-export const PHOTO = { ready: false, img: {}, promise: null };
-/** Lädt die Foto-Texturen einmal. Fehlen sie, zeichnet das Spiel weiter seine eigenen Texturen. */
-export function loadPhotoTextures(base = 'textures/') {
+export const PHOTO = { ready: false, img: {}, promise: null, res: '1k' };
+let MAX_ANISO = 8;
+export function setMaxAnisotropy(n) { MAX_ANISO = Math.max(1, Math.min(16, n | 0)); }
+/** Lädt die Foto-Texturen einmal in der gewählten Auflösung (1k liegt im Spiel, 2k/4k per `npm run assets`).
+ *  Fehlen sie, zeichnet das Spiel weiter seine eigenen Texturen. */
+export function loadPhotoTextures(res = '1k', base = 'textures/') {
   if (PHOTO.promise) return PHOTO.promise;
-  const load = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
-  PHOTO.promise = Promise.all(PHOTO_IDS.flatMap((id) => ['diff', 'nor'].map(async (k) => { PHOTO.img[id + '/' + k] = await load(`${base}${id}/${k}.jpg`); })))
+  PHOTO.res = res;
+  const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+  const maps = res === '1k' ? ['diff', 'nor'] : ['diff', 'nor', 'rough'];
+  PHOTO.promise = Promise.all(PHOTO_IDS.flatMap((id) => maps.map(async (k) => { PHOTO.img[id + '/' + k] = await load(`${base}${id}/${res === '1k' ? '' : res + '/'}${k}.jpg`); })))
     .then(() => { PHOTO.ready = true; });
   return PHOTO.promise;
 }
@@ -224,7 +230,7 @@ function photoTex(id, k, repeat = 1) {
   t.needsUpdate = true;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = k === 'diff' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = MAX_ANISO;
   t.repeat.set(repeat, repeat);
   return t;
 }
@@ -277,10 +283,15 @@ const FLOOR = FH / 4;
 /** Fassade: Farb-Textur + Leuchtfenster für Abend und Nacht */
 const FACADE_PHOTO = { 1: 'concrete_panels', 2: 'white_plaster_rough_02', 3: 'worn_corrugated_iron' };
 function makeFacade(style) {
-  const [c, g] = canvas(FW * 2, FH * 2);
-  const [ce, ge] = canvas(FW * 2, FH * 2);
-  g.scale(2, 2); ge.scale(2, 2);
+  const FS = PHOTO.res === '1k' ? 2 : 4; // 2k/4k: Fassaden in vierfacher Auflösung
+  const [c, g] = canvas(FW * FS, FH * FS);
+  const [ce, ge] = canvas(FW * FS, FH * FS);
+  const [cr, gr] = canvas(FW * FS, FH * FS); // Rauheit (grün) und Metall (blau): Scheiben glänzen, Wände matt
+  g.scale(FS, FS); ge.scale(FS, FS); gr.scale(FS, FS);
   ge.fillStyle = '#000'; ge.fillRect(0, 0, FW, FH);
+  gr.fillStyle = style === 0 ? 'rgb(0,20,150)' : 'rgb(0,232,0)'; gr.fillRect(0, 0, FW, FH);
+  const glass = (x, y, w, h) => { gr.fillStyle = 'rgb(0,26,115)'; gr.fillRect(x, y, w, h); };
+  const solid = (x, y, w, h) => { gr.fillStyle = 'rgb(0,150,170)'; gr.fillRect(x, y, w, h); }; // Rahmen: Metall
   const wallId = FACADE_PHOTO[style];
   const wall = wallId ? photoPattern(g, wallId, 'diff', style === 3 ? 64 : 80) : null; // ein Foto = 2–2,5 m Wand
   const lit = (x, y, w, h, p) => {
@@ -301,9 +312,10 @@ function makeFacade(style) {
         lit(x + 3, y + 14, 26, FLOOR - 22, 0.32);
       }
       g.fillStyle = '#1d2c3d'; g.fillRect(0, y, FW, 10);       // Geschossdecke
+      solid(0, y, FW, 10);
     }
     g.fillStyle = '#22344a';
-    for (let x = 0; x < FW; x += 32) g.fillRect(x, 0, 3, FH); // Pfosten
+    for (let x = 0; x < FW; x += 32) { g.fillRect(x, 0, 3, FH); solid(x, 0, 3, FH); } // Pfosten
   } else if (style === 1) { // Bürobau: Betonbänder und Fensterbänder
     g.fillStyle = wall || '#d3cec4'; g.fillRect(0, 0, FW, FH);
     if (!wall) grain(g, FW, FH, 2500);
@@ -312,8 +324,9 @@ function makeFacade(style) {
       const wg = g.createLinearGradient(0, y + 34, 0, y + 98);
       wg.addColorStop(0, '#5d7a93'); wg.addColorStop(1, '#2b3a4b');
       g.fillStyle = wg; g.fillRect(0, y + 34, FW, 64);
+      glass(0, y + 34, FW, 64);
       g.fillStyle = '#9aa3ab';
-      for (let x = 0; x < FW; x += 32) { g.fillRect(x, y + 34, 3, 64); lit(x + 3, y + 36, 29, 60, 0.35); }
+      for (let x = 0; x < FW; x += 32) { g.fillRect(x, y + 34, 3, 64); solid(x, y + 34, 3, 64); lit(x + 3, y + 36, 29, 60, 0.35); }
       g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, y + 98, FW, 4);
     }
   } else if (style === 2) { // Wohnhaus: Putz, Einzelfenster, Balkone
@@ -327,6 +340,7 @@ function makeFacade(style) {
         const wg = g.createLinearGradient(0, y + 28, 0, y + 84);
         wg.addColorStop(0, '#6f8ea8'); wg.addColorStop(1, '#33475a');
         g.fillStyle = wg; g.fillRect(x, y + 28, 40, 56);
+        glass(x, y + 28, 40, 56);
         g.fillStyle = '#f7f4ee'; g.fillRect(x + 19, y + 28, 2, 56);
         lit(x, y + 28, 40, 56, 0.4);
         if ((i + f) % 2 === 0) { g.fillStyle = '#8b8f94'; g.fillRect(x - 8, y + 86, 56, 8); g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(x - 8, y + 94, 56, 6); }
@@ -338,8 +352,9 @@ function makeFacade(style) {
     for (let f = 0; f < 4; f += 2) {
       const y = f * FLOOR + 30;
       g.fillStyle = '#26323e'; g.fillRect(16, y, FW - 32, 40);
+      glass(16, y, FW - 32, 40);
       g.fillStyle = '#8e969f';
-      for (let x = 16; x < FW - 16; x += 28) g.fillRect(x, y, 3, 40);
+      for (let x = 16; x < FW - 16; x += 28) { g.fillRect(x, y, 3, 40); solid(x, y, 3, 40); }
       lit(16, y, FW - 32, 40, 0.5);
     }
     g.fillStyle = 'rgba(180,150,40,0.5)'; g.fillRect(0, FH - 14, FW, 6);
@@ -350,14 +365,16 @@ function makeFacade(style) {
     nrm = normalFromCanvas(c, style === 3 ? 3 : 2.2);
     const wallN = wallId && photo(wallId, 'nor');
     if (wallN) { // Foto-Relief der Wand + Kanten der Fenster aus der Farbtextur
-      const [cn, gn] = canvas(FW * 2, FH * 2);
-      gn.scale(2, 2);
+      const [cn, gn] = canvas(FW * FS, FH * FS);
+      gn.scale(FS, FS);
       gn.fillStyle = photoPattern(gn, wallId, 'nor', style === 3 ? 64 : 80); gn.fillRect(0, 0, FW, FH);
       gn.setTransform(1, 0, 0, 1, 0, 0); gn.globalAlpha = 0.5; gn.drawImage(nrm.image, 0, 0);
       nrm = new THREE.CanvasTexture(cn); nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping; nrm.colorSpace = THREE.NoColorSpace;
     }
   }
-  return { map: tex(c), emi: tex(ce), nrm };
+  const rm = new THREE.CanvasTexture(cr);
+  rm.wrapS = rm.wrapT = THREE.RepeatWrapping; rm.colorSpace = THREE.NoColorSpace; rm.anisotropy = MAX_ANISO;
+  return { map: tex(c), emi: tex(ce), nrm, rm };
 }
 function makeRoof() {
   const [c, g] = canvas(256, 256);
@@ -499,9 +516,9 @@ function materials() {
   const fac = [0, 1, 2, 3].map(makeFacade);
   const std = (o) => new THREE.MeshStandardMaterial({ vertexColors: true, ...o });
   M = {
-    facade: fac.map((f, i) => std({ map: f.map, emissive: 0xffffff, emissiveMap: f.emi, emissiveIntensity: 0, roughness: i === 0 ? 0.08 : 0.88, metalness: i === 0 ? 0.6 : 0.02, ...(f.nrm ? { normalMap: f.nrm, normalScale: new THREE.Vector2(0.8, 0.8) } : {}) })),
-    roof: (() => { const d = photoTex('gravel_concrete', 'diff', 2); if (d) return std({ map: d, normalMap: photoTex('gravel_concrete', 'nor', 2), roughness: 0.95 }); const t = makeRoof(); return std({ map: t, normalMap: t.userData.nrm, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.95 }); })(),
-    trim: std({ color: 0xd8d4cc, roughness: 0.75, map: photoTex('rough_concrete', 'diff', 3), normalMap: photoTex('rough_concrete', 'nor', 3) }),
+    facade: fac.map((f) => std({ map: f.map, emissive: 0xffffff, emissiveMap: f.emi, emissiveIntensity: 0, roughness: 1, metalness: 1, roughnessMap: f.rm, metalnessMap: f.rm, ...(f.nrm ? { normalMap: f.nrm, normalScale: new THREE.Vector2(0.8, 0.8) } : {}) })),
+    roof: (() => { const d = photoTex('gravel_concrete', 'diff', 2); if (d) return std({ map: d, normalMap: photoTex('gravel_concrete', 'nor', 2), roughnessMap: photoTex('gravel_concrete', 'rough', 2), roughness: 1 }); const t = makeRoof(); return std({ map: t, normalMap: t.userData.nrm, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.95 }); })(),
+    trim: std({ color: 0xd8d4cc, roughness: 0.9, map: photoTex('rough_concrete', 'diff', 3), normalMap: photoTex('rough_concrete', 'nor', 3), roughnessMap: photoTex('rough_concrete', 'rough', 3) }),
     prop: std({ color: 0xffffff, roughness: 0.45, metalness: 0.5 }),
     neon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     beacon: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
@@ -511,11 +528,11 @@ function materials() {
     carLight: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     signs: new THREE.MeshStandardMaterial({ map: makeSigns(), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 1, roughness: 0.5 }),
     barrier: new THREE.MeshStandardMaterial({ map: makeBarrier(), normalMap: photoTex('rough_concrete', 'nor', 1), roughness: 0.85 }),
-    pavers: new THREE.MeshStandardMaterial({ map: photoTex('concrete_pavers_02', 'diff'), normalMap: photoTex('concrete_pavers_02', 'nor'), roughness: 0.9, color: 0xd8d6d0 }),
+    pavers: new THREE.MeshStandardMaterial({ map: photoTex('concrete_pavers_02', 'diff'), normalMap: photoTex('concrete_pavers_02', 'nor'), roughnessMap: photoTex('concrete_pavers_02', 'rough'), roughness: 1, color: 0xd8d6d0 }),
     ground: (() => {
       const t = makeGround();
       const det = photoTex('asphalt_02', 'diff');
-      const mat = new THREE.MeshStandardMaterial({ map: t, normalMap: photoTex('asphalt_02', 'nor', 80) || t.userData.nrm, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92 });
+      const mat = new THREE.MeshStandardMaterial({ map: t, normalMap: photoTex('asphalt_02', 'nor', 80) || t.userData.nrm, normalScale: new THREE.Vector2(0.7, 0.7), roughnessMap: photoTex('asphalt_02', 'rough', 80), roughness: 1 });
       if (det) { // Foto-Asphalt als Detail (alle 5 m) unter Markierungen und Rissen
         mat.onBeforeCompile = (sh) => {
           sh.uniforms.detailMap = { value: det };
@@ -534,7 +551,7 @@ function materials() {
     skyline: new THREE.MeshStandardMaterial({ color: 0x8792a6, roughness: 0.9, emissive: 0xffffff, emissiveIntensity: 0 }),
   };
   M.signs.emissiveMap = M.signs.map;
-  M.facade.forEach((f, i) => envMat(f, i === 0 ? 1.6 : 0.5));
+  M.facade.forEach((f, i) => envMat(f, i === 0 ? 1.6 : 1.1));
   envMat(M.carPaint, 1.2); if (M.pavers.map) envMat(M.pavers, 0.3); envMat(M.carGlass, 1.6); envMat(M.roof, 0.35); envMat(M.trim, 0.5); envMat(M.prop, 1.0); envMat(M.barrier, 0.4); envMat(M.ground, 0.3); envMat(M.lampPole, 0.9);
   // Zerfallene Sektoren: rot getönte Kopien
   M.decayed = {};
