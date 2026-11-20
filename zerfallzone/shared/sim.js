@@ -312,7 +312,7 @@ export function rayWorld(o, d, maxT, boxes) {
 export const MOVE_DEFAULTS = {
   onGround: false, jumps: 0, climb: 1.1, slideT: 0, slideCd: 0, slamT: 0, slamming: false, lastWall: false, ghost: false,
   coyote: 0, jumpBuf: 0, dashN: 2, dashRegen: 0, dashT: 0, wrT: 0, wrNx: 0, wrNz: 0, wrCd: 0, airT: 0, vaultV: 0, padT: 0,
-  zlId: -1, zlT: 0, zlDir: 1, zlV: 0, zlCd: 0, grT: 0, grX: 0, grY: 0, grZ: 0, hang: 0, hangY: 0, updraft: false,
+  zlId: -1, zlT: 0, zlDir: 1, zlV: 0, zlCd: 0, zipBuf: 0, grT: 0, grX: 0, grY: 0, grZ: 0, hang: 0, hangY: 0, updraft: false,
 };
 export const MOVE_FIELDS = Object.keys(MOVE_DEFAULTS);
 export const DASH_MAX = 2, DASH_REGEN = 2.2;
@@ -517,20 +517,18 @@ export function movePlayer(p, inp, dt, ctx) {
     const rise = p.wallBox.mx[1] - p.pos.y;
     if (rise > 1.2 && rise < 2.3) { p.hang = 1; p.hangY = p.wallBox.mx[1] - 1.45; p.pos.y = p.hangY; p.vel.set(0, 0, 0); out.hang = true; }
   }
-  if (!p.hang && p.zlId < 0 && !p.onGround && !(p.zlCd > 0) && !p.ghost && ctx.ziplines) {
-    const hx = p.pos.x, hy = p.pos.y + 2.0, hz = p.pos.z;
-    for (const z of ctx.ziplines) {
-      if (!zipAlive(z)) continue;
-      const t = clamp(((hx - z.p0[0]) * z.n[0] + (hy - z.p0[1]) * z.n[1] + (hz - z.p0[2]) * z.n[2]) / z.len, 0, 1);
-      const cx = z.p0[0] + (z.p1[0] - z.p0[0]) * t, cy2 = z.p0[1] + (z.p1[1] - z.p0[1]) * t, cz = z.p0[2] + (z.p1[2] - z.p0[2]) * t;
-      if (Math.hypot(hx - cx, hy - cy2, hz - cz) < 1.4 && t > 0.02 && t < 0.98) {
-        const along = p.vel.x * z.n[0] + p.vel.z * z.n[2];
-        const look = fx * z.n[0] + fz * z.n[2];
-        p.zlId = z.id; p.zlT = t; p.zlDir = (Math.abs(along) > 3 ? along : look) >= 0 ? 1 : -1;
-        p.zlV = Math.max(14, Math.abs(along)); p.dashT = 0; p.grT = 0;
-        out.zipon = true;
-        break;
-      }
+  // Seilbahn: nur auf Interaktion (X / F). Ein kurz vorher gedrückter Knopf wird 0,3 s gemerkt.
+  if (inp.zip) p.zipBuf = 0.3;
+  p.zipBuf = Math.max(0, p.zipBuf - dt);
+  if (p.zipBuf > 0 && !p.hang && p.zlId < 0 && !(p.zlCd > 0) && !p.ghost && ctx.ziplines) {
+    const hit = nearZipline(p, ctx.ziplines, 1.8);
+    if (hit) {
+      const z = hit.z;
+      const along = p.vel.x * z.n[0] + p.vel.z * z.n[2];
+      const look = fx * z.n[0] + fz * z.n[2];
+      p.zlId = z.id; p.zlT = hit.t; p.zlDir = (Math.abs(along) > 3 ? along : look) >= 0 ? 1 : -1;
+      p.zlV = Math.max(14, Math.abs(along)); p.dashT = 0; p.grT = 0; p.zipBuf = 0; p.onGround = false;
+      out.zipon = true;
     }
   }
   if (p.wallBox && fwdHeld && !p.hang && !(p.wrT > 0) && p.vel.y < 6) {
@@ -571,6 +569,19 @@ export function checkJumpPad(e, pads, g = GRAV) {
     }
   }
   return false;
+}
+/** Nächstes nutzbares Seil in Reichweite der Hände (für Interaktion und Hinweis) */
+export function nearZipline(p, ziplines, reach) {
+  const hx = p.pos.x, hy = p.pos.y + 2.0, hz = p.pos.z;
+  let best = null;
+  for (const z of ziplines) {
+    if (!zipAlive(z)) continue;
+    const t = clamp(((hx - z.p0[0]) * z.n[0] + (hy - z.p0[1]) * z.n[1] + (hz - z.p0[2]) * z.n[2]) / z.len, 0, 1);
+    if (t < 0.02 || t > 0.98) continue;
+    const d = Math.hypot(hx - (z.p0[0] + (z.p1[0] - z.p0[0]) * t), hy - (z.p0[1] + (z.p1[1] - z.p0[1]) * t), hz - (z.p0[2] + (z.p1[2] - z.p0[2]) * t));
+    if (d < reach && (!best || d < best.d)) best = { z, t, d };
+  }
+  return best;
 }
 /** Seilbahn nutzbar, solange beide Gebäude stehen */
 export const zipAlive = (z) => !z.a.gone && !z.b.gone && z.a.mx[1] > z.ha - 0.3 && z.b.mx[1] > z.hb - 0.3;
@@ -712,6 +723,11 @@ export class Sim {
     if (out.slam) this.explode(new V(p.pos.x, p.pos.y + 0.5, p.pos.z), 6.5, 50, p, { noSelf: true, push: 18, color: 0xffd34d });
     if (out.pad) this.emit({ k: 'snd', s: 'pad', to: p.id });
     if (out.slide) this.emit({ k: 'snd', s: 'slide', to: p.id });
+    // Für alle anderen hörbar (Ortung von Gegnern am Klang)
+    for (const s of ['dash', 'slide', 'dj', 'walljump', 'wallrun', 'zipon', 'zipoff', 'pad', 'mantle', 'slam']) {
+      if (out[s]) this.emit({ k: 'ms', id: p.id, s, p: [r2(p.pos.x), r2(p.pos.y + 1), r2(p.pos.z)] });
+    }
+    if (out.land > 16) this.emit({ k: 'ms', id: p.id, s: 'land', p: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)] });
     if (p.ghost) { this.ghostInput(p, inp, dt); return; }
 
     if (inp.w1 && p.weapons[0] && p.cur !== 0) { p.cur = 0; p.reloading = 0; p.burstLeft = 0; }
@@ -726,12 +742,12 @@ export class Sim {
     if (w && p.reloading <= 0) {
       const W = WEAPONS[w.id];
       const fireEdge = inp.fire && !p.lastFire;
-      if (inp.reload && w.ammo < lvlMag(W, w.level)) { p.reloading = W.reload; this.emit({ k: 'snd', s: 'reload', to: p.id }); }
+      if (inp.reload && w.ammo < lvlMag(W, w.level)) { p.reloading = W.reload; this.emit({ k: 'snd', s: 'reload', to: p.id }); this.emit({ k: 'ms', id: p.id, s: 'reload', p: [r2(p.pos.x), r2(p.pos.y + 1), r2(p.pos.z)] }); }
       else if (p.burstLeft > 0) {
         p.burstCd -= dt;
         if (p.burstCd <= 0) { this.playerShot(p, w); p.burstLeft--; p.burstCd = 0.07; }
       } else if ((W.auto ? inp.fire : fireEdge) && p.fireCd <= 0) {
-        if (w.ammo <= 0) { p.reloading = W.reload; this.emit({ k: 'snd', s: 'reload', to: p.id }); }
+        if (w.ammo <= 0) { p.reloading = W.reload; this.emit({ k: 'snd', s: 'reload', to: p.id }); this.emit({ k: 'ms', id: p.id, s: 'reload', p: [r2(p.pos.x), r2(p.pos.y + 1), r2(p.pos.z)] }); }
         else {
           this.playerShot(p, w);
           if (W.burst) { p.burstLeft = W.burst - 1; p.burstCd = 0.07; }
@@ -808,7 +824,7 @@ export class Sim {
       amount -= absorbed;
     }
     target.hp -= amount;
-    if (!target.isBot) this.emit({ k: 'dmg', to: target.id, a: Math.round(amount) });
+    if (!target.isBot) this.emit({ k: 'dmg', to: target.id, a: Math.round(amount), ...(source && source !== target ? { s: [r2(source.pos.x), r2(source.pos.z)] } : {}) });
     if (target.hp <= 0) this.kill(target, source);
   }
 
@@ -1035,6 +1051,7 @@ export class Sim {
     }
     a.cd = abilityCd(a);
     this.emit({ k: 'snd', s: 'ab_' + a.id, to: p.id });
+    this.emit({ k: 'ms', id: p.id, s: 'ab_' + a.id, p: [r2(p.pos.x), r2(p.pos.y + 1), r2(p.pos.z)] });
   }
 
   // ------------------------------------------------ Beute

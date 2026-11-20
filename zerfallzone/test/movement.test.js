@@ -111,14 +111,16 @@ test('Kein Fallschaden, auch aus 120 m Höhe', () => {
   assert.equal(a.hp, hp); assert.equal(a.armor, armor);
 });
 
-test('Seilbahn: hineinspringen, mitfahren, mit Sprung lösen', () => {
+test('Seilbahn: nur per Interaktion einhaken, mitfahren, mit Sprung lösen', () => {
   assert.ok(W.ziplines.length > 10, 'Karte hat Seilbahnen');
   const z = W.ziplines[0];
   const t = 0.3;
   const p = player(z.p0[0] + (z.p1[0] - z.p0[0]) * t, z.p0[1] + (z.p1[1] - z.p0[1]) * t - 2.0, z.p0[2] + (z.p1[2] - z.p0[2]) * t);
   p.vel.set(0, 1, 0); p.airT = 0.3;
-  const o = movePlayer(p, inp(), DT, wctx);
-  assert.ok(o.zipon, 'hängt sich ein');
+  const none = movePlayer(p, inp(), DT, wctx);
+  assert.ok(!none.zipon && p.zlId === -1, 'ohne Interaktion kein Einhaken');
+  const o = movePlayer(p, inp({ zip: true }), DT, wctx);
+  assert.ok(o.zipon, 'hängt sich mit Interaktion ein');
   const start = p.pos.clone();
   run(p, 30, {}, wctx);
   assert.ok(p.zlId === z.id, 'fährt noch');

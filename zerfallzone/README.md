@@ -1,5 +1,7 @@
 # Zerfallzone
 
+![Zerfallzone im Spiel](docs/zerfallzone.png)
+
 Ein eigener, vertikaler Arena-Battle-Royale: Solo, Duos oder Trios in einer prozedural
 erzeugten Neon-Stadt, die dynamisch Sektor für Sektor zerfällt. Spielbar **offline gegen
 bis zu 40 Bots** oder **online mit Freunden**. PC-App und Browser spielen zusammen.
@@ -63,12 +65,29 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 | Hochziehen / Flanken | Gegen Kanten bis 2,3 m (Luft) bzw. 1,7 m (beim Laufen) | Fließend statt ruckartig. Das Sprinttempo bleibt nach dem Flanken erhalten |
 | Schnell fallen | B halten in der Luft · Strg / C | 2,8-fache Schwerkraft |
 | An der Kante hängen | LT halten an einer Kante (1,2–2,3 m über dir) · rechte Maustaste | Hängen und über die Kante spähen, schießen geht. A zieht hoch, Loslassen lässt fallen |
-| Seilbahnen | In das gelbe Seil zwischen zwei Hochhäusern springen | Hängt sich automatisch ein, fährt mit 20 m/s (bergab schneller), schießen geht. A löst mit Sprung, ein Dash löst mit Schub. 30 Seilbahnen pro Karte, sie verschwinden, wenn eines der Gebäude zerfällt |
+| Seilbahnen | In Reichweite des gelben Seils X / F drücken (Hinweis erscheint) | Hängt sich nur auf Knopfdruck ein; ein kurz vorher gedrückter Knopf wird 0,3 s gemerkt. Fährt fährt mit 20 m/s (bergab schneller), schießen geht. A löst mit Sprung, ein Dash löst mit Schub. 30 Seilbahnen pro Karte, sie verschwinden, wenn eines der Gebäude zerfällt |
 | Gerichtete Sprungfelder | Orange Felder mit Pfeil | Hoher Bogen genau auf ein bestimmtes Dach. Beim Bau der Karte wird jede Flugbahn auf Hindernisse geprüft (getestet: 237 von 241 landen auf dem Zieldach, 3 weitere auf einem anderen). Blaue Felder schleudern wie bisher senkrecht |
 | Aufwind-Säulen | Helle Säulen mit aufsteigenden Ringen | Tragen dich mit 16 m/s bis 55 m hoch, danach ist der Doppelsprung wieder frei |
 | Enterhaken | Neue Fähigkeit (Beute) | Zieht dich bis 50 m an Wände und Dächer, mit 28 m/s. A bricht ab. Andere Spieler sehen das Seil. Wenn nichts getroffen wird, gibt es keine Abklingzeit |
 | Fallschaden | – | Gibt es nicht. Ein Sturz aus beliebiger Höhe kostet nichts (getestet aus 120 m) |
 | Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung, Seilbahn und Landung, Fahrtwind wird mit dem Tempo lauter |
+
+## Klang: Gegner am Gehör erkennen
+
+- **3D-Klang (HRTF):** Alle fremden Geräusche kommen hörbar aus ihrer Richtung und Entfernung: Schüsse, Schritte, Dash, Rutschen, Wandlauf, Landungen, Seilbahn, Nachladen, Fähigkeiten und Explosionen.
+- **Wände dämpfen:** Ist zwischen Euch und der Quelle ein Gebäude, klingt sie dumpf und leiser. So hört Ihr, ob ein Gegner hinter der Wand oder in Sichtlinie ist.
+- **Entfernung:** Weit entfernte Schüsse verlieren ihre Höhen, wie in echt.
+- **Schritte:** Gegner klingen heller und klarer als Teamkameraden, Sprinten ist lauter als Gehen. Getarnte Gegner hört man leise, aber hörbar.
+- **Jede Waffe klingt eigen:** MP, Salvengewehr, Schrotflinte, Railgun, Pistole und Granatwerfer sind am Klang unterscheidbar.
+- **Pfeifen:** Kugeln, die knapp an Euch vorbeifliegen, zischen aus ihrer Richtung.
+- **Trefferrichtung:** Ein roter Bogen am Bildschirmrand zeigt, woher der Treffer kam.
+- **Mischung:** Ein Kompressor verhindert Übersteuern bei vielen Geräuschen. Lautstärke im Hauptmenü.
+
+## Grafik
+
+Abendhimmel mit Farbverlauf und Sternen, eigene Dachflächen, Figuren mit Rüstung und
+leuchtenden Teamfarben, detaillierte Waffenmodelle je Waffe und ein Leuchteffekt (Bloom)
+für die Neonstadt. Den Leuchteffekt kann man im Hauptmenü für schwächere Rechner abschalten.
 
 ## Sprachen
 

@@ -12,6 +12,7 @@ import { Sim, MODES, DIFF_IDS, BOT_LIMIT, MAX_PLAYERS, clamp } from '../shared/s
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const THREE_FILE = path.join(path.dirname(require.resolve('three')), 'three.module.js');
+const THREE_ADDONS = path.join(path.dirname(require.resolve('three')), '..', 'examples', 'jsm');
 const TICK = 1 / 30;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
 
@@ -19,12 +20,14 @@ function serveStatic(req, res) {
   const url = new URL(req.url, 'http://x');
   let file;
   if (url.pathname === '/vendor/three.module.js') file = THREE_FILE;
+  else if (url.pathname.startsWith('/vendor/addons/')) file = path.join(THREE_ADDONS, path.normalize(url.pathname.slice(15)).replace(/^(\.\.[/\\])+/, ''));
   else if (url.pathname.startsWith('/shared/')) file = path.join(ROOT, 'shared', path.normalize(url.pathname.slice(8)).replace(/^(\.\.[/\\])+/, ''));
   else {
     const rel = url.pathname === '/' ? 'index.html' : path.normalize(url.pathname.slice(1)).replace(/^(\.\.[/\\])+/, '');
     file = path.join(ROOT, 'public', rel);
   }
-  const allowed = [path.join(ROOT, 'public'), path.join(ROOT, 'shared'), THREE_FILE];
+  const allowed = [path.join(ROOT, 'public'), path.join(ROOT, 'shared'), THREE_FILE, path.resolve(THREE_ADDONS)];
+  file = path.resolve(file);
   if (!allowed.some((a) => file === a || file.startsWith(a + path.sep))) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('Nicht gefunden'); return; }
