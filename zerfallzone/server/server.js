@@ -12,7 +12,12 @@ import { Sim, MODES, DIFF_IDS, BOT_LIMIT, MAX_PLAYERS, clamp } from '../shared/s
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const THREE_FILE = path.join(path.dirname(require.resolve('three')), 'three.module.js');
-const THREE_ADDONS = path.join(path.dirname(require.resolve('three')), '..', 'examples', 'jsm');
+// In der PC-App entfernt electron-builder alle „examples“-Ordner aus node_modules;
+// die three.js-Erweiterungen liegen dort deshalb als eigene Ressource (package.json → build.extraResources).
+const THREE_ADDONS = [
+  process.resourcesPath && path.join(process.resourcesPath, 'three-jsm'),
+  path.join(path.dirname(require.resolve('three')), '..', 'examples', 'jsm'),
+].find((p) => p && fs.existsSync(p));
 const TICK = 1 / 30;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.hdr': 'application/octet-stream' };
 

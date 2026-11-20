@@ -69,7 +69,13 @@
       ],
       "category": "Game"
     },
-    "publish": null
+    "publish": null,
+    "extraResources": [
+      {
+        "from": "node_modules/three/examples/jsm",
+        "to": "three-jsm"
+      }
+    ]
   },
   "repository": {
     "type": "git",
