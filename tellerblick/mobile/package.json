@@ -1,0 +1,28 @@
+{
+  "name": "tellerblick-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Native iOS/Android shell for Tellerblick (Capacitor)",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "sync": "node build.mjs && cap sync",
+    "assets": "capacitor-assets generate --iconBackgroundColor '#0f9d58' --splashBackgroundColor '#0f9d58' --iconBackgroundColorDark '#0f9d58' --splashBackgroundColorDark '#0e1210'",
+    "ios": "node build.mjs && cap sync ios && cap open ios",
+    "android": "node build.mjs && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/camera": "8.2.6",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
+    "@revenuecat/purchases-capacitor": "14.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.2"
+  }
+}

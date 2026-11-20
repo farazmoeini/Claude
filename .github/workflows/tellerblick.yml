@@ -1,0 +1,127 @@
+# Tellerblick: tests + native builds in the cloud (no local Mac/Android SDK needed).
+#
+# Works without any secrets (verification build). For store uploads add these repository secrets
+# (GitHub → Settings → Secrets and variables → Actions) – see tellerblick/LAUNCH.md:
+#   TB_API_BASE                 https://api.your-domain.de
+#   RC_IOS_KEY, RC_ANDROID_KEY  RevenueCat public SDK keys
+#   SUPPORT_EMAIL
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#   APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64   (App Store Connect API key)
+name: Tellerblick
+
+on:
+  push:
+    branches: [main]
+    paths: ["tellerblick/**", ".github/workflows/tellerblick.yml"]
+  pull_request:
+    paths: ["tellerblick/**"]
+  workflow_dispatch:
+    inputs:
+      upload_ios:
+        description: "iOS-Build zu TestFlight hochladen"
+        type: boolean
+        default: false
+
+concurrency: { group: tellerblick-${{ github.ref }}, cancel-in-progress: true }
+
+env:
+  TB_API_BASE: ${{ secrets.TB_API_BASE || 'https://api.example.de' }}
+  RC_IOS_KEY: ${{ secrets.RC_IOS_KEY }}
+  RC_ANDROID_KEY: ${{ secrets.RC_ANDROID_KEY }}
+  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: tellerblick/backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest -q
+
+  android:
+    needs: backend-tests
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: tellerblick/mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: tellerblick/mobile/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run build && npx cap sync android
+      - name: Keystore aus Secret wiederherstellen
+        env: { KS: "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" }
+        if: env.KS != ''
+        run: |
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Build (signiertes AAB für Google Play, sonst Debug-APK)
+        working-directory: tellerblick/mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          if [ -n "$ANDROID_KEYSTORE_PATH" ]; then ./gradlew --no-daemon bundleRelease; else ./gradlew --no-daemon assembleDebug; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tellerblick-android
+          path: |
+            tellerblick/mobile/android/app/build/outputs/bundle/release/*.aab
+            tellerblick/mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  ios:
+    needs: backend-tests
+    runs-on: macos-15
+    defaults: { run: { working-directory: tellerblick/mobile } }
+    env:
+      HAS_SIGNING: ${{ secrets.ASC_KEY_P8_BASE64 != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: tellerblick/mobile/package-lock.json }
+      - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version
+      - run: npm ci
+      - run: npm run build && npx cap sync ios
+      - name: Verifikations-Build (Simulator, unsigniert)
+        if: env.HAS_SIGNING != 'true'
+        working-directory: tellerblick/mobile/ios/App
+        run: xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -20
+      - name: Archiv bauen und zu App Store Connect hochladen
+        if: env.HAS_SIGNING == 'true'
+        working-directory: tellerblick/mobile/ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          UPLOAD: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_ios }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey.p8"; echo "$ASC_KEY_P8_BASE64" | base64 -d > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} "${AUTH[@]}" archive | tail -20
+          DEST=export; [ "$UPLOAD" = "true" ] && DEST=upload
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>$DEST</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" "${AUTH[@]}" | tail -20
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_SIGNING == 'true'
+        with: { name: tellerblick-ios, path: "${{ runner.temp }}/export/*.ipa", if-no-files-found: ignore }
