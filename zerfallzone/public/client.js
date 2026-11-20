@@ -5,12 +5,46 @@ import {
   WEAPONS, ABILITIES, DIFFS, DIFF_IDS, MODES, LEVEL_NAMES, EVENTS, TEAM_COLORS, BOT_LIMIT, CORE_TIME, WARN,
   HALF, SECTOR, NS, EYE, lvlMag, abilityCd, clamp,
 } from './shared/sim.js';
+import { LANGS, translate, guessLang } from './shared/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
   get(k, d) { try { const v = localStorage.getItem('zz-' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('zz-' + k, JSON.stringify(v)); } catch { /* ohne Speicher */ } },
 };
+// ---------------------------------------------------------------- Sprache
+let lang = null;
+try { const v = localStorage.getItem('zz-lang'); if (v) lang = JSON.parse(v); } catch { /* ohne Speicher */ }
+if (lang && !LANGS[lang]) lang = null;
+const t = (key, p) => translate(lang || 'en', key, p);
+const wName = (id) => t('w.' + id);
+const aName = (id) => t('a.' + id);
+const aDesc = (id) => t('a.' + id + '.d');
+function applyI18n() {
+  document.documentElement.lang = lang || 'en';
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  const rows = (arr) => arr.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+  document.getElementById('helpKb').innerHTML = rows(t('help.kb'));
+  document.getElementById('helpPad').innerHTML = `<tr><td colspan="2"><b>${esc(t('help.padTitle'))}</b></td></tr>` + rows(t('help.pad'));
+  document.getElementById('helpRules').innerHTML = t('help.rules').map((r) => `<li>${esc(r)}</li>`).join('');
+  const chips = document.getElementById('langChips');
+  chips.innerHTML = '';
+  for (const [k, name] of Object.entries(LANGS)) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.classList.toggle('on', k === lang);
+    b.onclick = () => setLang(k);
+    chips.appendChild(b);
+  }
+}
+function setLang(k) {
+  lang = k;
+  try { localStorage.setItem('zz-lang', JSON.stringify(k)); } catch { /* ohne Speicher */ }
+  applyI18n();
+  if (typeof refreshMenu === 'function') refreshMenu();
+  if (lobby) onLobby(lobby);
+}
 const hex = (c) => '#' + c.toString(16).padStart(6, '0');
 const fmt = (t) => { t = Math.max(0, Math.ceil(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -130,7 +164,7 @@ function renderBotCfg(el, totalEl, cfg, editable, onChange) {
     const D = DIFFS[k];
     const row = document.createElement('div');
     row.className = 'botrow';
-    row.innerHTML = `<span class="dot" style="background:${hex(D.color)}"></span><span class="dl">${D.label}</span>`
+    row.innerHTML = `<span class="dot" style="background:${hex(D.color)}"></span><span class="dl">${t('diff.' + k)}</span>`
       + `<button data-d="-1">−</button><span class="cnt">${cfg[k] | 0}</span><button data-d="1">+</button>`;
     row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const d = +b.dataset.d;
@@ -140,7 +174,7 @@ function renderBotCfg(el, totalEl, cfg, editable, onChange) {
     }));
     el.appendChild(row);
   }
-  totalEl.textContent = `${totalBots(cfg)} Bots`;
+  totalEl.textContent = t('bots.count', { n: totalBots(cfg) });
 }
 function setChips(el, mode, editable, onPick) {
   el.classList.toggle('readonly', !editable);
@@ -153,7 +187,8 @@ function refreshMenu() {
   setChips($('modeChips'), modeSel, true, (m) => { modeSel = m; store.set('mode', m); refreshMenu(); });
   renderBotCfg($('botcfg'), $('botTotal'), botConfig, true, () => { store.set('bots', botConfig); refreshMenu(); });
   const size = MODES[modeSel].size;
-  $('botTotal').textContent = `${totalBots(botConfig)} Bots · ${Math.ceil((totalBots(botConfig) + 1) / size)} Teams à ${size}`;
+  $('botTotal').textContent = t('bots.teams', { n: totalBots(botConfig), t: Math.ceil((totalBots(botConfig) + 1) / size), s: size });
+  $('serverHint').textContent = location.protocol.startsWith('http') ? t('menu.serverHint', { port: location.port || 80 }) : '';
 }
 document.querySelectorAll('#menu [data-preset]').forEach((b) => b.addEventListener('click', () => {
   botConfig = { ...PRESETS[b.dataset.preset] }; store.set('bots', botConfig); refreshMenu();
@@ -164,14 +199,12 @@ $('sensInput').value = sens;
 $('sensInput').addEventListener('input', () => { sens = +$('sensInput').value; store.set('sens', sens); });
 const defaultServer = location.protocol.startsWith('http') ? location.host : 'localhost:7777';
 $('serverInput').value = store.get('server', defaultServer);
-$('serverHint').textContent = location.protocol.startsWith('http')
-  ? `Freunde öffnen im Browser http://<deine-IP>:${location.port || 80} oder geben in der PC-App deine Adresse ein.`
-  : '';
+applyI18n();
 refreshMenu();
-const playerName = () => ($('nameInput').value.trim() || 'Spieler').slice(0, 16);
+const playerName = () => ($('nameInput').value.trim() || t('menu.namePh')).slice(0, 16);
 
 function showScreen(id) {
-  for (const s of ['menu', 'lobby', 'overlay']) $(s).classList.toggle('hidden', s !== id);
+  for (const s of ['menu', 'lobby', 'overlay', 'langPick']) $(s).classList.toggle('hidden', s !== id);
   $('hud').classList.toggle('hidden', id === 'menu' || id === 'lobby' || !game);
 }
 
@@ -216,7 +249,7 @@ function onMessage(m) {
     case 'lobby': onLobby(m); break;
     case 'start': startGame(m); break;
     case 's': if (game) onSnapshot(m); break;
-    case 'err': $('netErr').textContent = m.msg; $('lobbyStatus').textContent = m.msg; break;
+    case 'err': $('netErr').textContent = t(m.key); $('lobbyStatus').textContent = t(m.key); break;
     case 'left': lobby = null; showScreen('menu'); break;
     case 'pong': pingMs = Math.round(performance.now() - m.at); break;
   }
@@ -224,7 +257,7 @@ function onMessage(m) {
 function onClose() {
   if (game && conn && conn.online) endGameView();
   conn = null; lobby = null;
-  $('netErr').textContent = 'Verbindung zum Server getrennt.';
+  $('netErr').textContent = t('net.lost');
   showScreen('menu');
 }
 async function connectOnline(then) {
@@ -239,7 +272,7 @@ async function connectOnline(then) {
     await conn.ready;
   } catch {
     conn = null;
-    $('netErr').textContent = `Keine Verbindung zu ${addr}. Läuft dort ein Zerfallzone-Server?`;
+    $('netErr').textContent = t('net.fail', { addr });
     return;
   }
   conn.send({ t: 'hello', name: playerName() });
@@ -265,20 +298,19 @@ function onLobby(m) {
   showScreen('lobby');
   const isHost = m.host === myClientId;
   $('lobbyCode').textContent = m.code;
-  $('lobbyShare').textContent = `Raum-Code teilen. Freunde verbinden sich mit Server ${$('serverInput').value.trim() || location.host} und treten mit dem Code bei.`
-    + (m.isPublic ? ' Öffentlicher Raum (Schnellsuche).' : '');
+  $('lobbyShare').textContent = t('lobby.share', { server: $('serverInput').value.trim() || location.host }) + (m.isPublic ? t('lobby.public') : '');
   const size = MODES[m.mode].size;
   const pl = $('lobbyPlayers');
   pl.innerHTML = '';
   m.players.forEach((p, i) => {
     if (i % size === 0 && size > 1) {
       const h = document.createElement('div');
-      h.className = 'teamhdr'; h.textContent = `Team ${i / size + 1}`;
+      h.className = 'teamhdr'; h.textContent = t('lobby.team', { n: i / size + 1 });
       pl.appendChild(h);
     }
     const d = document.createElement('div');
     d.className = 'pl';
-    d.innerHTML = `<span>${esc(p.name)}${p.id === myClientId ? ' (du)' : ''}</span><span class="muted">${p.id === m.host ? 'Host' : ''}${p.inGame ? ' · im Spiel' : ''}</span>`;
+    d.innerHTML = `<span>${esc(p.name)}${p.id === myClientId ? t('lobby.you') : ''}</span><span class="muted">${p.id === m.host ? t('lobby.host') : ''}${p.inGame ? t('lobby.inGame') : ''}</span>`;
     pl.appendChild(d);
   });
   setChips($('lobbyModeChips'), m.mode, isHost, (mode) => conn.send({ t: 'settings', mode }));
@@ -286,11 +318,11 @@ function onLobby(m) {
   renderBotCfg($('lobbyBotcfg'), $('lobbyBotTotal'), cfg, isHost, () => conn.send({ t: 'settings', bots: cfg }));
   $('lobbyPresets').classList.toggle('readonly', !isHost);
   $('lobbyPresets').querySelectorAll('button').forEach((b) => { b.onclick = () => conn.send({ t: 'settings', bots: PRESETS[b.dataset.preset] }); });
-  $('lobbyBotTotal').textContent = `${totalBots(cfg)} Bots füllen auf · Teams à ${size}`;
-  $('hostNote').textContent = isHost ? '(du bist Host)' : '(nur der Host kann ändern)';
+  $('lobbyBotTotal').textContent = t('bots.fill', { n: totalBots(cfg), s: size });
+  $('hostNote').textContent = isHost ? t('lobby.isHost') : t('lobby.notHost');
   $('startBtn').disabled = !isHost || m.state !== 'lobby';
-  $('lobbyStatus').textContent = m.state === 'play' ? 'Runde läuft – du bist in der nächsten dabei.'
-    : m.autoStartIn ? `Start in ${m.autoStartIn} s` : isHost ? '' : 'Warte auf den Host …';
+  $('lobbyStatus').textContent = m.state === 'play' ? t('lobby.running')
+    : m.autoStartIn ? t('lobby.startIn', { n: m.autoStartIn }) : isHost ? '' : t('lobby.wait');
 }
 $('startBtn').onclick = () => conn && conn.send({ t: 'start' });
 $('leaveBtn').onclick = () => { if (conn) { conn.send({ t: 'leave' }); conn.close(); conn = null; } lobby = null; showScreen('menu'); };
@@ -333,7 +365,7 @@ function startGame(pkt) {
   paused = false;
   showScreen(null);
   $('hud').classList.remove('hidden');
-  pushFeed(MODES[pkt.mode].size > 1 ? `${MODES[pkt.mode].label}: Landung mit deinem Team!` : 'Landung! Sammle Waffen auf den Dächern.', 'me');
+  pushFeed(MODES[pkt.mode].size > 1 ? t('feed.landTeam', { mode: t('mode.' + pkt.mode) }) : t('feed.land'), 'me');
   canvas.requestPointerLock?.();
 }
 
@@ -594,19 +626,24 @@ function handleFx(f, s) {
     }
     case 'kill': {
       const cls = f.at === G.myTeam ? 'me' : f.bt === G.myTeam ? 'team' : '';
-      pushFeed(`${f.a} ✕ ${f.b}`, cls);
+      pushFeed(`${f.a ?? t('feed.decay')} ✕ ${f.b}`, cls);
       break;
     }
-    case 'msg': pushFeed(f.text, 'me'); break;
+    case 'msg': {
+      const p = { ...(f.p || {}), key: keyLabel('F') };
+      if (f.key === 'msg.event') p.ev = t('e.' + f.p.ev);
+      pushFeed(t(f.key, p), 'me');
+      break;
+    }
     case 'revive':
-      if (f.team === G.myTeam) { pushFeed(`${f.name} ist zurück!`, 'team'); playSnd('revive'); }
+      if (f.team === G.myTeam) { pushFeed(t('feed.back', { name: f.name }), 'team'); playSnd('revive'); }
       break;
     case 'teamout':
       if (f.team === G.myTeam && !G.over) {
         G.eliminatedPlace = f.place;
-        pushFeed(`Dein Team ist raus – Platz ${f.place}`, 'me');
+        pushFeed(t('feed.teamOut', { p: f.place }), 'me');
         showResult(false, f.place);
-      } else if (MODES[G.mode].size > 1) pushFeed(`Team ${f.team + 1} ist raus (Platz ${f.place})`);
+      } else if (MODES[G.mode].size > 1) pushFeed(t('feed.otherOut', { t: f.team + 1, p: f.place }));
       break;
     case 'l+': addLoot(f.it); break;
     case 'l-': removeLoot(f.id); break;
@@ -626,10 +663,10 @@ function showResult(won, place) {
   const G = game;
   document.exitPointerLock?.();
   const me = G.me;
-  $('ovTitle').textContent = won ? '🏆 Sieg!' : 'Ausgeschieden';
-  $('ovText').textContent = `${won ? 'Dein Team hat gewonnen' : `Platz ${place} von ${G.teamCount}`} · ${me ? me.kills : 0} Kills · ${fmt(G.last ? G.last.time : 0)}`;
-  $('ovResume').textContent = G.over ? (conn && conn.online ? 'Zur Lobby' : 'Neue Runde') : 'Zuschauen';
-  $('ovQuit').textContent = 'Zum Menü';
+  $('ovTitle').textContent = won ? t('ov.win') : t('ov.out');
+  $('ovText').textContent = `${won ? t('ov.teamWon') : t('ov.place', { p: place, n: G.teamCount })} · ${me ? me.kills : 0} Kills · ${fmt(G.last ? G.last.time : 0)}`;
+  $('ovResume').textContent = G.over ? (conn && conn.online ? t('ov.toLobby') : t('ov.newRound')) : t('ov.spectate');
+  $('ovQuit').textContent = t('ov.quit');
   showScreen('overlay');
   $('hud').classList.remove('hidden');
 }
@@ -853,8 +890,8 @@ const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START
 const pad = { active: false, prev: [], sprint: false, navCd: 0, gp: null };
 addEventListener('gamepadconnected', (e) => {
   pad.active = true;
-  if (game) pushFeed(`Controller verbunden: ${e.gamepad.id.split('(')[0].trim()}`, 'me');
-  else $('netErr').textContent = 'Controller verbunden – Steuerkreuz und A zum Auswählen.';
+  if (game) pushFeed(t('pad.connected', { name: e.gamepad.id.split('(')[0].trim() }), 'me');
+  else $('netErr').textContent = t('pad.menu');
 });
 addEventListener('gamepaddisconnected', () => { pad.active = false; pad.gp = null; });
 function readPad(dt) {
@@ -1012,9 +1049,9 @@ document.addEventListener('pointerlockchange', () => {
     if (!$('overlay').classList.contains('hidden')) return;
     if (game.over || game.eliminatedPlace) return;
     paused = !conn.online;
-    $('ovTitle').textContent = conn.online ? 'Menü (Runde läuft weiter)' : 'Pause';
+    $('ovTitle').textContent = conn.online ? t('ov.menuOnline') : t('ov.pause');
     $('ovText').textContent = '';
-    $('ovResume').textContent = 'Weiter';
+    $('ovResume').textContent = t('ov.resume'); $('ovQuit').textContent = t('ov.quit');
     showScreen('overlay');
     $('hud').classList.remove('hidden');
   }
@@ -1072,7 +1109,7 @@ function updateHud(dt) {
   hudCd = 0.1;
   $('hpBar').style.width = `${me.hp}%`;
   $('armorBar').style.width = `${me.armor}%`;
-  $('vitalsText').textContent = `HP ${me.hp} · Rüstung ${me.armor}`;
+  $('vitalsText').textContent = t('hud.hp', { hp: me.hp, armor: me.armor });
   const Pd = G.pred;
   let pips = '';
   for (let i = 0; i < DASH_MAX; i++) {
@@ -1083,16 +1120,16 @@ function updateHud(dt) {
   const aliveCount = s.ents.filter((e) => e[7] & 1).length;
   $('alive').textContent = aliveCount;
   const teamsAlive = new Set(s.ents.filter((e) => e[7] & 1).map((e) => G.meta.get(e[0]).team)).size;
-  $('teamsLeft').textContent = MODES[G.mode].size > 1 ? ` · ${teamsAlive} Teams` : '';
+  $('teamsLeft').textContent = MODES[G.mode].size > 1 ? ' · ' + t('hud.teams', { n: teamsAlive }) : '';
   $('kills').textContent = me.kills;
-  $('ping').textContent = conn.online ? `${pingMs} ms` : 'offline';
+  $('ping').textContent = conn.online ? `${pingMs} ms` : t('hud.offline');
 
   const ph = $('phase');
-  if (s.core) { $('phaseTitle').textContent = 'Finale'; $('phaseTimer').textContent = 'Kern halten'; ph.classList.remove('warn'); }
-  else if (s.warn) { $('phaseTitle').textContent = `Zerfall: ${s.warn} Sektoren`; $('phaseTimer').textContent = fmt(s.nextAt - s.time); ph.classList.add('warn'); }
-  else { $('phaseTitle').textContent = `Nächster Zerfall · Welle ${s.wave + 1}`; $('phaseTimer').textContent = fmt(s.nextAt - WARN - s.time); ph.classList.remove('warn'); }
+  if (s.core) { $('phaseTitle').textContent = t('hud.final'); $('phaseTimer').textContent = t('hud.holdCore'); ph.classList.remove('warn'); }
+  else if (s.warn) { $('phaseTitle').textContent = t('hud.decayN', { n: s.warn }); $('phaseTimer').textContent = fmt(s.nextAt - s.time); ph.classList.add('warn'); }
+  else { $('phaseTitle').textContent = t('hud.nextDecay', { n: s.wave + 1 }); $('phaseTimer').textContent = fmt(s.nextAt - WARN - s.time); ph.classList.remove('warn'); }
 
-  if (s.ev) { const E = EVENTS.find((x) => x.id === s.ev.id); $('event').classList.remove('hidden'); $('event').innerHTML = `<b>${E.name}</b> · ${E.desc} · ${s.ev.t} s`; }
+  if (s.ev) { $('event').classList.remove('hidden'); $('event').innerHTML = `<b>${esc(t('e.' + s.ev.id))}</b> · ${esc(t('e.' + s.ev.id + '.d'))} · ${s.ev.t} s`; }
   else $('event').classList.add('hidden');
 
   if (s.core) {
@@ -1101,33 +1138,34 @@ function updateHud(dt) {
     let leader = -1, lv = 0;
     for (const [t, v] of Object.entries(s.core.prog)) if (v > lv) { lv = v; leader = +t; }
     $('coreFill').style.width = `${(mine / CORE_TIME) * 100}%`;
-    $('coreText').textContent = `Kern: ${MODES[G.mode].size > 1 ? 'dein Team' : 'du'} ${mine.toFixed(0)}/${CORE_TIME} s`
-      + (leader >= 0 && leader !== G.myTeam ? ` · ${MODES[G.mode].size > 1 ? 'Team ' + (leader + 1) : 'Gegner'} ${lv.toFixed(0)} s` : '') + (s.core.c ? ' · umkämpft!' : '');
+    const teamMode = MODES[G.mode].size > 1;
+    $('coreText').textContent = t('hud.coreMine', { who: teamMode ? t('hud.yourTeam') : t('hud.you'), v: mine.toFixed(0), max: CORE_TIME })
+      + (leader >= 0 && leader !== G.myTeam ? ` · ${teamMode ? t('lobby.team', { n: leader + 1 }) : t('hud.enemy')} ${lv.toFixed(0)} s` : '') + (s.core.c ? t('hud.contested') : '');
   }
 
   for (let i = 0; i < 2; i++) {
     const w = me.weapons[i], el = $('wp' + i);
     el.classList.toggle('active', i === me.cur);
-    if (!w) { el.innerHTML = `<span>${i + 1} · leer</span>`; continue; }
+    if (!w) { el.innerHTML = `<span>${i + 1} · ${t('hud.empty')}</span>`; continue; }
     const W = WEAPONS[w[0]];
     const ammo = me.reloading > 0 && i === me.cur ? '…' : `${w[2]}/${lvlMag(W, w[1])}`;
-    el.innerHTML = `<span class="ammo">${ammo}</span>${i + 1} · ${W.name} <span class="lvl">${LEVEL_NAMES[w[1]]}</span><br><small>${W.desc}</small>`;
+    el.innerHTML = `<span class="ammo">${ammo}</span>${i + 1} · ${W.name} <span class="lvl">${LEVEL_NAMES[w[1]]}</span><br><small>${wName(w[0])}</small>`;
   }
   for (let i = 0; i < 2; i++) {
     const a = me.abilities[i], el = $('ab' + i);
     const key = keyLabel(i ? 'E' : 'Q');
     el.classList.toggle('empty', !a);
-    if (!a) { el.innerHTML = `<span class="key">${key}</span> leer`; continue; }
+    if (!a) { el.innerHTML = `<span class="key">${key}</span> ${t('hud.empty')}`; continue; }
     const A = ABILITIES[a[0]];
     const full = abilityCd({ id: a[0], level: a[1] });
-    el.innerHTML = `<span class="key">${key}</span> ${A.name} <span class="lvl" style="color:#ffd34d">${LEVEL_NAMES[a[1]]}</span><br><small>${a[2] > 0 ? a[2].toFixed(1) + ' s' : 'bereit'}</small><div class="cd" style="width:${a[2] > 0 ? (1 - a[2] / full) * 100 : 100}%"></div>`;
+    el.innerHTML = `<span class="key">${key}</span> ${aName(a[0])} <span class="lvl" style="color:#ffd34d">${LEVEL_NAMES[a[1]]}</span><br><small>${a[2] > 0 ? a[2].toFixed(1) + ' s' : t('hud.ready')}</small><div class="cd" style="width:${a[2] > 0 ? (1 - a[2] / full) * 100 : 100}%"></div>`;
   }
   // Geist
   if (me.ghost) {
     $('ghostInfo').classList.remove('hidden');
     $('ghostInfo').innerHTML = me.soloGhost
-      ? (me.nearBeacon ? `Halte <b>${keyLabel('F')}</b>: Rückkehr ${Math.floor(me.reviveHold / 3 * 100)} %` : `Geist · ${fmt(me.ghostT)} · Erreiche eine grüne Rückkehrsäule`)
-      : 'Geist · Dein Team holt dich mit dem nächsten Kill zurück';
+      ? (me.nearBeacon ? t('hud.holdRevive', { key: keyLabel('F'), p: Math.floor(me.reviveHold / 3 * 100) }) : t('hud.ghostSolo', { t: fmt(me.ghostT) }))
+      : t('hud.ghostTeam');
   } else $('ghostInfo').classList.add('hidden');
   // Aufheben-Hinweis
   let near = null, nd = 2.6;
@@ -1142,11 +1180,11 @@ function updateHud(dt) {
     if (near.type === 'weapon') {
       const W = WEAPONS[near.wid];
       const fuse = me.weapons.some((w) => w && w[0] === near.wid && w[1] < 4);
-      $('prompt').innerHTML = `<b>${KF}</b> ${W.name} ${LEVEL_NAMES[near.level]} (${W.desc})${fuse ? ' · <b>verschmelzen</b>' : ''}`;
+      $('prompt').innerHTML = `<b>${KF}</b> ${W.name} ${LEVEL_NAMES[near.level]} (${esc(wName(near.wid))})${fuse ? ` · <b>${t('hud.fuse')}</b>` : ''}`;
     } else {
       const A = ABILITIES[near.wid];
       const fuse = me.abilities.some((a) => a && a[0] === near.wid && a[1] < 4);
-      $('prompt').innerHTML = `<b>${KF}</b> Fähigkeit ${A.name}: ${A.desc}${fuse ? ' · <b>verschmelzen</b>' : ''}`;
+      $('prompt').innerHTML = `<b>${KF}</b> ${t('hud.ability')} ${esc(aName(near.wid))}: ${esc(aDesc(near.wid))}${fuse ? ` · <b>${t('hud.fuse')}</b>` : ''}`;
     }
   } else $('prompt').innerHTML = '';
   // Team-Liste
@@ -1156,7 +1194,7 @@ function updateHud(dt) {
       const meta = G.meta.get(e[0]);
       if (meta.team !== G.myTeam) continue;
       const cls = e[7] & 1 ? '' : e[7] & 2 ? 'ghost' : 'dead';
-      rows.push(`<div class="tm ${cls}">${esc(meta.name)}${e[0] === G.you ? ' (du)' : ''}${e[7] & 2 ? ' · Geist' : ''}<div class="bar"><div style="width:${e[5]}%"></div></div></div>`);
+      rows.push(`<div class="tm ${cls}">${esc(meta.name)}${e[0] === G.you ? t('lobby.you') : ''}${e[7] & 2 ? t('hud.ghost') : ''}<div class="bar"><div style="width:${e[5]}%"></div></div></div>`);
     }
     $('teamPanel').innerHTML = rows.join('');
   } else $('teamPanel').innerHTML = '';
@@ -1176,9 +1214,9 @@ function frame(now) {
     if (!$('overlay').classList.contains('hidden')) { if (!game.over && !game.eliminatedPlace) $('ovResume').click(); }
     else {
       paused = !conn.online;
-      $('ovTitle').textContent = conn.online ? 'Menü (Runde läuft weiter)' : 'Pause';
+      $('ovTitle').textContent = conn.online ? t('ov.menuOnline') : t('ov.pause');
       $('ovText').textContent = '';
-      $('ovResume').textContent = 'Weiter';
+      $('ovResume').textContent = t('ov.resume'); $('ovQuit').textContent = t('ov.quit');
       showScreen('overlay');
       $('hud').classList.remove('hidden');
       document.exitPointerLock?.();
@@ -1255,8 +1293,31 @@ function updateCamera(dt) {
 }
 requestAnimationFrame(frame);
 
+// ---------------------------------------------------------------- Erster Start: Sprache wählen
+function showLangPick() {
+  const box = $('langButtons');
+  box.innerHTML = '';
+  const suggested = guessLang();
+  lang = null;
+  for (const [k, name] of Object.entries(LANGS)) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.dataset.lang = k;
+    if (k === suggested) b.classList.add('suggested');
+    b.onclick = () => { setLang(k); showScreen('menu'); };
+    box.appendChild(b);
+  }
+  // Überschrift zweisprachig: vorgeschlagene Sprache + Englisch
+  lang = suggested;
+  applyI18n();
+  lang = null;
+  showScreen('langPick');
+  box.querySelector('.suggested')?.focus();
+}
+if (lang) showScreen('menu'); else showLangPick();
+
 // Für automatisierte Tests
 window.__zz = {
   get game() { return game; }, get conn() { return conn; }, get lobby() { return lobby; },
-  keys, pad, setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
+  keys, pad, get lang() { return lang; }, setLook: (y, p) => { yaw = y; pitch = p; }, press: (code) => pressed.add(code), setMouse: (d) => { mouseDown = d; },
 };

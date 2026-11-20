@@ -65,7 +65,7 @@ function send(c, msg) { if (c.ws.readyState === 1) c.ws.send(typeof msg === 'str
 
 function joinRoom(c, room) {
   leaveRoom(c);
-  if (room.clients.size >= MAX_PLAYERS) { send(c, { t: 'err', msg: 'Der Raum ist voll.' }); return; }
+  if (room.clients.size >= MAX_PLAYERS) { send(c, { t: 'err', key: 'net.roomFull' }); return; }
   room.clients.add(c);
   c.room = room;
   c.inGame = false;
@@ -73,7 +73,7 @@ function joinRoom(c, room) {
   // Öffentliche Räume starten automatisch 20 s nach dem ersten Spieler
   if (room.isPublic && room.state === 'lobby' && !room.autoStartAt) room.autoStartAt = Date.now() + 20000;
   broadcastLobby(room);
-  if (room.state === 'play') send(c, { t: 'err', msg: 'Hier läuft gerade eine Runde. Du bist in der nächsten dabei.' });
+  if (room.state === 'play') send(c, { t: 'err', key: 'net.roundRunning' });
 }
 function leaveRoom(c) {
   const room = c.room;
@@ -128,7 +128,7 @@ setInterval(() => {
 function handle(c, msg) {
   switch (msg.t) {
     case 'hello':
-      c.name = String(msg.name || '').replace(/[^\p{L}\p{N} _\-.]/gu, '').trim().slice(0, 16) || `Spieler${c.id}`;
+      c.name = String(msg.name || '').replace(/[^\p{L}\p{N} _\-.]/gu, '').trim().slice(0, 16) || `Player${c.id.slice(1)}`;
       send(c, { t: 'welcome', id: c.id, name: c.name });
       break;
     case 'create':
@@ -136,7 +136,7 @@ function handle(c, msg) {
       break;
     case 'join': {
       const room = rooms.get(String(msg.code || '').toUpperCase());
-      if (!room) send(c, { t: 'err', msg: 'Raum nicht gefunden.' });
+      if (!room) send(c, { t: 'err', key: 'net.roomNotFound' });
       else joinRoom(c, room);
       break;
     }

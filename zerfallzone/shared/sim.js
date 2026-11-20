@@ -662,7 +662,8 @@ export class Sim {
   ev(id) { return this.cityEvent && this.cityEvent.id === id; }
   ctx() { return { boxes: this.allBoxes, pads: this.world.pads, ziplines: this.world.ziplines, updrafts: this.world.updrafts, gravMul: this.gravMul, speedMul: this.ev('turbo') ? 1.35 : 1 }; }
   emit(e) { this.events.push(e); }
-  msg(text, to) { this.emit({ k: 'msg', text, ...(to !== undefined ? { to } : {}) }); }
+  /** Nachricht als Sprachschlüssel – jeder Client übersetzt in seine Sprache (shared/i18n.js) */
+  msg(key, p, to) { this.emit({ k: 'msg', key, ...(p ? { p } : {}), ...(to !== undefined ? { to } : {}) }); }
   reveal(e, team, t) { e.rev[team] = Math.max(e.rev[team] || 0, t); }
   revealedTo(e, team) { return (e.rev[team] || 0) > 0 || (e.rev.all || 0) > 0; }
   teamInPlay(t) { return this.teamMembers(t).some((m) => m.alive || (m.ghost && m.soloGhost)); }
@@ -817,7 +818,7 @@ export class Sim {
     t.hp = 0;
     const byEnemy = s && s !== t && s.team !== t.team;
     if (byEnemy && s.alive) { s.kills++; this.tryTeamRevive(s); }
-    this.emit({ k: 'kill', a: byEnemy ? s.name : 'Zerfall', at: byEnemy ? s.team : -1, b: t.name, bt: t.team });
+    this.emit({ k: 'kill', a: byEnemy ? s.name : null, at: byEnemy ? s.team : -1, b: t.name, bt: t.team });
     for (const w of t.weapons) if (w) this.spawnLoot('weapon', w.id, w.level, t.pos.x + rand(-1, 1), t.pos.y, t.pos.z + rand(-1, 1));
     this.spawnLoot('health', null, 1, t.pos.x, t.pos.y, t.pos.z);
     t.weapons = [null, null]; t.cur = 0; t.cloak = 0; t.shieldT = 0; t.healLeft = 0; t.burstLeft = 0; t.reloading = 0;
@@ -843,9 +844,9 @@ export class Sim {
         return Math.hypot(ca.x - t.pos.x, ca.z - t.pos.z) - Math.hypot(cb.x - t.pos.x, cb.z - t.pos.z);
       });
       t.beacons = safe.slice(1, 4).concat(safe.slice(0, 1)).slice(0, 3).map((i) => ({ ...sectorCenter(i), sector: i }));
-      this.msg('Du bist ein Geist! Erreiche eine grüne Rückkehrsäule und halte F.', t.id);
+      this.msg('msg.ghostSolo', null, t.id);
     } else {
-      this.msg('Du bist ein Geist! Dein Team holt dich zurück, sobald es einen Gegner ausschaltet.', t.id);
+      this.msg('msg.ghostTeam', null, t.id);
     }
     this.emit({ k: 'snd', s: 'ghost', to: t.id });
   }
@@ -908,7 +909,7 @@ export class Sim {
     e.left = true;
     if (e.alive) this.kill(e, null);
     else if (e.ghost) { this.endGhost(e); if (!this.teamInPlay(e.team)) this.eliminateTeam(e.team); }
-    this.msg(`${e.name} hat das Spiel verlassen`);
+    this.msg('msg.left', { name: e.name });
   }
 
   // ------------------------------------------------ Projektile, Explosionen, Minen, Wände
@@ -1087,7 +1088,7 @@ export class Sim {
         w.ammo = lvlMag(WEAPONS[w.id], w.level);
         p.cur = same;
         this.emit({ k: 'snd', s: 'fuse', to: p.id });
-        this.msg(`${WEAPONS[w.id].name} verschmolzen → Stufe ${LEVEL_NAMES[w.level]}`, p.id);
+        this.msg('msg.fused', { w: WEAPONS[w.id].name, lvl: LEVEL_NAMES[w.level] }, p.id);
       } else {
         let slot = p.weapons.findIndex((w) => !w);
         if (slot < 0) { slot = p.cur; const old = p.weapons[slot]; this.spawnLoot('weapon', old.id, old.level, p.pos.x, p.pos.y, p.pos.z); }
@@ -1284,7 +1285,7 @@ export class Sim {
         dc.warning = this.chooseDecay(WAVES[Math.min(dc.wave, WAVES.length - 1)]);
         for (const i of dc.warning) this.sectors[i] = 1;
         this.emit({ k: 'snd', s: 'warn' });
-        for (const e of this.entities) if (!e.isBot && e.alive && dc.warning.includes(sectorOf(e.pos.x, e.pos.z))) this.msg('Dein Sektor zerfällt gleich!', e.id);
+        for (const e of this.entities) if (!e.isBot && e.alive && dc.warning.includes(sectorOf(e.pos.x, e.pos.z))) this.msg('msg.sectorWarn', null, e.id);
       }
       if (this.time >= dc.nextAt) {
         for (const i of dc.warning) {
@@ -1309,7 +1310,7 @@ export class Sim {
     const fs = Math.max(0, this.sectors.findIndex((s) => s === 0));
     const c = sectorCenter(fs);
     this.core = { x: c.x, z: c.z, sector: fs, prog: {} };
-    this.msg('Der Kern ist erschienen! Halte ihn 30 s.');
+    this.msg('msg.core');
     this.emit({ k: 'snd', s: 'core' });
   }
   updateCore(dt) {
@@ -1329,7 +1330,7 @@ export class Sim {
   updateEvents(dt) {
     if (!this.cityEvent && this.time >= this.nextEventAt && !this.core) {
       this.cityEvent = { ...pick(EVENTS), t: 25 };
-      this.msg(`Stadt-Event: ${this.cityEvent.name}!`);
+      this.msg('msg.event', { ev: this.cityEvent.id });
       this.emit({ k: 'snd', s: 'event' });
     }
     if (this.cityEvent) {

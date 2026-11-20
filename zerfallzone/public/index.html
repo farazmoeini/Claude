@@ -16,7 +16,7 @@
   <div id="phase"><div id="phaseTitle">Landung</div><div id="phaseTimer"></div></div>
   <div id="event" class="hidden"></div>
   <div id="ghostInfo" class="hidden"></div>
-  <div id="stats"><span id="alive">0</span> übrig<span id="teamsLeft"></span> · <span id="kills">0</span> Kills · <span id="ping"></span></div>
+  <div id="stats"><span id="alive">0</span> <span data-i18n="hud.left"></span><span id="teamsLeft"></span> · <span id="kills">0</span> Kills · <span id="ping"></span></div>
   <div id="feed"></div>
   <div id="crosshair"><div id="hitmarker"></div></div>
   <div id="dash"></div>
@@ -32,89 +32,69 @@
   <div id="vignette"></div>
 </div>
 
+<!-- Sprachauswahl beim ersten Start -->
+<div id="langPick" class="screen hidden">
+  <div class="panel small">
+    <h1>ZERFALL<span>ZONE</span></h1>
+    <h2 data-i18n="pick.title"></h2>
+    <div class="langs" id="langButtons"></div>
+    <p class="muted" data-i18n="pick.hint"></p>
+  </div>
+</div>
+
 <!-- Hauptmenü -->
-<div id="menu" class="screen">
+<div id="menu" class="screen hidden">
   <div class="panel">
     <h1>ZERFALL<span>ZONE</span></h1>
-    <p class="sub">Vertikaler Arena-Battle-Royale · Solo, Duos, Trios · offline gegen Bots oder online mit Freunden</p>
+    <p class="sub" data-i18n="menu.sub"></p>
 
     <div class="row">
-      <label>Dein Name <input id="nameInput" maxlength="16" placeholder="Spieler"></label>
-      <label>Maus-Empfindlichkeit <input id="sensInput" type="range" min="0.4" max="2.5" step="0.05" value="1"></label>
+      <label><span data-i18n="menu.name"></span> <input id="nameInput" maxlength="16" data-i18n-ph="menu.namePh"></label>
+      <label><span data-i18n="menu.sens"></span> <input id="sensInput" type="range" min="0.4" max="2.5" step="0.05" value="1"></label>
+    </div>
+    <div class="row langrow">
+      <span class="muted" data-i18n="menu.lang"></span>
+      <div class="chips" id="langChips"></div>
     </div>
 
-    <h3>Modus</h3>
+    <h3 data-i18n="menu.mode"></h3>
     <div class="chips" id="modeChips">
-      <button data-mode="solo">Solo</button><button data-mode="duo">Duos</button><button data-mode="trio">Trios</button>
+      <button data-mode="solo" data-i18n="mode.solo"></button><button data-mode="duo" data-i18n="mode.duo"></button><button data-mode="trio" data-i18n="mode.trio"></button>
     </div>
 
     <div class="cols">
       <section>
-        <h3>Offline gegen Bots</h3>
+        <h3 data-i18n="menu.offline"></h3>
         <div class="presets">
-          <button data-preset="training">Training</button><button data-preset="normal">Normal</button>
-          <button data-preset="hart">Hart</button><button data-preset="albtraum">Albtraum</button>
+          <button data-preset="training" data-i18n="preset.training"></button><button data-preset="normal" data-i18n="preset.normal"></button>
+          <button data-preset="hart" data-i18n="preset.hart"></button><button data-preset="albtraum" data-i18n="preset.albtraum"></button>
         </div>
         <div class="botcfg" id="botcfg"></div>
         <div class="muted" id="botTotal"></div>
-        <button class="big" id="playOffline">Offline spielen</button>
+        <button class="big" id="playOffline" data-i18n="menu.playOffline"></button>
       </section>
       <section>
-        <h3>Online</h3>
-        <label>Server <input id="serverInput" placeholder="localhost:7777"></label>
+        <h3 data-i18n="menu.online"></h3>
+        <label><span data-i18n="menu.server"></span> <input id="serverInput" placeholder="localhost:7777"></label>
         <p class="muted" id="serverHint"></p>
         <div class="row">
-          <button class="big" id="quickBtn">Schnellsuche</button>
-          <button class="big alt" id="createBtn">Raum erstellen</button>
+          <button class="big" id="quickBtn" data-i18n="menu.quick"></button>
+          <button class="big alt" id="createBtn" data-i18n="menu.create"></button>
         </div>
         <div class="row">
           <input id="codeInput" maxlength="4" placeholder="CODE" class="code">
-          <button id="joinBtn">Beitreten</button>
+          <button id="joinBtn" data-i18n="menu.join"></button>
         </div>
         <p class="err" id="netErr"></p>
       </section>
     </div>
 
     <details>
-      <summary>Steuerung und Regeln</summary>
+      <summary data-i18n="menu.help"></summary>
       <div class="cols">
-        <table>
-          <tr><td>WASD</td><td>Laufen</td></tr>
-          <tr><td>Shift</td><td>Sprinten</td></tr>
-          <tr><td>V / Maus-Seitentaste</td><td>Dash (2 Ladungen)</td></tr>
-          <tr><td>Strg / C</td><td>Rutschen, in der Luft: schnell fallen</td></tr>
-          <tr><td>Leertaste</td><td>Sprung, Doppelsprung, Wandsprung, Klettern</td></tr>
-          <tr><td>Maus</td><td>Schießen, rechts: Zielen / Zoom</td></tr>
-          <tr><td>1 / 2 / Mausrad</td><td>Waffe wechseln</td></tr>
-          <tr><td>R</td><td>Nachladen</td></tr>
-          <tr><td>Q / E</td><td>Fähigkeiten</td></tr>
-          <tr><td>F</td><td>Aufheben / Rückkehr halten</td></tr>
-          <tr><td>Esc</td><td>Menü</td></tr>
-        </table>
-        <table>
-          <tr><td colspan="2"><b>Controller</b> (Xbox / PlayStation)</td></tr>
-          <tr><td>Linker Stick</td><td>Laufen, ganz nach vorn = Sprinten (L3 schaltet um)</td></tr>
-          <tr><td>Rechter Stick</td><td>Umsehen (mit Zielhilfe)</td></tr>
-          <tr><td>RT / R2</td><td>Schießen</td></tr>
-          <tr><td>LT / L2</td><td>Zielen / Zoom, an einer Kante: hängen und spähen</td></tr>
-          <tr><td>A / ✕</td><td>Sprung, Doppelsprung, Wandsprung, Klettern</td></tr>
-          <tr><td>B / ○</td><td>Tippen: Dash · Halten: Rutschen / schnell fallen</td></tr>
-          <tr><td>X / □</td><td>Aufheben / Rückkehr halten, sonst Nachladen</td></tr>
-          <tr><td>Y / △</td><td>Waffe wechseln</td></tr>
-          <tr><td>LB / RB (L1 / R1)</td><td>Fähigkeiten</td></tr>
-          <tr><td>Start / Options</td><td>Menü</td></tr>
-          <tr><td>Steuerkreuz + A</td><td>In Menüs auswählen</td></tr>
-        </table>
-        <ul>
-          <li>Die Stadt zerfällt dynamisch Sektor für Sektor. Orange: Warnung, rot: Schaden, und die Gebäude lösen sich auf.</li>
-          <li>Doppelte Waffen und Fähigkeiten verschmelzen zu höheren Stufen (max. IV).</li>
-          <li>Teams: Wer fällt, wird zum Geist. Schaltet ein Teamkamerad einen Gegner aus, kehrt der Geist zurück.</li>
-          <li>Solo: einmal pro Runde Rückkehr über eine grüne Säule (F halten).</li>
-          <li>Im letzten Sektor erscheint der Kern. Hält ihn ein Team 30 s, gewinnt es.</li>
-          <li>Stadt-Events ändern zwischendurch die Regeln.</li>
-          <li>Seilbahnen zwischen Hochhäusern: hineinspringen, Springen löst. Orange Sprungfelder schleudern auf ein Dach, helle Säulen tragen dich nach oben. Kein Fallschaden.</li>
-          <li>Bewegung: Lauf seitlich an Hauswände, um an ihnen entlangzurennen, und spring ab. Ein Sprung aus dem Rutschen behält das Tempo. Dash und Rutschen hintereinander ergeben einen weiten Rutscher.</li>
-        </ul>
+        <table id="helpKb"></table>
+        <table id="helpPad"></table>
+        <ul id="helpRules"></ul>
       </div>
     </details>
   </div>
@@ -123,21 +103,21 @@
 <!-- Lobby -->
 <div id="lobby" class="screen hidden">
   <div class="panel">
-    <h2>Lobby <span id="lobbyCode" class="code-big"></span></h2>
+    <h2><span data-i18n="lobby.title"></span> <span id="lobbyCode" class="code-big"></span></h2>
     <p class="muted" id="lobbyShare"></p>
     <div class="cols">
       <section>
-        <h3>Spieler</h3>
+        <h3 data-i18n="lobby.players"></h3>
         <div id="lobbyPlayers"></div>
       </section>
       <section>
-        <h3>Einstellungen <span class="muted" id="hostNote"></span></h3>
+        <h3><span data-i18n="lobby.settings"></span> <span class="muted" id="hostNote"></span></h3>
         <div class="chips" id="lobbyModeChips">
-          <button data-mode="solo">Solo</button><button data-mode="duo">Duos</button><button data-mode="trio">Trios</button>
+          <button data-mode="solo" data-i18n="mode.solo"></button><button data-mode="duo" data-i18n="mode.duo"></button><button data-mode="trio" data-i18n="mode.trio"></button>
         </div>
         <div class="presets" id="lobbyPresets">
-          <button data-preset="training">Training</button><button data-preset="normal">Normal</button>
-          <button data-preset="hart">Hart</button><button data-preset="albtraum">Albtraum</button>
+          <button data-preset="training" data-i18n="preset.training"></button><button data-preset="normal" data-i18n="preset.normal"></button>
+          <button data-preset="hart" data-i18n="preset.hart"></button><button data-preset="albtraum" data-i18n="preset.albtraum"></button>
         </div>
         <div class="botcfg" id="lobbyBotcfg"></div>
         <div class="muted" id="lobbyBotTotal"></div>
@@ -145,8 +125,8 @@
     </div>
     <p id="lobbyStatus"></p>
     <div class="row">
-      <button class="big" id="startBtn">Runde starten</button>
-      <button class="big alt" id="leaveBtn">Verlassen</button>
+      <button class="big" id="startBtn" data-i18n="lobby.start"></button>
+      <button class="big alt" id="leaveBtn" data-i18n="lobby.leave"></button>
     </div>
   </div>
 </div>
@@ -154,11 +134,11 @@
 <!-- Pause / Ergebnis -->
 <div id="overlay" class="screen hidden">
   <div class="panel small">
-    <h2 id="ovTitle">Pause</h2>
+    <h2 id="ovTitle"></h2>
     <p id="ovText"></p>
     <div class="row">
-      <button class="big" id="ovResume">Weiter</button>
-      <button class="big alt" id="ovQuit">Zum Menü</button>
+      <button class="big" id="ovResume"></button>
+      <button class="big alt" id="ovQuit"></button>
     </div>
   </div>
 </div>

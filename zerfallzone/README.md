@@ -70,6 +70,21 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 | Fallschaden | – | Gibt es nicht. Ein Sturz aus beliebiger Höhe kostet nichts (getestet aus 120 m) |
 | Spielgefühl | – | Das Sichtfeld weitet sich mit dem Tempo (bis +16°), die Kamera federt bei harten Landungen nach, eigene Klänge und Vibration für Dash, Wandlauf, Wandsprung, Seilbahn und Landung, Fahrtwind wird mit dem Tempo lauter |
 
+## Sprachen
+
+Beim **ersten Start** fragt das Spiel nach der Sprache: Deutsch, English, Español oder
+Français. Vorgeschlagen wird die Sprache des Systems, mit dem Controller reicht ein
+Druck auf A. Die Wahl wird gespeichert und lässt sich im Hauptmenü unter **Sprache**
+jederzeit ändern.
+
+Online spielt jeder in seiner eigenen Sprache: Server und Spielkern verschicken nur
+Textschlüssel, und jeder Client übersetzt sie selbst. Ein Raum mit einem deutschen und
+einem spanischen Spieler funktioniert also problemlos.
+
+**Neue Sprache hinzufügen:** In `shared/i18n.js` den Code in `LANGS` eintragen und ein
+Wörterbuch mit allen Schlüsseln ergänzen. Der Test `test/i18n.test.js` meldet fehlende
+Texte und falsche Platzhalter.
+
 ## Controller
 
 Xbox-, PlayStation- und die meisten USB- oder Bluetooth-Controller funktionieren in der
