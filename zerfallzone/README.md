@@ -1,5 +1,7 @@
 # Zerfallzone
 
+![Kämpfer](docs/kaempfer.png)
+
 | Mittag | Abend | Nacht |
 |---|---|---|
 | ![Mittag](docs/mittag.png) | ![Abend](docs/abend.png) | ![Nacht](docs/nacht.png) |
@@ -76,13 +78,6 @@ deshalb fühlt es sich online genauso direkt an wie offline.
 
 ## Eigene 3D-Modelle
 
-**Mitgeliefert** (alle CC0, Nachweis in [`public/models/LICENSES.md`](public/models/LICENSES.md)):
-die animierte Roboterfigur „RobotExpressive“ von Quaternius (Stehen, Gehen, Laufen,
-Springen; in Teamfarbe eingefärbt) und zwei Blaster aus Kenneys „Starter Kit FPS“ für
-Hand und Ich-Ansicht. Größe und Ausrichtung passt das Spiel automatisch an.
-
-![Modelle und Vitalkern](docs/modelle_und_vitalkern.png)
-
 Figuren und Waffen lassen sich durch weitere Modelle im GLB-Format ersetzen, zum Beispiel
 aus frei nutzbaren CC0-Paketen. Dafür legt man sie mit einer `manifest.json` in
 `public/models/` ab. Das Spiel spielt dann deren Animationen (Stehen, Gehen, Laufen,
@@ -110,13 +105,14 @@ unverändert aus dem Spielkern, das Aussehen ist nur die Hülle darum.
 - **Architektur:** vier Fassadenarten mit Farbvarianten (Glastürme, Bürobauten mit Fensterbändern, Wohnhäuser mit Balkonen, Industriehallen aus Wellblech), Gesimse, Sockel, Dachbrüstungen mit Leuchtstreifen, Werbetafeln mit erfundenen Namen, Treppenhäuser. Fenster leuchten am Abend und in der Nacht.
 - **Dachaufbauten:** Klimageräte, Wassertanks und Lüfter. Sie haben Kollision und dienen als Deckung.
 - **Straßen:** Asphalt, Gehwege, gepflasterte Plätze, Mittellinien, Zebrastreifen, Straßenlaternen mit Lichtkegeln, Bäume, Betonsperren und eine Skyline am Horizont.
-- **Figuren:** gepanzerte Läufer mit Lauf- und Sprungbewegung, Teamfarbe auf Schultern, Helm und Leuchtstreifen.
+- **Figuren:** eigener gepanzerter Soldat mit Helm und Visierschlitz, Plattenträger mit Magazintaschen, Schulterpanzern, Knieschonern, Rucksack und Handschuhen in gedeckten Farben. Die Teamfarbe zeigt sich nur als schmale Leuchtakzente. Jede Figur trägt sichtbar ihre aktuelle Waffe.
+- **Waffen:** eigene Modelle je Waffe (MP mit Rotpunkt, Salvengewehr mit Zielfernrohr, Schrotflinte mit Vorderschaft, Railgun mit Beschleunigerschienen und Spulen, Pistole, Granatwerfer mit Trommel). In der Ich-Ansicht mit Armen und Handschuhen.
 - **Effekte:** Mündungsfeuer mit Lichtblitz, Staub an Einschlägen, Rauch und Kamerawackeln bei Explosionen, aufsteigende Splitter über zerfallenden Sektoren, Waffenschwung beim Umsehen.
 - **Bildaufbereitung (hohe Qualität):** 4-fache Kantenglättung, Umgebungsverdeckung (GTAO) für Schatten in Ecken und Fugen, Himmelsreflexionen auf Glas, Metall und Waffen, Farbabstimmung und Vignette je Tageszeit.
 - **Lesbarkeit:** Figuren mit abgerundeter Panzerung und stilisierter Umrisslinie (Gegner dunkelrot, Team dunkelgrün), Kniegelenke, Oberkörperneigung und Rückstoß beim Schießen.
 - **Mehr Stadt-Details:** Lisenen an Bürobauten und Hallen, Balkone mit Geländern an Wohnhäusern, Antennen mit blinkenden Warnlichtern auf Türmen, Büsche und zweistufige Baumkronen.
 - **Zerfall als Markenzeichen:** Zerfallene Sektoren tragen ein wanderndes digitales Glitch-Muster in Rot und Cyan.
-- **Vitalkern (Leben und Rüstung):** eigenes Design statt Balken. Ein Sechseck mit der Lebenszahl, darum ein Ring (grün, gelb, rot pulsierend bei wenig Leben), außen vier Rüstungszellen zu je 25. Bei Treffern zittert der Kern, und ein heller Schweif zeigt den eben verlorenen Teil.
+- **Oberfläche:** schlicht und erwachsen: gedeckte Farben, dünne Schrift, kaum Kästen, nur Bernstein als Akzent für Warnungen. Vitalkern unten links (feiner Lebensring, vier Rüstungszellen, Zahl in der Mitte), Munition groß und dünn unten rechts, Fähigkeiten mit feiner Ladelinie, Fadenkreuz aus Punkt und vier feinen Linien.
 - **Kampf-Rückmeldung:** leuchtende Geschossspuren, schwebende Schadenszahlen (Kopftreffer gelb), Treffer-Kreuz, Splitter und Klang beim Rüstungsbruch (bei Gegnern räumlich), Banner bei eigenen Kills.
 - **Leistung:** Jeder Sektor wird je Material in einem Stück gezeichnet, alle Gebäude eines Sektors versinken gemeinsam (gleiche Formel wie die Kollision). Unter **Grafikqualität: niedrig** sind Schatten und Leuchteffekt aus.
 

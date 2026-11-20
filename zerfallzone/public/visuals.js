@@ -600,58 +600,159 @@ function mulberry(a) {
 // ---------------------------------------------------------------- Figuren mit Bewegung
 const PART = {};
 function partGeo(key, make) { return PART[key] || (PART[key] = make()); }
-/** Eigene Figur: gepanzerter Läufer mit abgerundeter Panzerung und stilisierter Umrisslinie.
- *  Beine, Arme und Oberkörper hängen an Gelenken und werden animiert. */
-export function makeCharacter(teamCol, accent, outlineCol = 0x0b0b12) {
+// ---------------------------------------------------------------- Waffenmodelle (eigene Entwürfe)
+const WMAT = {};
+function wmat(key, make) { return WMAT[key] || (WMAT[key] = make()); }
+const gunmetal = () => wmat('gunmetal', () => envMat(new THREE.MeshStandardMaterial({ color: 0x2c3036, metalness: 0.75, roughness: 0.38 }), 1.0));
+const polymer = () => wmat('polymer', () => envMat(new THREE.MeshStandardMaterial({ color: 0x1b1d21, metalness: 0.05, roughness: 0.82 }), 0.3));
+const FURNITURE = { funke: 0x1b1d21, puls: 0x4b5240, hagel: 0x7d6e52, lanze: 0x3a3f47, dorn: 0x23262b, moerser: 0x55584a };
+const furniture = (id) => wmat('f_' + id, () => envMat(new THREE.MeshStandardMaterial({ color: FURNITURE[id] || 0x2a2d33, metalness: 0.1, roughness: 0.7 }), 0.4));
+const accentMat = (col) => wmat('a_' + col, () => new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(0.8), toneMapped: false }));
+/** Waffe als Modell. Ursprung am Griff, Lauf zeigt nach −z. Gleiche Modelle für Ich-Ansicht und Figuren. */
+export function makeWeapon(id, accent = 0x2cf3ff) {
   const g = new THREE.Group();
-  const armor = envMat(new THREE.MeshStandardMaterial({ color: 0xeef0f5, roughness: 0.3, metalness: 0.15, transparent: true }), 0.8);
-  const suit = envMat(new THREE.MeshStandardMaterial({ color: 0x2b303d, roughness: 0.75, transparent: true }), 0.3);
-  const team = envMat(new THREE.MeshStandardMaterial({ color: teamCol, roughness: 0.35, emissive: teamCol, emissiveIntensity: 0.3, transparent: true }), 0.6);
+  const M = gunmetal(), P = polymer(), F = furniture(id), A = accentMat(accent);
+  const rb = (w, h, d) => partGeo(`w${w}_${h}_${d}`, () => new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.18));
+  const cy = (r, len, seg = 14) => partGeo(`c${r}_${len}`, () => new THREE.CylinderGeometry(r, r, len, seg).rotateX(Math.PI / 2));
+  const add = (geo, mat, x, y, z, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.x = rx; m.castShadow = true; g.add(m); return m; };
+  const grip = (z = 0.07) => add(rb(0.034, 0.105, 0.048), P, 0, -0.075, z, -0.3);
+  const guard = (z = 0.02) => add(rb(0.01, 0.012, 0.06), M, 0, -0.045, z);
+  const rail = (len, z, y = 0.055) => { add(rb(0.034, 0.012, len), M, 0, y, z); for (let k = 0; k < len / 0.02 - 1; k++) add(rb(0.036, 0.006, 0.006), M, 0, y + 0.008, z - len / 2 + 0.015 + k * 0.02); };
+  switch (id) {
+    case 'funke': // kompakte MP
+      add(rb(0.062, 0.088, 0.28), F, 0, 0, 0);
+      rail(0.2, -0.02);
+      add(cy(0.024, 0.13), M, 0, 0.005, -0.2);
+      add(cy(0.017, 0.06), P, 0, 0.005, -0.29);
+      add(rb(0.032, 0.16, 0.048), P, 0, -0.1, -0.05, 0.12);
+      add(rb(0.03, 0.036, 0.06), P, 0, 0.085, -0.02);                         // Rotpunktvisier
+      add(rb(0.012, 0.05, 0.16), M, 0, -0.005, 0.21);                         // eingeklappter Schaft
+      grip(); guard();
+      add(rb(0.004, 0.01, 0.16), A, 0.033, 0.015, -0.01);
+      break;
+    case 'puls': // Salvengewehr
+      add(rb(0.066, 0.094, 0.34), F, 0, 0, 0);
+      add(rb(0.062, 0.074, 0.24), F, 0, 0.002, -0.28);
+      for (let k = 0; k < 4; k++) add(rb(0.064, 0.016, 0.03), P, 0, 0.0, -0.2 - k * 0.05);
+      add(cy(0.012, 0.13), M, 0, 0.005, -0.46);
+      add(rb(0.03, 0.03, 0.05), M, 0, 0.005, -0.54);                         // Mündungsbremse
+      add(rb(0.034, 0.17, 0.058), P, 0, -0.11, -0.05, 0.28);
+      add(rb(0.05, 0.085, 0.22), F, 0, -0.015, 0.27);                        // Schaft
+      add(rb(0.052, 0.03, 0.12), P, 0, 0.035, 0.27);
+      rail(0.24, -0.06);
+      add(cy(0.022, 0.13), P, 0, 0.1, -0.05);                                 // Zielfernrohr
+      add(rb(0.02, 0.035, 0.02), M, 0, 0.075, -0.09); add(rb(0.02, 0.035, 0.02), M, 0, 0.075, 0.0);
+      grip(0.09); guard(0.04);
+      add(rb(0.004, 0.012, 0.2), A, 0.035, 0.01, -0.25);
+      break;
+    case 'hagel': // Schrotflinte
+      add(rb(0.07, 0.1, 0.26), P, 0, 0, 0);
+      add(cy(0.021, 0.38), M, 0, 0.025, -0.31);
+      add(cy(0.017, 0.3), M, 0, -0.022, -0.27);
+      add(rb(0.062, 0.062, 0.13), F, 0, -0.022, -0.27);                       // Vorderschaft
+      for (let k = 0; k < 4; k++) add(rb(0.064, 0.008, 0.012), P, 0, 0.012, -0.22 - k * 0.025);
+      add(rb(0.052, 0.095, 0.24), F, 0, -0.025, 0.24);
+      add(rb(0.018, 0.022, 0.03), M, 0, 0.055, -0.47);                        // Korn
+      grip(0.08); guard(0.03);
+      add(rb(0.004, 0.012, 0.14), A, 0.036, 0.02, 0.0);
+      break;
+    case 'lanze': { // Railgun
+      add(rb(0.07, 0.096, 0.42), M, 0, 0, 0);
+      for (const sx of [-0.026, 0.026]) add(rb(0.016, 0.026, 0.46), M, sx, 0.0, -0.42);
+      for (let k = 0; k < 5; k++) add(partGeo('coil', () => new THREE.TorusGeometry(0.045, 0.008, 6, 18)), A, 0, 0, -0.26 - k * 0.07);
+      add(rb(0.054, 0.08, 0.24), F, 0, -0.02, 0.32);
+      add(cy(0.027, 0.24), P, 0, 0.11, -0.04);
+      add(cy(0.032, 0.03), M, 0, 0.11, -0.17); add(cy(0.03, 0.03), M, 0, 0.11, 0.08);
+      add(rb(0.02, 0.04, 0.02), M, 0, 0.075, -0.1); add(rb(0.02, 0.04, 0.02), M, 0, 0.075, 0.03);
+      grip(0.12); guard(0.07);
+      break;
+    }
+    case 'dorn': // Präzisionspistole
+      add(rb(0.034, 0.046, 0.2), M, 0, 0.022, -0.04);
+      add(rb(0.032, 0.03, 0.18), P, 0, -0.012, -0.035);
+      add(rb(0.032, 0.1, 0.05), P, 0, -0.07, 0.04, -0.25);
+      add(rb(0.008, 0.014, 0.05), M, 0, -0.04, -0.02);
+      add(rb(0.01, 0.012, 0.012), M, 0, 0.05, -0.13);
+      add(rb(0.004, 0.01, 0.12), A, 0.018, 0.022, -0.04);
+      break;
+    case 'moerser': // Granatwerfer mit Trommel
+      add(rb(0.07, 0.09, 0.22), P, 0, 0, 0.02);
+      add(cy(0.046, 0.3), F, 0, 0.01, -0.25);
+      add(cy(0.036, 0.02), M, 0, 0.01, -0.41);
+      add(partGeo('drum', () => new THREE.CylinderGeometry(0.058, 0.058, 0.12, 10).rotateX(Math.PI / 2)), M, 0, -0.035, -0.06);
+      add(rb(0.05, 0.08, 0.2), F, 0, -0.02, 0.22);
+      add(rb(0.012, 0.06, 0.012), M, 0, 0.07, -0.12);                         // Klappvisier
+      grip(0.09); guard(0.04);
+      add(rb(0.004, 0.012, 0.12), A, 0.048, 0.01, -0.25);
+      break;
+    default:
+      add(rb(0.07, 0.09, 0.4), M, 0, 0, 0);
+  }
+  return g;
+}
+
+// ---------------------------------------------------------------- Figuren: gepanzerter Soldat (eigener Entwurf)
+/** Kämpfer in Plattenträger und Helm. Gedeckte Farben, die Teamfarbe nur als schmale Leuchtakzente.
+ *  Beine, Knie, Arme, Oberkörper und Kopf hängen an Gelenken und werden animiert. */
+export function makeCharacter(teamCol, accent) {
+  const g = new THREE.Group();
+  const plate = envMat(new THREE.MeshStandardMaterial({ color: 0x3b4048, roughness: 0.5, metalness: 0.35, transparent: true }), 0.6);
+  const fabric = envMat(new THREE.MeshStandardMaterial({ color: 0x24272c, roughness: 0.9, transparent: true }), 0.2);
+  const gear = envMat(new THREE.MeshStandardMaterial({ color: 0x4a4b3e, roughness: 0.85, transparent: true }), 0.2);
+  const boot = envMat(new THREE.MeshStandardMaterial({ color: 0x17181b, roughness: 0.7, transparent: true }), 0.3);
+  const teamPlate = envMat(new THREE.MeshStandardMaterial({ color: new THREE.Color(teamCol).multiplyScalar(0.45).add(new THREE.Color(0x202326)), roughness: 0.5, metalness: 0.3, transparent: true }), 0.5);
   const glow = new THREE.MeshBasicMaterial({ color: accent, transparent: true, toneMapped: false });
-  const line = new THREE.MeshBasicMaterial({ color: outlineCol, side: THREE.BackSide, transparent: true });
-  const rbox = (w, h, d) => partGeo(`r${w}_${h}_${d}`, () => new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.3));
-  const box = (w, h, d) => partGeo(`b${w}_${h}_${d}`, () => new THREE.BoxGeometry(w, h, d));
-  const add = (parent, geo, mat, x, y, z, outline = true) => {
-    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
-    if (outline) { const o = new THREE.Mesh(geo, line); o.scale.setScalar(1.09); m.add(o); }
-    return m;
-  };
+  const rb = (w, h, d, r = 0.25) => partGeo(`s${w}_${h}_${d}_${r}`, () => new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * r));
+  const add = (parent, geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = true; parent.add(m); return m; };
   const legs = [], knees = [], arms = [];
   const torso = new THREE.Group(); torso.position.y = 0.98; g.add(torso);
   for (const s of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(0.14 * s, 0.94, 0); g.add(hip);
-    add(hip, rbox(0.21, 0.46, 0.25), armor, 0, -0.24, 0);
+    const hip = new THREE.Group(); hip.position.set(0.13 * s, 0.95, 0); g.add(hip);
+    add(hip, rb(0.19, 0.46, 0.22), fabric, 0, -0.23, 0);
+    add(hip, rb(0.05, 0.14, 0.12), gear, 0.11 * s, -0.2, 0);                   // Oberschenkeltasche
     const knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee);
-    add(knee, rbox(0.18, 0.44, 0.21), suit, 0, -0.2, 0.01);
-    add(knee, rbox(0.21, 0.11, 0.34), suit, 0, -0.43, -0.05);
-    add(knee, box(0.05, 0.2, 0.02), team, 0, -0.18, -0.12, false);
+    add(knee, rb(0.15, 0.13, 0.08), plate, 0, -0.02, -0.1);                     // Knieschoner
+    add(knee, rb(0.16, 0.42, 0.19), fabric, 0, -0.21, 0);
+    add(knee, rb(0.19, 0.13, 0.3), boot, 0, -0.43, -0.04);
     legs.push(hip); knees.push(knee);
   }
-  add(torso, rbox(0.48, 0.22, 0.3), suit, 0, 0.02, 0);
-  const chest = add(torso, rbox(0.62, 0.46, 0.38), armor, 0, 0.34, 0);
-  add(torso, box(0.52, 0.06, 0.02), team, 0, 0.28, -0.2, false);
-  add(torso, rbox(0.38, 0.42, 0.18), suit, 0, 0.32, 0.26);
-  add(torso, box(0.06, 0.32, 0.02), glow, 0, 0.32, 0.36, false);
-  const head = new THREE.Group(); head.position.set(0, 0.58, 0); torso.add(head);
-  add(head, rbox(0.16, 0.1, 0.16), suit, 0, 0, 0, false);
-  add(head, rbox(0.36, 0.32, 0.38), armor, 0, 0.15, 0);
-  add(head, rbox(0.38, 0.07, 0.4), team, 0, 0.3, 0.01, false);
-  add(head, rbox(0.3, 0.1, 0.06), glow, 0, 0.15, -0.18, false);
+  add(torso, rb(0.44, 0.24, 0.26), fabric, 0, 0.03, 0);                          // Becken
+  add(torso, rb(0.5, 0.07, 0.3), gear, 0, -0.04, 0);                             // Gürtel
+  add(torso, rb(0.5, 0.36, 0.28), fabric, 0, 0.32, 0);                           // Oberkörper
+  const chest = add(torso, rb(0.54, 0.36, 0.14), plate, 0, 0.36, -0.12);       // Brustplatte
+  add(torso, rb(0.5, 0.34, 0.1), plate, 0, 0.36, 0.14);                          // Rückenplatte
+  for (let k = -1; k <= 1; k++) add(torso, rb(0.12, 0.13, 0.07), gear, k * 0.14, 0.22, -0.21); // Magazintaschen
+  add(torso, rb(0.5, 0.02, 0.01), glow, 0, 0.49, -0.195);                        // Teamakzent
+  add(torso, rb(0.34, 0.38, 0.16), gear, 0, 0.32, 0.27);                         // Rucksack
+  add(torso, partGeo('ant', () => new THREE.CylinderGeometry(0.008, 0.008, 0.3, 4)), plate, 0.12, 0.62, 0.3);
+  const head = new THREE.Group(); head.position.set(0, 0.6, 0); torso.add(head);
+  add(head, rb(0.14, 0.1, 0.14), fabric, 0, 0, 0);
+  add(head, rb(0.3, 0.29, 0.33, 0.4), plate, 0, 0.16, 0.01);                     // Helm
+  add(head, rb(0.32, 0.08, 0.3, 0.4), teamPlate, 0, 0.27, 0.02);                 // Helmkappe
+  add(head, rb(0.26, 0.05, 0.04), glow, 0, 0.16, -0.155);                        // Visierschlitz
+  add(head, rb(0.22, 0.09, 0.06), boot, 0, 0.07, -0.15);                         // Kinnschutz
+  for (const s of [-1, 1]) add(head, rb(0.04, 0.12, 0.12), boot, 0.16 * s, 0.14, 0.01); // Gehörschutz
   for (const s of [-1, 1]) {
-    add(torso, rbox(0.26, 0.17, 0.36), team, 0.41 * s, 0.52, 0);
-    const sh = new THREE.Group(); sh.position.set(0.39 * s, 0.47, 0); torso.add(sh);
-    add(sh, rbox(0.15, 0.32, 0.17), suit, 0, -0.18, 0);
-    add(sh, rbox(0.14, 0.3, 0.16), armor, 0, -0.42, -0.08);
+    add(torso, rb(0.2, 0.12, 0.28), teamPlate, 0.35 * s, 0.53, 0, 0, -0.35 * s); // Schulterpanzer
+    const sh = new THREE.Group(); sh.position.set(0.35 * s, 0.47, 0); torso.add(sh);
+    add(sh, rb(0.13, 0.3, 0.14), fabric, 0, -0.17, 0);
+    add(sh, rb(0.13, 0.26, 0.15), plate, 0, -0.4, -0.06);                       // Unterarmschutz
+    add(sh, rb(0.11, 0.1, 0.12), boot, 0, -0.56, -0.08);                         // Handschuh
     arms.push(sh);
   }
   const gun = new THREE.Group();
-  const gm = envMat(new THREE.MeshStandardMaterial({ color: 0x4a5163, metalness: 0.6, roughness: 0.35 }), 1);
-  add(gun, rbox(0.1, 0.14, 0.62), gm, 0, 0, 0);
-  add(gun, box(0.03, 0.03, 0.46), glow, 0.056, 0.03, 0, false);
-  gun.position.set(0.18, 0.23, -0.44);
+  gun.position.set(0.16, 0.24, -0.3);
   torso.add(gun);
-  arms[0].rotation.x = -1.1; arms[1].rotation.x = -1.25; arms[0].rotation.z = -0.2; arms[1].rotation.z = 0.35;
-  return { group: g, legs, knees, arms, torso, head, chest, gun, mats: [armor, suit, team, glow, line], phase: Math.random() * 6, kick: 0, lean: 0 };
+  arms[0].rotation.x = -1.15; arms[1].rotation.x = -1.3; arms[0].rotation.z = -0.25; arms[1].rotation.z = 0.4;
+  const rig = { group: g, legs, knees, arms, torso, head, chest, gun, mats: [plate, fabric, gear, boot, teamPlate, glow], phase: Math.random() * 6, kick: 0, lean: 0, weaponId: null };
+  rig.setWeapon = (id) => {
+    if (rig.weaponId === id) return;
+    rig.weaponId = id;
+    gun.clear();
+    if (id) gun.add(makeWeapon(id, accent));
+  };
+  rig.setWeapon('puls');
+  return rig;
 }
 /** Lauf-, Sprint- und Sprunghaltung aus Tempo und Bodenkontakt, dazu Rückstoß beim Schießen */
 export function animateCharacter(rig, speed, airborne, dt) {
@@ -663,18 +764,18 @@ export function animateCharacter(rig, speed, airborne, dt) {
     lerp(rig.legs[0].rotation, 'x', -0.9); lerp(rig.legs[1].rotation, 'x', 0.4);
     lerp(rig.knees[0].rotation, 'x', 1.2); lerp(rig.knees[1].rotation, 'x', 0.5);
   } else {
-    rig.legs[0].rotation.x = s * 0.8 * k; rig.legs[1].rotation.x = -s * 0.8 * k;
+    rig.legs[0].rotation.x = s * 0.75 * k; rig.legs[1].rotation.x = -s * 0.75 * k;
     rig.knees[0].rotation.x = Math.max(0, -Math.cos(rig.phase)) * 1.1 * k;
     rig.knees[1].rotation.x = Math.max(0, Math.cos(rig.phase)) * 1.1 * k;
   }
-  lerp(rig, 'lean', -0.22 * k, 6);
+  lerp(rig, 'lean', -0.18 * k, 6);
   rig.torso.rotation.x = rig.lean;
-  rig.torso.position.y = 0.98 + Math.abs(Math.cos(rig.phase)) * 0.045 * k - (airborne ? 0 : 0.03 * k);
-  rig.torso.rotation.y = Math.sin(rig.phase) * 0.08 * k;
+  rig.torso.position.y = 0.98 + Math.abs(Math.cos(rig.phase)) * 0.04 * k - (airborne ? 0 : 0.03 * k);
+  rig.torso.rotation.y = Math.sin(rig.phase) * 0.06 * k;
   rig.head.rotation.x = -rig.lean * 0.8;
   rig.kick = Math.max(0, rig.kick - dt * 8);
-  rig.gun.position.z = -0.44 + rig.kick * 0.08;
-  rig.arms[0].rotation.x = -1.1 - rig.kick * 0.25; rig.arms[1].rotation.x = -1.25 - rig.kick * 0.25;
+  rig.gun.position.z = -0.3 + rig.kick * 0.07;
+  rig.arms[0].rotation.x = -1.15 - rig.kick * 0.2; rig.arms[1].rotation.x = -1.3 - rig.kick * 0.2;
 }
 
 // ---------------------------------------------------------------- Effekte

@@ -14,7 +14,7 @@ import {
 import { LANGS, translate, guessLang } from './shared/i18n.js';
 import { MODELS, loadModelPack, makeModelCharacter, animateModelCharacter, makeModelWeapon } from './models.js';
 loadModelPack();
-import { createEnvironment, buildCity, makeCharacter, animateCharacter, createEffects, TODS, GradeShader, setVisualTime } from './visuals.js';
+import { createEnvironment, buildCity, makeCharacter, makeWeapon, animateCharacter, createEffects, TODS, GradeShader, setVisualTime } from './visuals.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -570,7 +570,7 @@ function createEntityMesh(meta) {
   const mate = meta.team === game.myTeam;
   const teamCol = mate ? 0x3dd68c : TEAM_COLORS[meta.team % TEAM_COLORS.length];
   const accent = mate ? 0x7dff6b : meta.bot ? DIFFS[meta.diff].color : 0xffffff;
-  const rig = MODELS.character ? makeModelCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410) : makeCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410);
+  const rig = MODELS.character ? makeModelCharacter(teamCol, accent, mate ? 0x06301a : 0x3a0410) : makeCharacter(teamCol, accent);
   const g = rig.group;
   const outline = new THREE.Mesh(outlineGeo, new THREE.MeshBasicMaterial({ color: mate ? 0x7dff6b : 0xff3355, transparent: true, opacity: 0.45, depthTest: false }));
   outline.position.y = 0.95; outline.visible = false; outline.renderOrder = 10;
@@ -625,28 +625,30 @@ function updateViewModel(me) {
     game.viewModel = custom;
     return;
   }
+  // eigene Waffe mit Armen und Handschuhen in der Ich-Ansicht
   const vm = new THREE.Group();
-  const len = W.len || (w[0] === 'funke' ? 0.5 : 0.7);
-  const metal = new THREE.MeshStandardMaterial({ color: 0xd9dde6, metalness: 0.45, roughness: 0.32, emissive: 0x2a2f3a });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x3b414e, metalness: 0.3, roughness: 0.55, emissive: 0x15181f });
-  const glowM = new THREE.MeshBasicMaterial({ color: W.color, toneMapped: false });
-  const add = (geo, mat, x, y, z, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.x = rx; vm.add(m); return m; };
-  add(new THREE.BoxGeometry(0.09, 0.11, len * 0.7), metal, 0, 0, len * 0.05);                         // Gehäuse
-  add(new THREE.BoxGeometry(0.07, 0.05, len * 0.55), dark, 0, 0.075, len * 0.02);                    // Oberschiene
-  add(new THREE.CylinderGeometry(0.022, 0.026, len * 0.45, 10), metal, 0, 0.01, -len * 0.48, Math.PI / 2); // Lauf
-  add(new THREE.BoxGeometry(0.06, 0.13, 0.07), dark, 0, -0.1, len * 0.18, -0.25);                   // Griff
-  add(new THREE.BoxGeometry(0.012, 0.025, len * 0.6), glowM, 0.047, 0.015, len * 0.03);             // Leuchtstreifen rechts
-  add(new THREE.BoxGeometry(0.012, 0.025, len * 0.6), glowM, -0.047, 0.015, len * 0.03);            // Leuchtstreifen links
-  add(new THREE.BoxGeometry(0.03, 0.012, 0.03), glowM, 0, 0.105, -len * 0.25);                       // Kimme
-  if (w[0] === 'lanze') {                                                                            // Zielfernrohr + Spulen
-    add(new THREE.CylinderGeometry(0.03, 0.03, 0.26, 12), dark, 0, 0.13, -0.02, Math.PI / 2);
-    for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.035, 0.008, 6, 16), glowM, 0, 0.01, -len * 0.32 - i * 0.07);
-  }
-  if (w[0] === 'hagel') add(new THREE.BoxGeometry(0.1, 0.07, 0.16), dark, 0, -0.06, -len * 0.28);    // Pumpe
-  if (w[0] === 'funke' || w[0] === 'puls') add(new THREE.BoxGeometry(0.05, 0.16, 0.08), dark, 0, -0.12, -len * 0.05, 0.15); // Magazin
-  if (w[0] === 'moerser') add(new THREE.CylinderGeometry(0.06, 0.06, len * 0.5, 12), metal, 0, 0.0, -len * 0.3, Math.PI / 2);
-  for (let i = 1; i < w[1]; i++) add(new THREE.TorusGeometry(0.05, 0.01, 6, 16), new THREE.MeshBasicMaterial({ color: 0xffd34d }), 0, 0.01, len * 0.2 - i * 0.06);
-  vm.position.set(0.22, -0.2, -0.38 - len / 2);
+  const len = { funke: 0.5, puls: 0.7, hagel: 0.62, lanze: 0.85, dorn: 0.3, moerser: 0.55 }[w[0]] || 0.6;
+  const gun = makeWeapon(w[0], W.color);
+  vm.add(gun);
+  // Stufe als kleine helle Kerben am Gehäuse statt bunter Ringe
+  const tick = new THREE.MeshBasicMaterial({ color: 0xd8d8d2, toneMapped: false });
+  for (let i = 1; i < w[1]; i++) { const t = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.012, 0.012), tick); t.position.set(-0.038, 0.02, 0.06 - i * 0.022); vm.add(t); }
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.9 });
+  const glove = new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.7 });
+  const pad = new THREE.MeshStandardMaterial({ color: 0x3b4048, roughness: 0.5, metalness: 0.35 });
+  const limb = (from, to, r, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(r, r, from.distanceTo(to)), mat);
+    m.position.copy(from).lerp(to, 0.5); m.lookAt(to); vm.add(m); return m;
+  };
+  // rechte Hand am Griff, linke Hand am Vorderschaft
+  const gripP = new THREE.Vector3(0, -0.07, 0.08), foreP = new THREE.Vector3(0, -0.04, w[0] === 'dorn' ? 0.02 : -len * 0.38);
+  limb(new THREE.Vector3(0.12, -0.28, 0.42), gripP.clone().add(new THREE.Vector3(0.02, -0.03, 0.05)), 0.075, sleeve);
+  limb(new THREE.Vector3(0.1, -0.24, 0.3), gripP.clone().add(new THREE.Vector3(0.015, -0.01, 0.02)), 0.08, pad);
+  const rh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.08), glove); rh.position.copy(gripP); vm.add(rh);
+  limb(new THREE.Vector3(-0.32, -0.3, 0.25), foreP.clone().add(new THREE.Vector3(-0.03, -0.04, 0.06)), 0.075, sleeve);
+  const lh = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.06, 0.09), glove); lh.position.copy(foreP).add(new THREE.Vector3(-0.01, -0.02, 0)); vm.add(lh);
+  vm.scale.setScalar(0.62);
+  vm.position.set(0.19, -0.155, -0.5);
   vm.userData.z = vm.position.z;
   vm.userData.len = len;
   camera.add(vm);
@@ -721,7 +723,7 @@ function handleFx(f, s) {
         if (t[3] === 0 && to.distanceTo(camera.position) < 90) effects.smoke(to, 1, 0.6, 0xc8c4bc, 0.6); // Staub am Einschlag
       }
       if (mine) {
-        const muzzle = G.viewModel ? G.viewModel.localToWorld(new THREE.Vector3(0, 0.01, -(G.viewModel.userData.len || 0.6) * 0.75)) : from;
+        const muzzle = G.viewModel ? G.viewModel.localToWorld(new THREE.Vector3(0, 0.01, -(G.viewModel.userData.len || 0.6) * 0.72)) : from;
         effects.flash(muzzle, f.w === 'hagel' || f.w === 'lanze' ? 1.3 : 0.8, fxOn);
       } else if (from.distanceTo(camera.position) < 150) effects.flash(new THREE.Vector3(...f.from), 1, fxOn && from.distanceTo(camera.position) < 40);
       if (mine) { rumble(0.25, f.w === 'hagel' || f.w === 'lanze' || f.w === 'moerser' ? 0.6 : 0.1, 60); G.recoil = 1; pitch = Math.min(1.5, pitch + (f.w === 'lanze' ? 0.03 : f.w === 'hagel' || f.w === 'moerser' ? 0.04 : f.w === 'dorn' ? 0.015 : 0.006)); }
@@ -1082,6 +1084,7 @@ function renderEntities() {
     for (const m of v.mats) m.opacity = op;
     v.gun.visible = !ghost && !(cloak && !v.mate);
     v.outline.visible = !!(revealed && !v.mate);
+    if (v.rig.setWeapon && eb[8] !== v.rig.weaponId) v.rig.setWeapon(eb[8] || null);
     // Schritte: aus der Bewegung zwischen den Bildern abgeleitet, nur am Boden (Höhe bleibt gleich)
     if (alive && actx) {
       const pos = v.g.position;
@@ -1300,28 +1303,28 @@ function drawMinimap(s) {
   for (let i = 0; i < NS * NS; i++) {
     const sx = (i % NS) * SECTOR * S, sz = Math.floor(i / NS) * SECTOR * S;
     const st = s.sectors[i];
-    mm.fillStyle = st === '2' ? '#ff204066' : st === '1' ? (Math.sin(t * 6) > 0 ? '#ff9b2c66' : '#ff9b2c33') : '#2cf3ff10';
+    mm.fillStyle = st === '2' ? '#e5484d55' : st === '1' ? (Math.sin(t * 6) > 0 ? '#d9a44155' : '#d9a44128') : '#ffffff06';
     mm.fillRect(sx, sz, SECTOR * S, SECTOR * S);
-    mm.strokeStyle = '#2cf3ff22';
+    mm.strokeStyle = '#ffffff12';
     mm.strokeRect(sx, sz, SECTOR * S, SECTOR * S);
   }
-  mm.fillStyle = '#9fb4d055';
+  mm.fillStyle = '#c8ccd240';
   for (const b of G.world.boxes) {
     if (b.gone || b.kind !== 'building') continue;
     mm.fillRect((b.mn[0] + HALF) * S, (b.mn[2] + HALF) * S, (b.mx[0] - b.mn[0]) * S, (b.mx[2] - b.mn[2]) * S);
   }
-  if (s.me && s.me.ghost) for (const b of s.me.beacons) { mm.fillStyle = '#3dff9a'; mm.beginPath(); mm.arc((b[0] + HALF) * S, (b[1] + HALF) * S, 5, 0, 7); mm.fill(); }
-  if (s.core) { mm.fillStyle = '#ffd34d'; mm.beginPath(); mm.arc((s.core.x + HALF) * S, (s.core.z + HALF) * S, 5, 0, 7); mm.fill(); }
+  if (s.me && s.me.ghost) for (const b of s.me.beacons) { mm.fillStyle = '#46b98a'; mm.beginPath(); mm.arc((b[0] + HALF) * S, (b[1] + HALF) * S, 4, 0, 7); mm.fill(); }
+  if (s.core) { mm.fillStyle = '#d9a441'; mm.beginPath(); mm.arc((s.core.x + HALF) * S, (s.core.z + HALF) * S, 5, 0, 7); mm.fill(); }
   for (const e of s.ents) {
     if (e[0] === G.you) continue;
     const meta = G.meta.get(e[0]);
     const mate = meta.team === G.myTeam;
-    if (mate && (e[7] & 3)) { mm.fillStyle = e[7] & 1 ? '#7dff6b' : '#7dff6b66'; mm.beginPath(); mm.arc((e[1] + HALF) * S, (e[3] + HALF) * S, 3.5, 0, 7); mm.fill(); }
-    else if (!mate && (e[7] & 1) && (e[7] & 16)) { mm.fillStyle = '#ff3355'; mm.fillRect((e[1] + HALF) * S - 2, (e[3] + HALF) * S - 2, 4, 4); }
+    if (mate && (e[7] & 3)) { mm.fillStyle = e[7] & 1 ? '#46b98a' : '#46b98a66'; mm.beginPath(); mm.arc((e[1] + HALF) * S, (e[3] + HALF) * S, 3.5, 0, 7); mm.fill(); }
+    else if (!mate && (e[7] & 1) && (e[7] & 16)) { mm.fillStyle = '#e5484d'; mm.fillRect((e[1] + HALF) * S - 2, (e[3] + HALF) * S - 2, 4, 4); }
   }
   const px = (G.pred.pos.x + HALF) * S, pz = (G.pred.pos.z + HALF) * S;
   mm.save(); mm.translate(px, pz); mm.rotate(-yaw);
-  mm.fillStyle = '#ffffff';
+  mm.fillStyle = '#e7e6e1';
   mm.beginPath(); mm.moveTo(0, -6); mm.lineTo(4, 5); mm.lineTo(-4, 5); mm.closePath(); mm.fill();
   mm.restore();
 }
@@ -1572,8 +1575,8 @@ function updateCamera(dt) {
     sw.x += (clamp(dyaw * 2.5, -0.06, 0.06) - sw.x) * Math.min(1, dt * 10);
     sw.y += (clamp((pitch - sw.pitch) * 2.5, -0.05, 0.05) - sw.y) * Math.min(1, dt * 10);
     sw.yaw = yaw; sw.pitch = pitch;
-    G.viewModel.position.x = 0.22 + sw.x;
-    G.viewModel.position.y = -0.2 + bob - G.recoil * 0.04 - sw.y;
+    G.viewModel.position.x = 0.19 + sw.x;
+    G.viewModel.position.y = -0.155 + bob - G.recoil * 0.03 - sw.y;
     G.viewModel.position.z = G.viewModel.userData.z + G.recoil * 0.05;
     G.viewModel.rotation.x = me.reloading > 0 ? -0.6 : G.recoil * 0.15;
   }
