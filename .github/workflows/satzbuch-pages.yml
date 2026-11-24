@@ -1,0 +1,54 @@
+# Satzbuch: Tests ausführen und die App auf GitHub Pages veröffentlichen.
+# Einmalig nötig: Repo → Settings → Pages → Source: "GitHub Actions".
+# Danach erreichbar unter https://<user>.github.io/<repo>/satzbuch/
+name: Satzbuch
+
+on:
+  push:
+    branches: [main]
+    paths: ["satzbuch/**", ".github/workflows/satzbuch-pages.yml"]
+  pull_request:
+    paths: ["satzbuch/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: satzbuch-pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+        working-directory: satzbuch
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}satzbuch/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seite zusammenstellen
+        run: |
+          mkdir -p _site/satzbuch
+          cp -r satzbuch/index.html satzbuch/style.css satzbuch/sw.js satzbuch/manifest.webmanifest \
+                satzbuch/icon.svg satzbuch/icon-192.png satzbuch/icon-512.png satzbuch/js satzbuch/plans _site/satzbuch/
+          printf '<!doctype html><meta http-equiv="refresh" content="0; url=satzbuch/">' > _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
