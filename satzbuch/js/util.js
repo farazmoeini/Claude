@@ -19,3 +19,12 @@ export function normName(s) {
 }
 
 export const STANDARD = { saetze: 3, wdh: "10", pause: 90 };
+
+/** Kopie der Liste, in der Eintrag i um eine Position nach oben (-1) oder unten (+1) gerückt ist. */
+export function verschiebe(liste, i, richtung) {
+  const j = i + richtung;
+  if (i < 0 || i >= liste.length || j < 0 || j >= liste.length) return [...liste];
+  const neu = [...liste];
+  [neu[i], neu[j]] = [neu[j], neu[i]];
+  return neu;
+}

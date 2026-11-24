@@ -195,7 +195,7 @@ label.feldname { display: block; font-size: 0.8rem; color: var(--text-2); margin
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 40px; gap: 6px 8px;
   padding: 10px 0; border-bottom: 1px solid var(--linie);
 }
-.edit-uebung .name-feld { grid-column: 1 / 5; }
+.edit-uebung .name-feld { grid-column: 1 / 4; }
 .edit-uebung label { font-size: 0.7rem; color: var(--text-3); display: flex; flex-direction: column; gap: 2px; }
 .edit-uebung input { min-height: 40px; padding: 6px 8px; font-size: 0.95rem; width: 100%; color: var(--text); }
 .edit-uebung button { height: 44px; border: 0; background: none; color: var(--text-3); font-size: 1.1rem; }
@@ -242,3 +242,7 @@ select.text-feld { appearance: auto; }
 .block-kopf h2 { font-size: 1.2rem; }
 .chip.breit-chip { padding: 0 14px; font-weight: 600; }
 .wochen { flex-wrap: wrap; }
+
+.edit-uebung .verschieben { grid-column: 4; display: flex; gap: 4px; }
+.edit-uebung .verschieben button { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche-2); color: var(--text); font-size: 1.1rem; }
+.edit-uebung .verschieben button:disabled { opacity: 0.3; }

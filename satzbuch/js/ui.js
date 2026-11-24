@@ -2,7 +2,7 @@
 // Ereignisse per data-a="aktion" an einer zentralen Stelle.
 import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
-import { uid, parseZahl, normName } from "./util.js";
+import { uid, parseZahl, normName, verschiebe } from "./util.js";
 import * as S from "./stats.js";
 
 const store = createStore();
@@ -430,6 +430,10 @@ function editorHTML() {
       <div class="zeile"><input class="text-feld" aria-label="Name des Trainingstags" data-ed="tag" data-t="${ti}" value="${esc(t.name)}"><button class="icon-btn" data-a="ed-tag-weg" data-t="${ti}" aria-label="Tag löschen">✕</button></div>
       ${t.uebungen.map((u, ui) => `<div class="edit-uebung">
         <input class="text-feld name-feld" aria-label="Übung" placeholder="Übung" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="name" value="${esc(u.name)}" ${u.pruefen ? 'style="border-color:#fbbf24"' : ""}>
+        <span class="verschieben">
+          <button data-a="ed-u-schieben" data-t="${ti}" data-u="${ui}" data-r="-1" aria-label="${esc(u.name || "Übung")} nach oben" ${ui === 0 ? "disabled" : ""}>↑</button>
+          <button data-a="ed-u-schieben" data-t="${ti}" data-u="${ui}" data-r="1" aria-label="${esc(u.name || "Übung")} nach unten" ${ui === t.uebungen.length - 1 ? "disabled" : ""}>↓</button>
+        </span>
         <button data-a="ed-u-weg" data-t="${ti}" data-u="${ui}" aria-label="Übung löschen">✕</button>
         ${u.wochen?.length ? `<p class="klein breit">Sätze, Wdh. und kg kommen aus den Blockwochen.</p>` : `
         <label>Sätze<input class="text-feld" inputmode="numeric" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="saetze" value="${esc(u.saetze)}"></label>
@@ -681,6 +685,15 @@ const aktionen = {
   "ed-tag-plus": () => { editorLesen(); editorEntwurf.tage.push({ id: uid(), name: `Tag ${String.fromCharCode(65 + editorEntwurf.tage.length)}`, uebungen: [] }); editorNeuZeichnen(); },
   "ed-tag-weg": (d) => { editorLesen(); if (confirm("Diesen Trainingstag löschen?")) { editorEntwurf.tage.splice(+d.t, 1); editorNeuZeichnen(); } },
   "ed-u-plus": (d) => { editorLesen(); editorEntwurf.tage[+d.t].uebungen.push({ id: uid(), name: "", saetze: 3, wdh: "10", pause: store.state.einstellungen.pause }); editorNeuZeichnen(); dialog.querySelectorAll(`[data-t="${d.t}"][data-f="name"]`).forEach((el, i, all) => i === all.length - 1 && el.focus()); },
+  "ed-u-schieben": (d) => {
+    editorLesen();
+    const tag = editorEntwurf.tage[+d.t];
+    tag.uebungen = verschiebe(tag.uebungen, +d.u, +d.r);
+    editorNeuZeichnen();
+    // Fokus auf dem Pfeil der verschobenen Übung lassen, damit man mehrfach tippen kann
+    const ziel = +d.u + +d.r;
+    dialog.querySelector(`[data-a="ed-u-schieben"][data-t="${d.t}"][data-u="${ziel}"][data-r="${d.r}"]:not([disabled])`)?.focus();
+  },
   "ed-u-weg": (d) => { editorLesen(); editorEntwurf.tage[+d.t].uebungen.splice(+d.u, 1); editorNeuZeichnen(); },
   "ed-speichern": () => {
     editorLesen();
