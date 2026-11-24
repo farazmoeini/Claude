@@ -378,6 +378,14 @@
     },
     {
      "id": "di-6",
+     "name": "Crunch Maschine (leicht)",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 60,
+     "gewicht": 40
+    },
+    {
+     "id": "di-7",
      "name": "Y-Raise",
      "saetze": 2,
      "wdh": "12-15",
@@ -569,7 +577,7 @@
      "saetze": 3,
      "wdh": "8-10",
      "pause": 90,
-     "notiz": "Gewicht einpendeln · schaffst du in beiden Wochen die obere Wdh.-Zahl: nächster Hantelschritt"
+     "notiz": "Gewicht einpendeln · schaffst du die obere Wdh.-Zahl: nächster Hantelschritt"
     },
     {
      "id": "do-4",
@@ -589,19 +597,19 @@
     },
     {
      "id": "do-6",
-     "name": "Prone Leg Curl",
-     "saetze": 1,
-     "wdh": "10-12",
-     "pause": 75,
-     "gewicht": 41
-    },
-    {
-     "id": "do-7",
      "name": "Hüftabduktion",
      "saetze": 2,
      "wdh": "12-15",
      "pause": 75,
-     "notiz": "Gewicht einpendeln"
+     "notiz": "Gewicht einpendeln · in den Pausen der Face Pulls"
+    },
+    {
+     "id": "do-7",
+     "name": "Pallof Press",
+     "saetze": 2,
+     "wdh": "10-12 pro Seite",
+     "pause": 60,
+     "notiz": "leicht, Kabel"
     }
    ]
   },
@@ -676,6 +684,15 @@
     },
     {
      "id": "sa-2",
+     "name": "Romanian Deadlift",
+     "saetze": 3,
+     "wdh": "8",
+     "pause": 120,
+     "gewicht": 80,
+     "notiz": "Gewicht einpendeln, Start 80 kg · Rücken gerade, Stange nah am Bein, bis knapp unter das Knie"
+    },
+    {
+     "id": "sa-3",
      "name": "Close-Grip Bench",
      "saetze": 4,
      "wdh": "6",
@@ -756,16 +773,16 @@
      ]
     },
     {
-     "id": "sa-3",
+     "id": "sa-4",
      "name": "Pull-ups moderat",
-     "saetze": 3,
+     "saetze": 2,
      "wdh": "6-8",
      "pause": 90,
      "gewicht": 5,
-     "notiz": "Zusatzgewicht · 2 Wdh. in Reserve · bei 3 x 8 sauber: +2,5 kg"
+     "notiz": "Zusatzgewicht · 2 Wdh. in Reserve · bei 2 x 8 sauber: +2,5 kg"
     },
     {
-     "id": "sa-4",
+     "id": "sa-5",
      "name": "DB Schulterdrücken sitzend",
      "saetze": 3,
      "wdh": "8-10",
@@ -774,7 +791,7 @@
      "notiz": "18-20 kg pro Hantel · Bank 80-85°"
     },
     {
-     "id": "sa-5",
+     "id": "sa-6",
      "name": "Seitheben Kabel",
      "saetze": 2,
      "wdh": "12-15",
@@ -782,7 +799,7 @@
      "gewicht": 16
     },
     {
-     "id": "sa-6",
+     "id": "sa-7",
      "name": "Low-to-High Cable Fly",
      "saetze": 2,
      "wdh": "12-15",
@@ -790,7 +807,7 @@
      "notiz": "Gewicht einpendeln"
     },
     {
-     "id": "sa-7",
+     "id": "sa-8",
      "name": "Pushdown",
      "saetze": 2,
      "wdh": "10-12",
@@ -799,7 +816,7 @@
      "notiz": "Superset mit Biceps Curl"
     },
     {
-     "id": "sa-8",
+     "id": "sa-9",
      "name": "Biceps Curl",
      "saetze": 2,
      "wdh": "10-12",
@@ -808,33 +825,27 @@
      "notiz": "Superset mit Pushdown"
     },
     {
-     "id": "sa-9",
+     "id": "sa-10",
      "name": "Rotation (Bauch)",
      "saetze": 2,
      "wdh": "10 pro Seite",
      "pause": 15,
-     "notiz": "Superset mit Crunch Bank · Gewicht wählen"
+     "gewicht": 14,
+     "notiz": "Superset mit Crunch Bank"
     },
     {
-     "id": "sa-10",
+     "id": "sa-11",
      "name": "Crunch Bank",
      "saetze": 2,
      "wdh": "10-12",
      "pause": 60,
-     "notiz": "Superset mit Rotation · Gewicht wählen"
-    },
-    {
-     "id": "sa-11",
-     "name": "Side Plank",
-     "saetze": 2,
-     "wdh": "30-45 Sek. pro Seite",
-     "pause": 45,
-     "notiz": "Körpergewicht"
+     "gewicht": 14,
+     "notiz": "Superset mit Rotation"
     }
    ]
   }
  ],
  "wochen": 4,
- "notiz": "4-Wochen-Block. Pausen: schwer 3-4 Min., Volumen 2-3 Min., Hilfsübungen 60-90 Sek.",
- "version": 4
+ "notiz": "4-Wochen-Block. Ziele nach 16 Wochen: Bench 108-110, Kniebeuge 135-140, Deadlift 145-150 kg. Pausen: schwer 3-4 Min., Volumen 2-3 Min., Hilfsübungen 60-90 Sek.",
+ "version": 5
 }

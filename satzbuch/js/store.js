@@ -78,6 +78,20 @@ export function createStore(storage = globalThis.localStorage) {
       store.save();
       return p;
     },
+    /** Doppelten Plan entfernen und seine Trainings (Plan- und Tages-ID nach Wochentag) an den behaltenen Plan hängen. */
+    planZusammenfuehren(behaltId, entfernenId) {
+      const behalt = store.plan(behaltId), weg = store.plan(entfernenId);
+      if (!behalt || !weg || behaltId === entfernenId) return;
+      const kennung = (name) => normName(name).match(/^(mo|di|mi|do|fr|sa|so)(?![a-zäöüß])/)?.[1] ?? normName(name);
+      const tagMap = new Map(weg.tage.map((t) => [t.id, behalt.tage.find((b) => kennung(b.name) === kennung(t.name))?.id ?? t.id]));
+      for (const t of state.trainings) if (t.planId === entfernenId) { t.planId = behaltId; t.tagId = tagMap.get(t.tagId) ?? t.tagId; }
+      if (state.aktiv?.planId === entfernenId) { state.aktiv.planId = behaltId; state.aktiv.tagId = tagMap.get(state.aktiv.tagId) ?? state.aktiv.tagId; }
+      if (state.aktiverPlanId === entfernenId) state.aktiverPlanId = behaltId;
+      if (state.planWochen?.[entfernenId] && !state.planWochen[behaltId]) state.planWochen[behaltId] = state.planWochen[entfernenId];
+      if (state.planWochen) delete state.planWochen[entfernenId];
+      state.plaene = state.plaene.filter((p) => p.id !== entfernenId);
+      store.save();
+    },
     loeschePlan(id) {
       state.plaene = state.plaene.filter((p) => p.id !== id);
       if (state.aktiverPlanId === id) state.aktiverPlanId = state.plaene[0]?.id ?? null;

@@ -12,13 +12,14 @@
   {
     "datei": "kraft.json",
     "id": "kraftplan-4-tage",
-    "version": 4,
+    "version": 5,
     "name": "Kraft",
-    "beschreibung": "4 Tage (Mo, Di, Do, Sa) · 4-Wochen-Block für Bench, Kniebeuge, Deadlift · Version 4",
+    "beschreibung": "4 Tage (Mo, Di, Do, Sa) · 4-Wochen-Block für Bench, Kniebeuge, Deadlift · Version 5",
     "namen": [
       "Kraftplan 4 Tage",
       "Kraftplan"
-    ]
+    ],
+    "automatisch": true
   },
   {
     "datei": "beispiel-ppl.json",

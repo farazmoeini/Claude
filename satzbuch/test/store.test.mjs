@@ -202,3 +202,19 @@ test("ersetzePlan: neue Version übernimmt Plan- und Tages-IDs, Trainings bleibe
   assert.equal(neu.tage[1].id, "do"); // neuer Tag behält eigene ID
   assert.equal(s.state.trainings[0].planId, neu.id);
 });
+
+test("planZusammenfuehren: doppelten alten Plan löschen, seine Trainings an den neuen Plan hängen", () => {
+  const s = createStore(fakeStorage());
+  const neu = s.setPlan({ id: "kraft", name: "Kraft", tage: [{ id: "mo", name: "Mo – Schwer", uebungen: [{ name: "Kniebeuge" }] }, { id: "sa", name: "Sa – Moderat", uebungen: [{ name: "Kniebeuge moderat" }] }] });
+  const alt = s.setPlan({ name: "Kraftplan 4 Tage", tage: [{ name: "Mo: Kniebeuge schwer", uebungen: [{ name: "Kniebeuge" }] }, { name: "Sa: Kniebeuge moderat", uebungen: [{ name: "Kniebeuge moderat" }] }] });
+  s.starteTraining(alt.id, alt.tage[1].id, T0);
+  s.satzAbhaken(0, 0, T0 + 1000);
+  s.beendeTraining(T0 + 2000);
+  s.setzePlanWoche(alt.id, 1);
+  s.planZusammenfuehren(neu.id, alt.id);
+  assert.deepEqual(s.state.plaene.map((p) => p.id), [neu.id]);
+  assert.equal(s.state.trainings[0].planId, neu.id);
+  assert.equal(s.state.trainings[0].tagId, "sa");
+  assert.equal(s.state.aktiverPlanId, neu.id);
+  assert.equal(s.letzteSaetze("Kniebeuge moderat", neu.id).length, 1);
+});
