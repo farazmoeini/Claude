@@ -68,3 +68,17 @@ test("Pausenton: auch nach dem Zurückkehren in die App, nur einmal, nicht nach 
   assert.equal(sollSignal(ende, ende + 20_000, true), false); // schon gemeldet
   assert.equal(sollSignal(ende, ende + 5 * 60_000, false), false); // nach 5 Min. kein Ton mehr
 });
+
+import { naechsterSatz, pausenText } from "../js/stats.js";
+
+test("Benachrichtigung nennt den nächsten offenen Satz", () => {
+  const aktiv = { eintraege: [
+    { uebungName: "Kniebeuge", saetze: [{ erledigtUm: 1 }, { erledigtUm: 2 }] },
+    { uebungName: "Bankdrücken", saetze: [{ erledigtUm: 3 }, { erledigtUm: null, kg: 72.5, wdh: 8 }, { erledigtUm: null }] },
+  ] };
+  assert.deepEqual(naechsterSatz(aktiv), { uebung: "Bankdrücken", satz: 2, kg: 72.5, wdh: 8 });
+  assert.equal(pausenText(aktiv), "Weiter: Bankdrücken, Satz 2 – 72,5 kg × 8");
+  const fertig = { eintraege: [{ uebungName: "Dips", saetze: [{ erledigtUm: 1 }] }] };
+  assert.equal(naechsterSatz(fertig), null);
+  assert.equal(pausenText(fertig), "Alle Sätze erledigt – Training beenden?");
+});

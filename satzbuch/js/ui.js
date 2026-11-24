@@ -31,6 +31,8 @@ async function pruefePlanUpdates() {
 }
 let editorEntwurf = null;
 let timerGemeldet = false;
+let verstecktSeit = null; // seit wann die App nicht sichtbar ist (null = sichtbar)
+let gemeldeterTimer = ""; // zuletzt an den Hintergrund-Dienst gemeldeter Timer
 
 // ---------- Helfer ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -147,7 +149,13 @@ async function bildschirmAn(an) {
   } catch { /* nicht unterstützt */ }
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { if (audio) audioBereit(); bildschirmAn(!!store.aktiv); tick(); pruefePlanUpdates(); }
+  if (document.visibilityState === "visible") {
+    if (audio) audioBereit();
+    bildschirmAn(!!store.aktiv);
+    tick();
+    verstecktSeit = null;
+    pruefePlanUpdates();
+  } else verstecktSeit = Date.now();
 });
 
 function zielAbweichung(s) {
@@ -156,6 +164,38 @@ function zielAbweichung(s) {
   const wdhOk = lo == null || s.wdh == null || (s.wdh >= lo && s.wdh <= (hi ?? lo));
   const kgOk = s.ziel.kg == null || s.kg === s.ziel.kg;
   return !(wdhOk && kgOk);
+}
+
+// ---------- Benachrichtigung am Pausenende (über den Service Worker) ----------
+const kannBenachrichtigen = () => "Notification" in window && "serviceWorker" in navigator;
+const benachrichtigungAn = () => kannBenachrichtigen() && store.state.einstellungen.benachrichtigung !== false && Notification.permission === "granted";
+
+async function benachrichtigungErlauben() {
+  if (!kannBenachrichtigen() || store.state.einstellungen.benachrichtigung === false) return;
+  if (Notification.permission === "default") {
+    const r = await Notification.requestPermission().catch(() => "denied");
+    if (r !== "granted") toast("Ohne Erlaubnis kommt bei ausgeschaltetem Bildschirm kein Pausen-Alarm. Ändern: Einstellungen.", 5000);
+  }
+}
+
+/** Den laufenden Timer (oder dass keiner läuft) an den Hintergrund-Dienst melden – nur bei Änderung. */
+function timerAnDienst() {
+  if (!kannBenachrichtigen()) return;
+  const t = store.aktiv?.timer;
+  const an = t && benachrichtigungAn() && t.endetUm > Date.now();
+  const timer = an ? { endetUm: t.endetUm, text: S.pausenText(store.aktiv) } : null;
+  const schluessel = timer ? `${timer.endetUm}|${timer.text}` : "";
+  if (schluessel === gemeldeterTimer) return;
+  gemeldeterTimer = schluessel;
+  navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ typ: "timer", timer })).catch(() => {});
+}
+
+/** Hat der Dienst für dieses Pausenende schon benachrichtigt? */
+async function schonBenachrichtigt(endetUm) {
+  try {
+    const r = await (await caches.open("overload-status")).match("gemeldet");
+    return r ? Number(await r.text()) === endetUm : false;
+  } catch { return false; }
 }
 
 // ---------- Ansichten ----------
@@ -443,6 +483,7 @@ const aktionen = {
 
   start: (d) => {
     audioBereit();
+    benachrichtigungErlauben();
     store.state.aktiverPlanId = d.plan;
     store.starteTraining(d.plan, d.tag);
     timerGemeldet = false;
@@ -675,6 +716,8 @@ const aktionen = {
       <label class="feldname" for="e-pause">Standard-Pause (Sekunden)</label>
       <input id="e-pause" class="text-feld" inputmode="numeric" value="${e.pause}" data-einst="pause">
       <label class="schalter"><span>Ton am Ende der Pause</span><input type="checkbox" data-einst="ton" ${e.ton ? "checked" : ""}></label>
+      ${kannBenachrichtigen() ? `<label class="schalter"><span>Benachrichtigung, wenn die Pause bei ausgeschaltetem Bildschirm endet</span><input type="checkbox" data-einst="benachrichtigung" ${e.benachrichtigung !== false ? "checked" : ""}></label>
+      ${e.benachrichtigung !== false && Notification.permission === "denied" ? `<p class="klein pruefen">Benachrichtigungen sind für diese App blockiert. Erlauben: Chrome → ⋮ → Einstellungen → Website-Einstellungen → Benachrichtigungen.</p>` : ""}` : ""}
       <p class="klein">Zu leise? Die Lautstärke kommt von der Medienlautstärke des Handys (Lautstärketaste drücken, dann den Regler „Medien“ hochziehen).</p>
       <p class="abschnitt">Sicherung</p>
       <p class="dezent">Deine Daten liegen nur auf diesem Handy${dauerhaft ? " (vor automatischem Löschen geschützt)" : ""}. ${e.letzteSicherung ? "Letzte Sicherung: " + esc(datum(e.letzteSicherung, { day: "2-digit", month: "2-digit", year: "numeric" })) : "Noch keine Sicherung."}</p>
@@ -732,6 +775,7 @@ document.addEventListener("change", (ev) => {
   } else if (el.dataset.einst) {
     const e = store.state.einstellungen, k = el.dataset.einst;
     if (k === "ton") e.ton = el.checked;
+    else if (k === "benachrichtigung") { e.benachrichtigung = el.checked; if (el.checked) benachrichtigungErlauben(); gemeldeterTimer = "-"; }
     else if (k === "pause") { const n = parseZahl(el.value); if (n && n > 0) e.pause = Math.round(n); else el.value = e.pause; }
     else if (k === "apiKey") e.apiKey = el.value.trim();
     store.save();
@@ -752,6 +796,7 @@ document.addEventListener("keydown", (ev) => {
 
 // ---------- Timer und Uhr ----------
 function tick() {
+  timerAnDienst();
   const a = store.aktiv;
   const dauer = $("#dauer");
   if (a && dauer) dauer.textContent = S.formatDauer(Math.floor((Date.now() - a.start) / 1000));
@@ -762,8 +807,14 @@ function tick() {
   const gesamt = Math.max(1, (t.endetUm - t.start) / 1000);
   const vorbei = rest === 0;
   if (vorbei && !timerGemeldet) {
-    if (S.sollSignal(t.endetUm, Date.now(), false)) signal();
     timerGemeldet = true;
+    if (S.sollSignal(t.endetUm, Date.now(), false)) {
+      const warVersteckt = verstecktSeit !== null && verstecktSeit <= t.endetUm;
+      if (warVersteckt && benachrichtigungAn()) {
+        // Pause endete, während die App weg war: Ton nur, falls die Benachrichtigung nicht kam
+        schonBenachrichtigt(t.endetUm).then((ja) => { if (!ja) signal(); });
+      } else signal();
+    }
   }
   const ueber = Math.floor((Date.now() - t.endetUm) / 1000);
   const html = `<div class="zeit">${vorbei ? "+" + S.formatDauer(ueber) : S.formatDauer(rest)}</div>
