@@ -18,10 +18,14 @@ let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicher
 async function pruefePlanUpdates() {
   try {
     const liste = await (await fetch("plans/index.json", { cache: "no-cache" })).json();
-    planUpdates = liste.filter((e) => {
-      const p = e.id && store.plan(e.id);
-      return p && (e.version || 1) > (p.version || 1);
-    });
+    // Gespeicherten Plan über die ID finden, sonst über den Namen (z. B. per PDF oder Datei angelegt).
+    planUpdates = [];
+    for (const e of liste) {
+      if (!e.id) continue;
+      const namen = [e.name, ...(e.namen || [])].map(normName);
+      const p = store.plan(e.id) || store.state.plaene.find((x) => namen.includes(normName(x.name)));
+      if (p && (e.version || 1) > (p.version || 1)) planUpdates.push({ ...e, altId: p.id });
+    }
     if (planUpdates.length && !store.aktiv && tab === "heute") render();
   } catch { /* offline: später erneut */ }
 }
@@ -135,7 +139,7 @@ async function bildschirmAn(an) {
   } catch { /* nicht unterstützt */ }
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { bildschirmAn(!!store.aktiv); tick(); }
+  if (document.visibilityState === "visible") { bildschirmAn(!!store.aktiv); tick(); pruefePlanUpdates(); }
 });
 
 function zielAbweichung(s) {
@@ -207,7 +211,7 @@ function viewHeute() {
       <div class="kachel"><div class="wert">${letztes ? esc(tageHer(letztes.start)) : "–"}</div><div class="bez">Letztes Training</div></div>
     </div>
     ${sicherungsHinweis()}
-    ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.id)?.name || e.name)}“</strong>
+    ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.altId)?.name || e.name)}“</strong>
       <div class="dezent">Deine Trainings und dein Fortschritt bleiben erhalten.</div>
       <div class="btn-reihe"><button class="btn primaer" data-a="plan-update" data-datei="${esc(e.datei)}">Übernehmen</button></div></div>`).join("")}
     ${plaene.map((p) => blockHTML(p, tr)).join("")}`;
@@ -523,8 +527,8 @@ const aktionen = {
 
   "plan-update": async (d) => {
     try {
-      const plan = validierePlan(await (await fetch("plans/" + d.datei, { cache: "no-cache" })).json());
-      store.setPlan(plan, { aktivSetzen: false });
+      const eintrag = planUpdates.find((e) => e.datei === d.datei);
+      const plan = store.ersetzePlan(eintrag?.altId, await (await fetch("plans/" + d.datei, { cache: "no-cache" })).json());
       planUpdates = planUpdates.filter((e) => e.datei !== d.datei);
       render();
       toast(`„${plan.name}“ ist jetzt auf Version ${plan.version || 1}.`);

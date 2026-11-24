@@ -61,6 +61,23 @@ export function createStore(storage = globalThis.localStorage) {
       store.save();
       return p;
     },
+    /** Plan durch neue Version ersetzen: behält Plan-ID und die IDs gleicher Wochentage, damit Trainings zugeordnet bleiben. */
+    ersetzePlan(altId, neuPlan) {
+      const alt = store.plan(altId);
+      if (!alt) return store.setPlan(neuPlan, { aktivSetzen: false });
+      const p = validierePlan(neuPlan);
+      const kennung = (name) => normName(name).match(/^(mo|di|mi|do|fr|sa|so)(?![a-zäöüß])/)?.[1] ?? normName(name);
+      const vergeben = new Set();
+      for (const t of p.tage) {
+        const gleich = alt.tage.find((a) => !vergeben.has(a.id) && (a.id === t.id || kennung(a.name) === kennung(t.name)));
+        if (gleich) { t.id = gleich.id; vergeben.add(gleich.id); }
+      }
+      p.id = alt.id;
+      const i = state.plaene.findIndex((x) => x.id === alt.id);
+      state.plaene[i] = p;
+      store.save();
+      return p;
+    },
     loeschePlan(id) {
       state.plaene = state.plaene.filter((p) => p.id !== id);
       if (state.aktiverPlanId === id) state.aktiverPlanId = state.plaene[0]?.id ?? null;
