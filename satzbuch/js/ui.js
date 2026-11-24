@@ -86,7 +86,7 @@ function signal() {
   begrenzer.threshold.value = -6;
   begrenzer.ratio.value = 12;
   const gesamt = audio.createGain();
-  gesamt.gain.value = 0.85; // 15 % leiser als volle Lautstärke
+  gesamt.gain.value = 0.65; // 65 % der vollen Lautstärke
   begrenzer.connect(gesamt).connect(audio.destination);
   const toene = [
     { ab: 0.0, dauer: 0.28, hz: 880 },
