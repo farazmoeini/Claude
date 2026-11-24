@@ -85,9 +85,11 @@ export function createStore(storage = globalThis.localStorage) {
     },
 
     /** Letzte erledigte Sätze einer Übung aus abgeschlossenen Trainings. */
-    letzteSaetze(name) {
+    /** Letzte erledigte Sätze einer Übung; mit planId nur aus Trainings dieses Plans (Blocks). */
+    letzteSaetze(name, planId = null) {
       const key = normName(name);
       for (let i = state.trainings.length - 1; i >= 0; i--) {
+        if (planId && state.trainings[i].planId !== planId) continue;
         const e = state.trainings[i].eintraege.find((x) => normName(x.uebungName) === key);
         if (e && e.saetze.length) return e.saetze;
       }
@@ -109,16 +111,18 @@ export function createStore(storage = globalThis.localStorage) {
         ende: null,
         timer: null,
         woche: w,
-        eintraege: tag.uebungen.map((u) => store._neuerEintrag(u, w || 1)),
+        eintraege: tag.uebungen.map((u) => store._neuerEintrag(u, w || 1, planId)),
       };
       store.save();
       return state.aktiv;
     },
-    _neuerEintrag(u, woche = 1) {
+    _neuerEintrag(u, woche = 1, planId = null) {
       const block = Array.isArray(u.wochen) && u.wochen.length > 0;
       const ziele = (block ? u.wochen[Math.min(woche, u.wochen.length) - 1] : null) ?? u.ziele ?? null;
       const anzahl = ziele?.length || u.saetze || 3;
-      const letzte = store.letzteSaetze(u.name);
+      // Getrennte Blöcke: zuerst nur dieser Plan. Gibt der Plan selbst keine Werte vor, dann irgendein Plan.
+      const planHatWerte = u.gewicht != null || !!ziele?.some((z) => z.kg != null);
+      const letzte = store.letzteSaetze(u.name, planId) ?? (planHatWerte ? null : store.letzteSaetze(u.name));
       const saetze = [];
       for (let i = 0; i < anzahl; i++) {
         const z = ziele?.[i] ?? null;
@@ -137,7 +141,7 @@ export function createStore(storage = globalThis.localStorage) {
     },
     uebungHinzufuegen(name) {
       if (!state.aktiv) return;
-      state.aktiv.eintraege.push(store._neuerEintrag({ name, saetze: 3, wdh: "10" }));
+      state.aktiv.eintraege.push(store._neuerEintrag({ name, saetze: 3, wdh: "10" }, 1, state.aktiv.planId));
       store.save();
     },
     uebungEntfernen(eIdx) {

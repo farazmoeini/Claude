@@ -12,6 +12,7 @@ const dialog = $("#dialog");
 const timerEl = $("#timer");
 let tab = "heute";
 let fortschrittUebung = null;
+let fortschrittBlock = "alle";
 let editorEntwurf = null;
 let timerGemeldet = false;
 
@@ -138,36 +139,44 @@ function sicherungsHinweis() {
     <div class="btn-reihe"><button class="btn" data-a="export">Jetzt sichern</button></div></div>`;
 }
 
-function viewHeute() {
-  const plan = store.aktiverPlan();
-  const tr = store.state.trainings;
-  if (!plan) {
-    return `<div class="karte akzent"><h2>Willkommen!</h2><p class="dezent">Leg zuerst deinen Trainingsplan an. Am schnellsten geht es mit deinem PDF.</p>
-      <div class="btn-reihe"><button class="btn primaer voll" data-a="import-pdf">Plan aus PDF</button></div>
-      <div class="btn-reihe"><button class="btn" data-a="mitgeliefert">Beispielplan</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div></div>`;
-  }
-  const letztes = tr[tr.length - 1];
-  const letzterJeTag = (tagId) => [...tr].reverse().find((t) => t.planId === plan.id && t.tagId === tagId);
+function blockHTML(plan, tr) {
+  const eigene = tr.filter((t) => t.planId === plan.id);
+  const letztes = eigene[eigene.length - 1];
+  const letzterJeTag = (tagId) => [...eigene].reverse().find((t) => t.tagId === tagId);
   const naechster = (() => {
-    if (!letztes || letztes.planId !== plan.id) return plan.tage[0]?.id;
+    if (!letztes) return plan.tage[0]?.id;
     const i = plan.tage.findIndex((t) => t.id === letztes.tagId);
     return plan.tage[(i + 1) % plan.tage.length]?.id;
   })();
+  return `<section class="block" aria-label="${esc(plan.name)}">
+    <div class="zeile zwischen block-kopf"><h2>${esc(plan.name)}</h2><span class="klein">${letztes ? "zuletzt " + esc(tageHer(letztes.start)) : `${plan.tage.length} Einheiten`}</span></div>
+    ${plan.wochen > 1 ? `<div class="wochen" role="group" aria-label="Blockwoche ${esc(plan.name)}"><span class="dezent">Woche</span>${Array.from({ length: plan.wochen }, (_, i) => `<button class="chip" data-a="woche" data-plan="${plan.id}" data-w="${i + 1}" aria-pressed="${store.planWoche(plan.id) === i + 1}">${i + 1}</button>`).join("")}</div>` : ""}
+    ${plan.tage.map((t) => {
+      const l = letzterJeTag(t.id);
+      return `<button class="tag-knopf" data-a="start" data-plan="${plan.id}" data-tag="${t.id}">
+        <div><strong>${esc(t.name)}</strong> ${t.id === naechster ? '<span class="badge">als Nächstes</span>' : ""}
+        <div class="dezent">${t.uebungen.length} Übungen${l ? " · zuletzt " + esc(tageHer(l.start)) : ""}</div></div>
+        <span class="los" aria-hidden="true">▶</span></button>`;
+    }).join("")}
+  </section>`;
+}
+
+function viewHeute() {
+  const tr = store.state.trainings;
+  const plaene = [...store.state.plaene].sort((a, b) => (b.id === store.state.aktiverPlanId) - (a.id === store.state.aktiverPlanId));
+  if (!plaene.length) {
+    return `<div class="karte akzent"><h2>Willkommen!</h2><p class="dezent">Übernimm deine Pläne „Kompakt“ und „Kraft“ mit einem Tipp, oder leg einen eigenen Plan an.</p>
+      <div class="btn-reihe"><button class="btn primaer voll" data-a="eigene-plaene">Kompakt + Kraft übernehmen</button></div>
+      <div class="btn-reihe"><button class="btn" data-a="import-pdf">Plan aus PDF</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div></div>`;
+  }
+  const letztes = tr[tr.length - 1];
   return `
     <div class="kacheln">
       <div class="kachel"><div class="wert">${S.trainingsDieseWoche(tr)}</div><div class="bez">Trainings diese Woche</div></div>
       <div class="kachel"><div class="wert">${letztes ? esc(tageHer(letztes.start)) : "–"}</div><div class="bez">Letztes Training</div></div>
     </div>
     ${sicherungsHinweis()}
-    <div class="zeile zwischen"><p class="abschnitt">${esc(plan.name)}</p><button class="btn klein-btn" data-a="tab" data-tab="plaene">Plan wechseln</button></div>
-    ${plan.wochen > 1 ? `<div class="wochen" role="group" aria-label="Blockwoche"><span class="dezent">Woche</span>${Array.from({ length: plan.wochen }, (_, i) => `<button class="chip" data-a="woche" data-w="${i + 1}" aria-pressed="${store.planWoche(plan.id) === i + 1}">${i + 1}</button>`).join("")}</div>` : ""}
-    ${plan.tage.map((t) => {
-      const l = letzterJeTag(t.id);
-      return `<button class="tag-knopf" data-a="start" data-tag="${t.id}">
-        <div><strong>${esc(t.name)}</strong> ${t.id === naechster ? '<span class="badge">als Nächstes</span>' : ""}
-        <div class="dezent">${t.uebungen.length} Übungen${l ? " · zuletzt " + esc(tageHer(l.start)) : ""}</div></div>
-        <span class="los" aria-hidden="true">▶</span></button>`;
-    }).join("")}`;
+    ${plaene.map((p) => blockHTML(p, tr)).join("")}`;
 }
 
 function viewTraining() {
@@ -176,10 +185,11 @@ function viewTraining() {
     <div class="tr-kopf"><div class="dezent">${a.woche ? `Woche ${a.woche} · ` : ""}Seit <span id="dauer">0:00</span> · ${a.eintraege.reduce((n, e) => n + e.saetze.filter((s) => s.erledigtUm).length, 0)} Sätze</div>
       <div class="zeile"><button class="btn klein-btn" data-a="abbrechen">Verwerfen</button><button class="btn primaer klein-btn" data-a="beenden">Beenden</button></div></div>
     ${a.eintraege.map((e, ei) => {
-      const letzte = store.letzteSaetze(e.uebungName);
+      const letzteBlock = store.letzteSaetze(e.uebungName, a.planId);
+      const letzte = letzteBlock ?? store.letzteSaetze(e.uebungName);
       return `<section class="karte uebung">
         <div class="zeile zwischen"><h3>${esc(e.uebungName)}</h3><span class="klein">${e.zielWdh ? esc(e.saetze.length + "×" + e.zielWdh) + " · " : ""}Pause ${S.formatDauer(e.pause)}</span></div>
-        ${letzte ? `<div class="klein">Letztes Mal: ${letzte.map((s) => kgText(s.kg) + "×" + (s.wdh ?? "–")).join(", ")}</div>` : ""}
+        ${letzte ? `<div class="klein">Letztes Mal${letzteBlock ? "" : " (anderer Block)"}: ${letzte.map((s) => kgText(s.kg) + "×" + (s.wdh ?? "–")).join(", ")}</div>` : ""}
         ${e.notiz ? `<div class="klein">${esc(e.notiz)}</div>` : ""}
         <table class="saetze"><thead><tr><th>#</th><th>kg</th><th>Wdh.</th><th></th></tr></thead><tbody>
         ${e.saetze.map((s, si) => `<tr class="${s.erledigtUm ? "erledigt" : ""}">
@@ -201,20 +211,26 @@ function viewVerlauf() {
     const z = S.zusammenfassung(t);
     return `<button class="liste-eintrag" data-a="training-zeigen" data-id="${t.id}">
       <div class="zeile zwischen"><strong>${esc(t.tagName || "Training")}</strong><span class="klein">${esc(datum(t.start))}</span></div>
+      <div class="klein">${esc(store.plan(t.planId)?.name || "")}${t.woche ? ` · Woche ${t.woche}` : ""}</div>
       <div class="dezent">${z.dauerMin} min · ${z.saetze} Sätze · ${zahl(z.volumen)} kg bewegt${z.oPause != null ? " · Ø Pause " + S.formatDauer(z.oPause) : ""}</div></button>`;
   }).join("");
 }
 
 function viewFortschritt() {
-  const namen = S.alleUebungen(store.state.trainings);
+  const bloecke = store.state.plaene.filter((p) => store.state.trainings.some((t) => t.planId === p.id));
+  if (fortschrittBlock !== "alle" && !bloecke.some((p) => p.id === fortschrittBlock)) fortschrittBlock = "alle";
+  const tr = fortschrittBlock === "alle" ? store.state.trainings : store.state.trainings.filter((t) => t.planId === fortschrittBlock);
+  const namen = S.alleUebungen(tr);
   if (!namen.length) return `<div class="leer">Hier siehst du deinen Fortschritt, sobald du ein Training abgeschlossen hast.</div>`;
+  const blockWahl = bloecke.length > 1 ? `<div class="wochen" role="group" aria-label="Block"><span class="dezent">Block</span>${[{ id: "alle", name: "Alle" }, ...bloecke].map((p) => `<button class="chip breit-chip" data-a="fortschritt-block" data-plan="${p.id}" aria-pressed="${fortschrittBlock === p.id}">${esc(p.name)}</button>`).join("")}</div>` : "";
   if (!fortschrittUebung || !namen.some((n) => normName(n) === normName(fortschrittUebung))) fortschrittUebung = namen[0];
-  const v = S.verlauf(store.state.trainings, fortschrittUebung);
-  const b = S.bestleistungen(store.state.trainings, fortschrittUebung);
-  const pause = S.oPauseUebung(store.state.trainings, fortschrittUebung);
+  const v = S.verlauf(tr, fortschrittUebung);
+  const b = S.bestleistungen(tr, fortschrittUebung);
+  const pause = S.oPauseUebung(tr, fortschrittUebung);
   const ersterE1rm = v[0]?.e1rm || 0, letzterE1rm = v[v.length - 1]?.e1rm || 0;
   const delta = ersterE1rm ? Math.round(((letzterE1rm - ersterE1rm) / ersterE1rm) * 100) : 0;
   return `
+    ${blockWahl}
     <label class="feldname" for="uebung-wahl">Übung</label>
     <select id="uebung-wahl" class="text-feld" data-a-change="fortschritt-wahl">${namen.map((n) => `<option ${normName(n) === normName(fortschrittUebung) ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
     <div class="kacheln">
@@ -380,9 +396,9 @@ const aktionen = {
   "dialog-zu": () => schliesseDialog(),
 
   start: (d) => {
-    const plan = store.aktiverPlan();
     audioBereit();
-    store.starteTraining(plan.id, d.tag);
+    store.state.aktiverPlanId = d.plan;
+    store.starteTraining(d.plan, d.tag);
     timerGemeldet = false;
     render();
     window.scrollTo(0, 0);
@@ -471,7 +487,20 @@ const aktionen = {
     render();
   },
 
-  woche: (d) => { store.setzePlanWoche(store.state.aktiverPlanId, +d.w); render(); },
+  "fortschritt-block": (d) => { fortschrittBlock = d.plan; render(); },
+  woche: (d) => { store.setzePlanWoche(d.plan, +d.w); render(); },
+  "eigene-plaene": async () => {
+    try {
+      for (const datei of ["kompakt.json", "kraft.json"]) {
+        const plan = validierePlan(await (await fetch("plans/" + datei, { cache: "no-cache" })).json());
+        store.setPlan(plan, { aktivSetzen: false });
+      }
+      render();
+      toast("„Kompakt“ und „Kraft“ übernommen.");
+    } catch (err) {
+      toast("Pläne konnten nicht geladen werden: " + err.message);
+    }
+  },
   "plan-aktiv": (d) => { store.state.aktiverPlanId = d.id; store.save(); render(); toast("Plan ist jetzt aktiv."); },
   "plan-bearbeiten": (d) => oeffneEditor(store.plan(d.id)),
   "plan-loeschen": (d) => {

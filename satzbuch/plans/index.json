@@ -1,3 +1,5 @@
 [
+  { "datei": "kompakt.json", "name": "Kompakt", "beschreibung": "Mo Push · Di Pull · Do Legs · Fr Hypertrophie · Sa Power + Stabilisatoren" },
+  { "datei": "kraft.json", "name": "Kraft", "beschreibung": "4 Tage (Mo, Di, Do, Sa) · 4-Wochen-Block für Bench, Kniebeuge, Deadlift" },
   { "datei": "beispiel-ppl.json", "name": "Beispiel: Push / Pull / Beine", "beschreibung": "3 Tage, klassische Aufteilung. Zum Ausprobieren oder als Vorlage." }
 ]

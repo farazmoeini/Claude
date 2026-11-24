@@ -161,3 +161,19 @@ test("Satz-Ziele: erstes Mal aus dem Plan, danach Werte vom letzten Mal je Satz"
   const t2 = s.starteTraining(p.id, "mo", T0 + 864e5);
   assert.deepEqual(t2.eintraege[1].saetze.map((x) => [x.kg, x.wdh]), [[36, 5], [28, 8], [28, 8]]);
 });
+
+test("Blöcke getrennt: Vorschläge kommen aus demselben Plan, sonst aus dem Plan selbst", () => {
+  const s = createStore(fakeStorage());
+  const kraft = s.setPlan({ name: "Kraft", tage: [{ id: "k", name: "Mo", uebungen: [{ name: "Kniebeuge", saetze: 2, wdh: "3", gewicht: 120 }, { name: "Seitheben", saetze: 1, wdh: "15" }] }] });
+  const kompakt = s.setPlan({ name: "Kompakt", tage: [{ id: "p", name: "Legs", uebungen: [{ name: "Kniebeuge", saetze: 2, wdh: "6", gewicht: 100 }, { name: "Seitheben", saetze: 1, wdh: "15" }] }] });
+  s.starteTraining(kraft.id, "k", T0);
+  s.aktualisiereSatz(1, 0, { kg: 16, wdh: 15 });
+  s.satzAbhaken(0, 0, T0 + 1000);
+  s.satzAbhaken(1, 0, T0 + 2000);
+  s.beendeTraining(T0 + 3000);
+  const t = s.starteTraining(kompakt.id, "p", T0 + 864e5);
+  assert.deepEqual(t.eintraege[0].saetze.map((x) => x.kg), [100, 100]); // nicht 120 aus „Kraft“
+  assert.equal(t.eintraege[1].saetze[0].kg, 16); // Plan ohne Gewicht: letzter Wert aus anderem Block
+  assert.equal(s.letzteSaetze("Kniebeuge", kompakt.id), null);
+  assert.equal(s.letzteSaetze("Kniebeuge", kraft.id)[0].kg, 120);
+});

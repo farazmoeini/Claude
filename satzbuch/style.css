@@ -236,3 +236,9 @@ select.text-feld { appearance: auto; }
 .wochen { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
 .chip { min-width: 44px; min-height: 40px; border-radius: 999px; border: 1px solid var(--linie); background: var(--flaeche); font-weight: 700; }
 .chip[aria-pressed="true"] { background: var(--akzent); color: var(--akzent-text); border-color: transparent; }
+
+.block { margin: 18px 0 8px; }
+.block-kopf { margin-bottom: 4px; }
+.block-kopf h2 { font-size: 1.2rem; }
+.chip.breit-chip { padding: 0 14px; font-weight: 600; }
+.wochen { flex-wrap: wrap; }
