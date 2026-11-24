@@ -9,7 +9,7 @@ Wettbewerbs-Analyse in [ANALYSE.md](ANALYSE.md).
 | [**PrüfFit**](lernapp/) | Lern-App für Prüfungen: Wiederholung im wachsenden Abstand, Prüfungssimulation, Prüfungsreife in %. Fragenkataloge per KI erzeugen | Statische PWA, läuft offline | `python3 -m http.server 8101` |
 | [**AngebotsBlitz**](angebotsblitz/) | Handwerker diktiert den Auftrag, daraus werden Angebot und Rechnung als PDF mit eigener Preisliste | Python, FastAPI, SQLite, fpdf2 | `uvicorn app:app --port 8200` |
 | [**Tellerblick**](tellerblick/) | Kalorien und Eiweiß per Foto, Tagesziel, Gewichtstrend | Python, FastAPI, SQLite, Claude Vision | `uvicorn app:app --port 8300` |
-| [**Satzbuch**](satzbuch/) | Trainingstagebuch fürs Handy: Übungen, Fortschritt, Pausentimer. Plan aus PDF importieren | Statische PWA, läuft offline | `python3 -m http.server 8411` |
+| [**Overload**](satzbuch/) | Trainingstagebuch fürs Handy: Übungen, Fortschritt, Pausentimer. Plan aus PDF importieren | Statische PWA, läuft offline | `python3 -m http.server 8411` |
 
 Jede App hat ein eigenes README mit Funktionen, Start-Anleitung und dem Weg zum
 verkaufbaren Produkt.

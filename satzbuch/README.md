@@ -1,4 +1,4 @@
-# Satzbuch: Trainingstagebuch fürs Handy
+# Overload (früher Satzbuch): Trainingstagebuch fürs Handy
 
 Übungen, Fortschritt und Pausen im Gym tracken. Läuft als installierbare Web-App (PWA)
 auf Android und iPhone, **offline**, ohne Konto. Alle Daten bleiben auf dem Handy.

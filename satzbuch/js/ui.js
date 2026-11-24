@@ -1,4 +1,4 @@
-// Oberfläche von Satzbuch. Ein Zustand (store), Ansichten als HTML-Strings,
+// Oberfläche von Overload (früher Satzbuch). Ein Zustand (store), Ansichten als HTML-Strings,
 // Ereignisse per data-a="aktion" an einer zentralen Stelle.
 import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
@@ -154,7 +154,7 @@ function zielAbweichung(s) {
 function render() {
   const imTraining = !!store.aktiv;
   document.body.classList.toggle("im-training", imTraining);
-  $("#titel").textContent = imTraining ? store.aktiv.tagName : { heute: "Satzbuch", verlauf: "Verlauf", fortschritt: "Fortschritt", plaene: "Pläne" }[tab];
+  $("#titel").textContent = imTraining ? store.aktiv.tagName : { heute: "Overload", verlauf: "Verlauf", fortschritt: "Fortschritt", plaene: "Pläne" }[tab];
   for (const b of document.querySelectorAll(".leiste button")) {
     if (b.dataset.tab === tab) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
@@ -683,10 +683,10 @@ const aktionen = {
       <p class="klein">Bleibt nur auf diesem Handy und wird nur an api.anthropic.com geschickt. Nicht Teil der Sicherung.</p>
       <p class="abschnitt">Daten</p>
       <button class="btn gefahr voll" data-a="alles-loeschen">Alle Daten löschen</button>
-      <p class="klein" style="margin-top:16px">Satzbuch · Version 1</p>`);
+      <p class="klein" style="margin-top:16px">Overload · Version 1</p>`);
   },
   export: () => {
-    const name = `satzbuch-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+    const name = `overload-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
     herunterladen(name, store.exportJSON());
     toast("Sicherung gespeichert (Downloads).");
     if (!store.aktiv && !dialog.open) render();
