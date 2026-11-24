@@ -1,6 +1,6 @@
 // Offline-Cache. App-Dateien und Pläne: Netz zuerst (immer neueste Version), ohne Netz aus dem Cache.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache.
-const VERSION = "satzbuch-v11";
+const VERSION = "satzbuch-v12";
 const STATUS = "overload-status"; // merkt sich, für welches Pausenende schon benachrichtigt wurde
 const APP = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",

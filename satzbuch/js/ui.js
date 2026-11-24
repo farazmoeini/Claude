@@ -15,19 +15,38 @@ let fortschrittUebung = null;
 let fortschrittBlock = "alle";
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
+let updatePruefungLaeuft = false;
 async function pruefePlanUpdates() {
+  if (updatePruefungLaeuft) return;
+  updatePruefungLaeuft = true;
   try {
     const liste = await (await fetch("plans/index.json", { cache: "no-cache" })).json();
-    // Gespeicherten Plan über die ID finden, sonst über den Namen (z. B. per PDF oder Datei angelegt).
     planUpdates = [];
+    const automatisch = [];
     for (const e of liste) {
       if (!e.id) continue;
+      // Gespeicherten Plan über die ID finden, sonst über den Namen (z. B. per PDF oder Datei angelegt).
       const namen = [e.name, ...(e.namen || [])].map(normName);
-      const p = store.plan(e.id) || store.state.plaene.find((x) => namen.includes(normName(x.name)));
-      if (p && (e.version || 1) > (p.version || 1)) planUpdates.push({ ...e, altId: p.id });
+      const treffer = store.state.plaene.filter((x) => x.id === e.id || namen.includes(normName(x.name)));
+      const haupt = treffer.find((x) => x.id === e.id) || treffer[0];
+      const neuer = !haupt || (e.version || 1) > (haupt.version || 1);
+      if (e.automatisch) {
+        // Vom Besitzer gewünschter Austausch: einmal pro Version automatisch, alte/doppelte Pläne zusammenführen
+        const schon = store.state.planImporte?.[e.id] >= (e.version || 1);
+        if (schon || !store.state.plaene.length || (!neuer && treffer.length < 2)) continue;
+        const plan = await (await fetch("plans/" + e.datei, { cache: "no-cache" })).json();
+        const neu = haupt && neuer ? store.ersetzePlan(haupt.id, plan) : haupt || store.setPlan(plan, { aktivSetzen: false });
+        for (const d of treffer) if (d.id !== neu.id) store.planZusammenfuehren(neu.id, d.id);
+        store.state.planImporte = { ...store.state.planImporte, [e.id]: e.version || 1 };
+        store.save();
+        automatisch.push(`„${neu.name}“ ist jetzt auf Version ${e.version || 1}`);
+      } else if (haupt && neuer) planUpdates.push({ ...e, altId: haupt.id });
     }
-    if (planUpdates.length && !store.aktiv && tab === "heute") render();
-  } catch { /* offline: später erneut */ }
+    if (automatisch.length) {
+      if (!store.aktiv) render();
+      toast(automatisch.join(" · ") + ".", 5000);
+    } else if (planUpdates.length && !store.aktiv && tab === "heute") render();
+  } catch { /* offline: später erneut */ } finally { updatePruefungLaeuft = false; }
 }
 let editorEntwurf = null;
 let timerGemeldet = false;
