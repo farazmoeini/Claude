@@ -143,8 +143,11 @@ Zusätzlich: Plan als JSON-Datei importieren/exportieren.
 Exakte Farben und Abstände, Icon, Texte der Oberfläche, Aufteilung der JS-Module, Details des
 Parsers, solange die genannten Formate erkannt werden.
 
+## Geklärt
+
+- Gerät: **Android**. Installation über Chrome („App installieren“), Vibration am Timer-Ende wird genutzt.
+
 ## Offen beim Nutzer
 
-- iPhone oder Android? Ändert nur Hinweise zur Installation und ob Vibration geht.
 - Das echte Plan-PDF. Wenn es vor dem Bau kommt, wird der Parser darauf getestet und der Plan
   gleich mitgeliefert.
