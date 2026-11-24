@@ -116,3 +116,8 @@ test("validierePlan übernimmt Satz-Ziele und Blockwochen", () => {
   assert.equal(db.wdh, "4-5");
   assert.throws(() => validierePlan({ name: "x", tage: [{ name: "a", uebungen: [{ name: "b", ziele: "kaputt" }] }] }));
 });
+
+test("validierePlan behält die Versionsnummer mitgelieferter Pläne", () => {
+  assert.equal(validierePlan({ name: "K", version: 3, tage: [] }).version, 3);
+  assert.equal(validierePlan({ name: "K", tage: [] }).version, undefined);
+});
