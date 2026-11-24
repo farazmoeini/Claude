@@ -1,6 +1,6 @@
 {
-  "name": "Satzbuch – Trainingstagebuch",
-  "short_name": "Satzbuch",
+  "name": "Overload – Trainingstagebuch",
+  "short_name": "Overload",
   "description": "Übungen, Fortschritt und Pausen im Gym tracken. Läuft offline.",
   "start_url": "./",
   "scope": "./",

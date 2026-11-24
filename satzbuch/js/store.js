@@ -263,7 +263,7 @@ export function createStore(storage = globalThis.localStorage) {
     },
     importJSON(text) {
       const daten = JSON.parse(text); // wirft bei kaputtem JSON
-      if (!istZustand(daten)) throw new Error("Das ist keine Satzbuch-Sicherung");
+      if (!istZustand(daten)) throw new Error("Das ist keine Overload-Sicherung");
       daten.plaene.forEach(validierePlan);
       const apiKey = state.einstellungen.apiKey;
       const { exportiertAm, ...rest } = daten;
