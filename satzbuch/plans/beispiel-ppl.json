@@ -1,0 +1,27 @@
+{
+  "id": "beispiel-ppl",
+  "name": "Push / Pull / Beine",
+  "quelle": "manuell",
+  "tage": [
+    { "id": "push", "name": "Tag A – Push", "uebungen": [
+      { "id": "p1", "name": "Bankdrücken", "saetze": 4, "wdh": "6-8", "pause": 150 },
+      { "id": "p2", "name": "Schrägbankdrücken Kurzhantel", "saetze": 3, "wdh": "8-10", "pause": 120 },
+      { "id": "p3", "name": "Schulterdrücken Maschine", "saetze": 3, "wdh": "8-12", "pause": 90 },
+      { "id": "p4", "name": "Seitheben", "saetze": 3, "wdh": "12-15", "pause": 60 },
+      { "id": "p5", "name": "Trizepsdrücken am Kabel", "saetze": 3, "wdh": "10-12", "pause": 60 }
+    ]},
+    { "id": "pull", "name": "Tag B – Pull", "uebungen": [
+      { "id": "z1", "name": "Latzug", "saetze": 4, "wdh": "8-10", "pause": 120 },
+      { "id": "z2", "name": "Rudern am Kabel", "saetze": 3, "wdh": "8-12", "pause": 90 },
+      { "id": "z3", "name": "Face Pulls", "saetze": 3, "wdh": "15", "pause": 60 },
+      { "id": "z4", "name": "Bizepscurls Kurzhantel", "saetze": 3, "wdh": "10-12", "pause": 60 }
+    ]},
+    { "id": "beine", "name": "Tag C – Beine", "uebungen": [
+      { "id": "b1", "name": "Kniebeuge", "saetze": 4, "wdh": "6-8", "pause": 180 },
+      { "id": "b2", "name": "Rumänisches Kreuzheben", "saetze": 3, "wdh": "8-10", "pause": 120 },
+      { "id": "b3", "name": "Beinpresse", "saetze": 3, "wdh": "10-12", "pause": 120 },
+      { "id": "b4", "name": "Beinbeuger liegend", "saetze": 3, "wdh": "12", "pause": 60 },
+      { "id": "b5", "name": "Wadenheben", "saetze": 4, "wdh": "12-15", "pause": 60 }
+    ]}
+  ]
+}

@@ -68,6 +68,18 @@ function leseUebungszeile(zeile) {
       pause: pauseAus(rest.replace(RE_KG, "")),
     });
   }
+  // Tabelle, deren Spalten nur durch Leerzeichen getrennt sind: "Brustpresse 3 10 45 kg"
+  const sp = zeile.match(/^(\D*?[a-zäöüß][^\d]*?)\s+(\d{1,2})\s+(\d+(?:\s*[-–]\s*\d+)?)(?:\s+(.*))?$/i);
+  if (sp && Number(sp[2]) <= 10 && !RE_SXW.test(zeile) && !RE_SAETZE.test(zeile)) {
+    const rest = sp[4] ?? "";
+    const kg = rest.match(RE_KG) ?? rest.match(/^(\d+(?:[.,]\d+)?)$/);
+    return uebung(nameAus(sp[1]) || sp[1].trim(), {
+      saetze: Number(sp[2]),
+      wdh: wdhText(sp[3]),
+      gewicht: kg ? parseZahl(kg[1]) : undefined,
+      pause: pauseAus(rest.replace(RE_KG, "")),
+    });
+  }
   const m = zeile.match(RE_SXW) ?? zeile.match(RE_SAETZE);
   if (!m) return null;
   const name = nameAus(zeile.slice(0, m.index) || zeile);
@@ -85,6 +97,7 @@ function leseUebungszeile(zeile) {
 export function parsePlanText(text, name = "Importierter Plan") {
   const tage = [];
   let tag = null;
+  let titel = null;
   const neuerTag = (n) => {
     tag = { id: uid(), name: n, uebungen: [] };
     tage.push(tag);
@@ -92,7 +105,11 @@ export function parsePlanText(text, name = "Importierter Plan") {
 
   for (const roh of String(text ?? "").split(/\r?\n/)) {
     const zeile = roh.replace(/\s+/g, " ").trim();
-    if (!zeile || RE_IGNORIEREN.test(zeile)) continue;
+    if (!zeile) continue;
+    if (RE_IGNORIEREN.test(zeile)) {
+      if (!titel && /^trainingsplan\s+\S/i.test(zeile) && zeile.length <= 60) titel = zeile;
+      continue;
+    }
     if (RE_KOPFZEILE.test(zeile) && !/\d/.test(zeile)) continue;
 
     const u = leseUebungszeile(zeile);
@@ -111,7 +128,7 @@ export function parsePlanText(text, name = "Importierter Plan") {
       tag.uebungen.push(uebung(nameAus(zeile) || zeile, { pruefen: true }));
     }
   }
-  return { id: uid(), name, quelle: "pdf", tage: tage.filter((t) => t.uebungen.length) };
+  return { id: uid(), name: titel || name, quelle: "pdf", tage: tage.filter((t) => t.uebungen.length) };
 }
 
 /** Prüft einen Plan aus fremder Quelle (JSON-Import, Claude) und ergänzt fehlende Felder. */

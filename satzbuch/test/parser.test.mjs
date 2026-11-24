@@ -68,3 +68,18 @@ test("validierePlan wirft bei falscher Struktur und ergänzt Standardwerte", () 
   assert.ok(p.id && p.tage[0].id && p.tage[0].uebungen[0].id);
   assert.deepEqual(pick(p.tage[0].uebungen[0]), { name: "Dips", saetze: 3, wdh: "10", gewicht: undefined, pause: 90 });
 });
+
+test("Tabellenzeile ohne Trenner: Name Sätze Wdh. Gewicht", () => {
+  const p = parsePlanText("Tag 1\nÜbung Sätze Wdh. Gewicht\nBrustpresse 3 10 45 kg\nLatzug breit 3 8-12 50 kg\nCrunches 3 20");
+  assert.deepEqual(p.tage[0].uebungen.map(pick), [
+    { name: "Brustpresse", saetze: 3, wdh: "10", gewicht: 45, pause: 90 },
+    { name: "Latzug breit", saetze: 3, wdh: "8-12", gewicht: 50, pause: 90 },
+    { name: "Crunches", saetze: 3, wdh: "20", gewicht: undefined, pause: 90 },
+  ]);
+});
+
+test("Titelzeile „Trainingsplan …“ wird zum Plannamen", () => {
+  const p = parsePlanText("Trainingsplan Halle41 – Muskelaufbau\nTag 1\nDips 3x8", "datei");
+  assert.equal(p.name, "Trainingsplan Halle41 – Muskelaufbau");
+  assert.equal(parsePlanText("Dips 3x8", "datei").name, "datei");
+});
