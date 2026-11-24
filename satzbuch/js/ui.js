@@ -13,6 +13,18 @@ const timerEl = $("#timer");
 let tab = "heute";
 let fortschrittUebung = null;
 let fortschrittBlock = "alle";
+let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
+
+async function pruefePlanUpdates() {
+  try {
+    const liste = await (await fetch("plans/index.json", { cache: "no-cache" })).json();
+    planUpdates = liste.filter((e) => {
+      const p = e.id && store.plan(e.id);
+      return p && (e.version || 1) > (p.version || 1);
+    });
+    if (planUpdates.length && !store.aktiv && tab === "heute") render();
+  } catch { /* offline: später erneut */ }
+}
 let editorEntwurf = null;
 let timerGemeldet = false;
 
@@ -86,7 +98,7 @@ function signal() {
   begrenzer.threshold.value = -6;
   begrenzer.ratio.value = 12;
   const gesamt = audio.createGain();
-  gesamt.gain.value = 0.65; // 65 % der vollen Lautstärke
+  gesamt.gain.value = 0.55; // 55 % der vollen Lautstärke
   begrenzer.connect(gesamt).connect(audio.destination);
   const toene = [
     { ab: 0.0, dauer: 0.28, hz: 880 },
@@ -195,6 +207,9 @@ function viewHeute() {
       <div class="kachel"><div class="wert">${letztes ? esc(tageHer(letztes.start)) : "–"}</div><div class="bez">Letztes Training</div></div>
     </div>
     ${sicherungsHinweis()}
+    ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.id)?.name || e.name)}“</strong>
+      <div class="dezent">Deine Trainings und dein Fortschritt bleiben erhalten.</div>
+      <div class="btn-reihe"><button class="btn primaer" data-a="plan-update" data-datei="${esc(e.datei)}">Übernehmen</button></div></div>`).join("")}
     ${plaene.map((p) => blockHTML(p, tr)).join("")}`;
 }
 
@@ -506,6 +521,17 @@ const aktionen = {
     render();
   },
 
+  "plan-update": async (d) => {
+    try {
+      const plan = validierePlan(await (await fetch("plans/" + d.datei, { cache: "no-cache" })).json());
+      store.setPlan(plan, { aktivSetzen: false });
+      planUpdates = planUpdates.filter((e) => e.datei !== d.datei);
+      render();
+      toast(`„${plan.name}“ ist jetzt auf Version ${plan.version || 1}.`);
+    } catch (err) {
+      toast("Update fehlgeschlagen: " + err.message);
+    }
+  },
   "ton-testen": () => {
     audioBereit();
     if (!store.state.einstellungen.ton) { toast("Der Ton ist ausgeschaltet."); return; }
@@ -747,6 +773,7 @@ setInterval(tick, 250);
 // ---------- Start ----------
 if (store.aktiv?.timer && S.restzeit(store.aktiv.timer.endetUm) === 0) timerGemeldet = true;
 render();
+pruefePlanUpdates();
 navigator.storage?.persist?.().catch(() => {});
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});

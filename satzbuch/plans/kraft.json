@@ -361,11 +361,12 @@
     },
     {
      "id": "di-4",
-     "name": "Lat Pulldown",
+     "name": "Lat Pulldown (Obergriff)",
      "saetze": 2,
      "wdh": "10-12",
      "pause": 75,
-     "gewicht": 59
+     "gewicht": 52,
+     "notiz": "52-55 kg"
     },
     {
      "id": "di-5",
@@ -388,7 +389,7 @@
   },
   {
    "id": "do",
-   "name": "Do – Deadlift schwer + Bench leicht",
+   "name": "Do – Deadlift + Bench leicht + Schrägbank",
    "uebungen": [
     {
      "id": "do-1",
@@ -564,6 +565,14 @@
     },
     {
      "id": "do-3",
+     "name": "Schrägbank Kurzhanteln (30°)",
+     "saetze": 3,
+     "wdh": "8-10",
+     "pause": 90,
+     "notiz": "Gewicht einpendeln · schaffst du in beiden Wochen die obere Wdh.-Zahl: nächster Hantelschritt"
+    },
+    {
+     "id": "do-4",
      "name": "Cable Row breit",
      "saetze": 3,
      "wdh": "8-12",
@@ -571,23 +580,23 @@
      "gewicht": 59
     },
     {
-     "id": "do-4",
-     "name": "Face Pull",
+     "id": "do-5",
+     "name": "Face Pull (Stirnhöhe)",
      "saetze": 3,
      "wdh": "12-15",
      "pause": 75,
      "gewicht": 45
     },
     {
-     "id": "do-5",
+     "id": "do-6",
      "name": "Prone Leg Curl",
-     "saetze": 2,
+     "saetze": 1,
      "wdh": "10-12",
      "pause": 75,
      "gewicht": 41
     },
     {
-     "id": "do-6",
+     "id": "do-7",
      "name": "Hüftabduktion",
      "saetze": 2,
      "wdh": "12-15",
@@ -757,35 +766,31 @@
     },
     {
      "id": "sa-4",
-     "name": "Military Press",
+     "name": "DB Schulterdrücken sitzend",
      "saetze": 3,
-     "wdh": "9-10",
-     "pause": 120,
-     "ziele": [
-      {
-       "wdh": "9-10",
-       "kg": 35
-      },
-      {
-       "wdh": "8",
-       "kg": 40
-      },
-      {
-       "wdh": "6-7",
-       "kg": 45
-      }
-     ]
+     "wdh": "8-10",
+     "pause": 90,
+     "gewicht": 18,
+     "notiz": "18-20 kg pro Hantel · Bank 80-85°"
     },
     {
      "id": "sa-5",
      "name": "Seitheben Kabel",
-     "saetze": 3,
+     "saetze": 2,
      "wdh": "12-15",
      "pause": 75,
      "gewicht": 16
     },
     {
      "id": "sa-6",
+     "name": "Low-to-High Cable Fly",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "notiz": "Gewicht einpendeln"
+    },
+    {
+     "id": "sa-7",
      "name": "Pushdown",
      "saetze": 2,
      "wdh": "10-12",
@@ -794,7 +799,7 @@
      "notiz": "Superset mit Biceps Curl"
     },
     {
-     "id": "sa-7",
+     "id": "sa-8",
      "name": "Biceps Curl",
      "saetze": 2,
      "wdh": "10-12",
@@ -803,7 +808,7 @@
      "notiz": "Superset mit Pushdown"
     },
     {
-     "id": "sa-8",
+     "id": "sa-9",
      "name": "Rotation (Bauch)",
      "saetze": 2,
      "wdh": "10 pro Seite",
@@ -811,7 +816,7 @@
      "notiz": "Superset mit Crunch Bank · Gewicht wählen"
     },
     {
-     "id": "sa-9",
+     "id": "sa-10",
      "name": "Crunch Bank",
      "saetze": 2,
      "wdh": "10-12",
@@ -819,7 +824,7 @@
      "notiz": "Superset mit Rotation · Gewicht wählen"
     },
     {
-     "id": "sa-10",
+     "id": "sa-11",
      "name": "Side Plank",
      "saetze": 2,
      "wdh": "30-45 Sek. pro Seite",
@@ -830,5 +835,6 @@
   }
  ],
  "wochen": 4,
- "notiz": "4-Wochen-Block. Pausen: schwer 3-4 Min., Volumen 2-3 Min., Hilfsübungen 60-90 Sek."
+ "notiz": "4-Wochen-Block. Pausen: schwer 3-4 Min., Volumen 2-3 Min., Hilfsübungen 60-90 Sek.",
+ "version": 3
 }

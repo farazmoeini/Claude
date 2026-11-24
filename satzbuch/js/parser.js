@@ -435,5 +435,6 @@ export function validierePlan(obj) {
   const wochen = Math.max(0, ...plan.tage.flatMap((t) => t.uebungen.map((u) => u.wochen?.length ?? 0)));
   if (wochen > 1) plan.wochen = wochen;
   if (obj.notiz) plan.notiz = String(obj.notiz);
+  if (Number.isInteger(obj.version) && obj.version > 0) plan.version = obj.version;
   return plan;
 }
