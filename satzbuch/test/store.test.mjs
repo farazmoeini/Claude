@@ -177,3 +177,28 @@ test("Blöcke getrennt: Vorschläge kommen aus demselben Plan, sonst aus dem Pla
   assert.equal(s.letzteSaetze("Kniebeuge", kompakt.id), null);
   assert.equal(s.letzteSaetze("Kniebeuge", kraft.id)[0].kg, 120);
 });
+
+test("ersetzePlan: neue Version übernimmt Plan- und Tages-IDs, Trainings bleiben zugeordnet", () => {
+  const s = createStore(fakeStorage());
+  const alt = s.setPlan({ name: "Kraftplan 4 Tage", tage: [
+    { name: "Mo – Kniebeuge schwer", uebungen: [{ name: "Kniebeuge" }] },
+    { name: "Sa – Kniebeuge moderat + Overhead", uebungen: [{ name: "Military Press" }] },
+  ] });
+  s.setzePlanWoche(alt.id, 1);
+  const saId = alt.tage[1].id;
+  s.starteTraining(alt.id, saId, T0);
+  s.satzAbhaken(0, 0, T0 + 1000);
+  s.beendeTraining(T0 + 2000);
+  const neu = s.ersetzePlan(alt.id, { id: "kraftplan-4-tage", name: "Kraft", version: 3, tage: [
+    { id: "mo", name: "Mo – Kniebeuge schwer", uebungen: [{ name: "Kniebeuge" }] },
+    { id: "do", name: "Do – Deadlift", uebungen: [{ name: "Deadlift" }] },
+    { id: "sa", name: "Sa – Kniebeuge moderat", uebungen: [{ name: "DB Schulterdrücken" }] },
+  ] });
+  assert.equal(neu.id, alt.id);
+  assert.equal(neu.version, 3);
+  assert.equal(s.state.plaene.length, 1);
+  assert.equal(neu.tage[2].id, saId); // Sa bleibt Sa
+  assert.equal(neu.tage[0].id, alt.tage[0].id);
+  assert.equal(neu.tage[1].id, "do"); // neuer Tag behält eigene ID
+  assert.equal(s.state.trainings[0].planId, neu.id);
+});
