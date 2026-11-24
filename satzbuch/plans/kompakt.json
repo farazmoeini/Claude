@@ -1,0 +1,569 @@
+{
+ "id": "plan-kompakt",
+ "name": "Kompakt",
+ "quelle": "claude",
+ "tage": [
+  {
+   "id": "mo",
+   "name": "Mo – Push",
+   "uebungen": [
+    {
+     "id": "mo-1",
+     "name": "Cable External Rotation, Arm 90°",
+     "saetze": 2,
+     "wdh": "12-15 pro Seite",
+     "pause": 60,
+     "notiz": "Aufwärmen · leicht, 2-4 kg"
+    },
+    {
+     "id": "mo-2",
+     "name": "DB Bench 15°",
+     "saetze": 3,
+     "wdh": "4-5",
+     "pause": 150,
+     "notiz": "pro Hantel · Aufwärmen: 20 kg x 6, 26 kg x 3 · Top-Satz 6 Wdh. geschafft: +2 kg pro Hantel",
+     "ziele": [
+      {
+       "wdh": "4-5",
+       "kg": 34,
+       "pause": 210
+      },
+      {
+       "wdh": "8",
+       "kg": 28
+      },
+      {
+       "wdh": "8",
+       "kg": 28
+      }
+     ]
+    },
+    {
+     "id": "mo-3",
+     "name": "DB Schulterdrücken sitzend",
+     "saetze": 3,
+     "wdh": "8-10",
+     "pause": 90,
+     "gewicht": 18,
+     "notiz": "18-20 kg pro Hantel · Bank 80-85° · bei 3 x 10 sauber: +2 kg pro Hantel"
+    },
+    {
+     "id": "mo-4",
+     "name": "Dips mit Gewicht",
+     "saetze": 2,
+     "wdh": "6-10",
+     "pause": 90,
+     "gewicht": 25,
+     "notiz": "Zusatzgewicht"
+    },
+    {
+     "id": "mo-5",
+     "name": "Cable Fly unten nach oben",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 15
+    },
+    {
+     "id": "mo-6",
+     "name": "Triceps Overhead Kabel",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 41
+    },
+    {
+     "id": "mo-7",
+     "name": "Seitheben Kabel",
+     "saetze": 3,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 18
+    },
+    {
+     "id": "mo-8",
+     "name": "Bauch: A1 Crunch",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 60,
+     "gewicht": 52
+    },
+    {
+     "id": "mo-9",
+     "name": "Mobilität: Türrahmen-Dehnung",
+     "saetze": 2,
+     "wdh": "30 Sek. pro Seite",
+     "pause": 30
+    },
+    {
+     "id": "mo-10",
+     "name": "Mobilität: Brustwirbelsäule strecken",
+     "saetze": 2,
+     "wdh": "8",
+     "pause": 30
+    }
+   ]
+  },
+  {
+   "id": "di",
+   "name": "Di – Pull",
+   "uebungen": [
+    {
+     "id": "di-1",
+     "name": "Pull-ups",
+     "saetze": 3,
+     "wdh": "4-5",
+     "pause": 120,
+     "notiz": "Zusatzgewicht · Top-Satz zuerst",
+     "ziele": [
+      {
+       "wdh": "4-5",
+       "kg": 12.5,
+       "pause": 150
+      },
+      {
+       "wdh": "5-6",
+       "kg": 10
+      },
+      {
+       "wdh": "6-7",
+       "kg": 7.5
+      }
+     ]
+    },
+    {
+     "id": "di-2",
+     "name": "Deadlift",
+     "saetze": 3,
+     "wdh": "3-4",
+     "pause": 180,
+     "notiz": "Aufwärmen: 60 kg x 3, 80 kg x 2, 100 kg x 1 · Top-Satz 4 Wdh. geschafft: +2,5-5 kg",
+     "ziele": [
+      {
+       "wdh": "3-4",
+       "kg": 120,
+       "pause": 210
+      },
+      {
+       "wdh": "5",
+       "kg": 105
+      },
+      {
+       "wdh": "5",
+       "kg": 105
+      }
+     ]
+    },
+    {
+     "id": "di-3",
+     "name": "T-Row 45°",
+     "saetze": 3,
+     "wdh": "10",
+     "pause": 90,
+     "notiz": "Pyramide",
+     "ziele": [
+      {
+       "wdh": "10",
+       "kg": 30
+      },
+      {
+       "wdh": "9",
+       "kg": 35
+      },
+      {
+       "wdh": "8",
+       "kg": 40
+      }
+     ]
+    },
+    {
+     "id": "di-4",
+     "name": "Lat Pulldown",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 52,
+     "notiz": "52-55 kg · Obergriff, etwas breiter als schulterbreit"
+    },
+    {
+     "id": "di-5",
+     "name": "Reverse Fly Kabel",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 15,
+     "gewicht": 12,
+     "notiz": "Superset mit Incline DB Curl"
+    },
+    {
+     "id": "di-6",
+     "name": "Incline DB Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 10,
+     "notiz": "pro Hantel · Superset mit Reverse Fly"
+    },
+    {
+     "id": "di-7",
+     "name": "Biceps Hammer Kabel",
+     "saetze": 2,
+     "wdh": "8-12",
+     "pause": 75,
+     "gewicht": 41
+    },
+    {
+     "id": "di-8",
+     "name": "Bauch: Hängendes Beinheben",
+     "saetze": 2,
+     "wdh": "8-12",
+     "pause": 60,
+     "notiz": "Körpergewicht"
+    },
+    {
+     "id": "di-9",
+     "name": "Mobilität: Hang an der Klimmzugstange",
+     "saetze": 2,
+     "wdh": "20-30 Sek.",
+     "pause": 30
+    },
+    {
+     "id": "di-10",
+     "name": "Mobilität: Thoracic Rotation",
+     "saetze": 2,
+     "wdh": "8 pro Seite",
+     "pause": 30
+    }
+   ]
+  },
+  {
+   "id": "do",
+   "name": "Do – Legs",
+   "uebungen": [
+    {
+     "id": "do-1",
+     "name": "Kniebeuge",
+     "saetze": 4,
+     "wdh": "4-5",
+     "pause": 150,
+     "notiz": "Top-Satz + 3 Back-offs · Aufwärmen: 60 kg x 5, 80 kg x 2 · Top-Satz 5 Wdh. geschafft: +2,5 kg",
+     "ziele": [
+      {
+       "wdh": "4-5",
+       "kg": 110,
+       "pause": 210
+      },
+      {
+       "wdh": "6",
+       "kg": 100
+      },
+      {
+       "wdh": "6",
+       "kg": 100
+      },
+      {
+       "wdh": "6",
+       "kg": 100
+      }
+     ]
+    },
+    {
+     "id": "do-2",
+     "name": "Sitzendes Wadenheben",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 50
+    },
+    {
+     "id": "do-3",
+     "name": "Romanian Deadlift",
+     "saetze": 2,
+     "wdh": "8-10",
+     "pause": 120,
+     "gewicht": 80
+    },
+    {
+     "id": "do-4",
+     "name": "Leg Extension",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 64
+    },
+    {
+     "id": "do-5",
+     "name": "Prone Leg Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 41
+    },
+    {
+     "id": "do-6",
+     "name": "Pectoral Fly Maschine",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 54
+    },
+    {
+     "id": "do-7",
+     "name": "Stehendes Wadenheben",
+     "saetze": 3,
+     "wdh": "8-12",
+     "pause": 75,
+     "gewicht": 70
+    },
+    {
+     "id": "do-8",
+     "name": "Mobilität: Hamstring-Dehnung",
+     "saetze": 2,
+     "wdh": "30-45 Sek. pro Seite",
+     "pause": 30
+    },
+    {
+     "id": "do-9",
+     "name": "Mobilität: Knee-to-Wall",
+     "saetze": 2,
+     "wdh": "10 pro Seite",
+     "pause": 30
+    },
+    {
+     "id": "do-10",
+     "name": "Mobilität: Hüftbeuger-Dehnung",
+     "saetze": 2,
+     "wdh": "30-45 Sek. pro Seite",
+     "pause": 30
+    },
+    {
+     "id": "do-11",
+     "name": "Mobilität: Tiefe Hocke halten",
+     "saetze": 2,
+     "wdh": "30-45 Sek.",
+     "pause": 30
+    }
+   ]
+  },
+  {
+   "id": "fr",
+   "name": "Fr – Hypertrophie",
+   "uebungen": [
+    {
+     "id": "fr-1",
+     "name": "Pull-ups moderat",
+     "saetze": 3,
+     "wdh": "6-8",
+     "pause": 90,
+     "gewicht": 5,
+     "notiz": "Zusatzgewicht · 2 Wdh. in Reserve · bei 3 x 8 sauber: +2,5 kg"
+    },
+    {
+     "id": "fr-2",
+     "name": "DB Schrägbank 30°",
+     "saetze": 3,
+     "wdh": "8-12",
+     "pause": 15,
+     "gewicht": 26,
+     "notiz": "pro Hantel · Superset mit Cable Row breit"
+    },
+    {
+     "id": "fr-3",
+     "name": "Cable Row breit",
+     "saetze": 3,
+     "wdh": "8-12",
+     "pause": 90,
+     "gewicht": 59,
+     "notiz": "Superset mit DB Schrägbank"
+    },
+    {
+     "id": "fr-4",
+     "name": "Seitheben Kabel",
+     "saetze": 3,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 16
+    },
+    {
+     "id": "fr-5",
+     "name": "Face Pull",
+     "saetze": 3,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 45
+    },
+    {
+     "id": "fr-6",
+     "name": "Pushdown",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 15,
+     "gewicht": 41,
+     "notiz": "Superset mit Biceps Curl"
+    },
+    {
+     "id": "fr-7",
+     "name": "Biceps Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 10,
+     "notiz": "Superset mit Pushdown"
+    },
+    {
+     "id": "fr-8",
+     "name": "Rotation mit Gewicht",
+     "saetze": 2,
+     "wdh": "10 pro Seite",
+     "pause": 15,
+     "notiz": "Superset mit Crunch Bank · Gewicht wählen"
+    },
+    {
+     "id": "fr-9",
+     "name": "Crunch Bank mit Gewicht",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 60,
+     "notiz": "Superset mit Rotation · Gewicht wählen"
+    }
+   ]
+  },
+  {
+   "id": "sa",
+   "name": "Sa – Power + Stabilisatoren",
+   "uebungen": [
+    {
+     "id": "sa-1",
+     "name": "Aufwärmen: Rad locker, Hüft-/Armkreisen",
+     "saetze": 1,
+     "wdh": "6 Min.",
+     "pause": 30
+    },
+    {
+     "id": "sa-2",
+     "name": "Pogos",
+     "saetze": 2,
+     "wdh": "10",
+     "pause": 75,
+     "notiz": "Körpergewicht · volle Geschwindigkeit"
+    },
+    {
+     "id": "sa-3",
+     "name": "Rad-Sprint",
+     "saetze": 7,
+     "wdh": "6-10 Sek.",
+     "pause": 75,
+     "notiz": "6-8 Sprints, hoher Widerstand, maximal · alternativ Schlitten 5 x 15-20 m oder Rudergerät 6 x 10 Sek."
+    },
+    {
+     "id": "sa-4",
+     "name": "Box Jump",
+     "saetze": 3,
+     "wdh": "3",
+     "pause": 75,
+     "notiz": "50-60 cm"
+    },
+    {
+     "id": "sa-5",
+     "name": "Standweitsprung",
+     "saetze": 3,
+     "wdh": "3",
+     "pause": 75
+    },
+    {
+     "id": "sa-6",
+     "name": "Skater Jumps (seitlich)",
+     "saetze": 3,
+     "wdh": "4 pro Seite",
+     "pause": 75
+    },
+    {
+     "id": "sa-7",
+     "name": "Medizinball Brustpass (Wand)",
+     "saetze": 3,
+     "wdh": "5",
+     "pause": 75,
+     "gewicht": 4,
+     "notiz": "4-6 kg"
+    },
+    {
+     "id": "sa-8",
+     "name": "Medizinball Rotationswurf",
+     "saetze": 2,
+     "wdh": "5 pro Seite",
+     "pause": 75,
+     "gewicht": 4,
+     "notiz": "4-6 kg"
+    },
+    {
+     "id": "sa-9",
+     "name": "Kettlebell Swing, explosiv",
+     "saetze": 4,
+     "wdh": "6",
+     "pause": 75,
+     "gewicht": 20,
+     "notiz": "20-28 kg"
+    },
+    {
+     "id": "sa-10",
+     "name": "Cable External Rotation",
+     "saetze": 3,
+     "wdh": "12-15 pro Seite",
+     "pause": 40,
+     "notiz": "leicht, 3-5 kg · Stabilisator: 2-3 Wdh. in Reserve"
+    },
+    {
+     "id": "sa-11",
+     "name": "Y-Raise (Brust auf Schrägbank)",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 40,
+     "gewicht": 2,
+     "notiz": "2-4 kg pro Hantel"
+    },
+    {
+     "id": "sa-12",
+     "name": "Einbeiniges RDL",
+     "saetze": 2,
+     "wdh": "8 pro Seite",
+     "pause": 40,
+     "gewicht": 10,
+     "notiz": "10-14 kg pro Hand"
+    },
+    {
+     "id": "sa-13",
+     "name": "Back Extension",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 40,
+     "notiz": "Körpergewicht"
+    },
+    {
+     "id": "sa-14",
+     "name": "Side Plank",
+     "saetze": 2,
+     "wdh": "30-45 Sek. pro Seite",
+     "pause": 40,
+     "notiz": "Körpergewicht"
+    },
+    {
+     "id": "sa-15",
+     "name": "Hüftabduktion Maschine oder Kabel",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 40,
+     "notiz": "Gewicht einpendeln"
+    },
+    {
+     "id": "sa-16",
+     "name": "Farmer's Walk",
+     "saetze": 3,
+     "wdh": "30-40 m",
+     "pause": 60,
+     "gewicht": 26,
+     "notiz": "pro Hand"
+    }
+   ]
+  }
+ ],
+ "notiz": "Mo Push · Di Pull · Do Legs · Fr Hypertrophie · Sa Power + Stabilisatoren"
+}

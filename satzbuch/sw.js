@@ -1,6 +1,6 @@
 // Offline-Cache. App-Dateien: aus dem Cache, im Hintergrund aktualisieren.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache. Pläne: Netz zuerst.
-const VERSION = "satzbuch-v2";
+const VERSION = "satzbuch-v3";
 const APP = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
   "js/ui.js", "js/store.js", "js/parser.js", "js/stats.js", "js/util.js", "js/pdf.js", "js/claude.js",

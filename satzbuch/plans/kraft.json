@@ -1,0 +1,834 @@
+{
+ "id": "kraftplan-4-tage",
+ "name": "Kraft",
+ "quelle": "claude",
+ "tage": [
+  {
+   "id": "mo",
+   "name": "Mo – Kniebeuge schwer + Bench Volumen",
+   "uebungen": [
+    {
+     "id": "mo-1",
+     "name": "Cable External Rotation, Arm 90°",
+     "saetze": 2,
+     "wdh": "12-15 pro Seite",
+     "pause": 60,
+     "notiz": "Aufwärmen · leicht, 2-4 kg"
+    },
+    {
+     "id": "mo-2",
+     "name": "Kniebeuge",
+     "saetze": 4,
+     "wdh": "3",
+     "pause": 210,
+     "notiz": "Aufwärmen: 60 kg x 5, 80 kg x 2 · Back-off ca. 85 %, entfällt in Woche 4",
+     "wochen": [
+      [
+       {
+        "wdh": "3",
+        "kg": 97.5
+       },
+       {
+        "wdh": "3",
+        "kg": 97.5
+       },
+       {
+        "wdh": "3",
+        "kg": 97.5
+       },
+       {
+        "wdh": "5",
+        "kg": 82.5
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 112.5
+       },
+       {
+        "wdh": "3",
+        "kg": 112.5
+       },
+       {
+        "wdh": "3",
+        "kg": 112.5
+       },
+       {
+        "wdh": "5",
+        "kg": 95
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 117.5
+       },
+       {
+        "wdh": "3",
+        "kg": 117.5
+       }
+      ]
+     ]
+    },
+    {
+     "id": "mo-3",
+     "name": "Flat Bench Volumen",
+     "saetze": 4,
+     "wdh": "5",
+     "pause": 150,
+     "notiz": "Aufwärmen: 40 kg x 6, 60 kg x 3",
+     "wochen": [
+      [
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       },
+       {
+        "wdh": "5",
+        "kg": 70
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       },
+       {
+        "wdh": "5",
+        "kg": 72.5
+       }
+      ]
+     ]
+    },
+    {
+     "id": "mo-4",
+     "name": "T-Row 45°",
+     "saetze": 3,
+     "wdh": "8-10",
+     "pause": 75,
+     "gewicht": 35
+    },
+    {
+     "id": "mo-5",
+     "name": "Incline DB Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 10,
+     "notiz": "pro Hantel"
+    },
+    {
+     "id": "mo-6",
+     "name": "Seitheben Kabel",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 18
+    },
+    {
+     "id": "mo-7",
+     "name": "Seated Calf Raise",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 50
+    }
+   ]
+  },
+  {
+   "id": "di",
+   "name": "Di – Bench schwer + Pull",
+   "uebungen": [
+    {
+     "id": "di-1",
+     "name": "Flat Bench schwer",
+     "saetze": 3,
+     "wdh": "3",
+     "pause": 210,
+     "notiz": "Aufwärmen: 40 kg x 6, 60 kg x 3",
+     "wochen": [
+      [
+       {
+        "wdh": "3",
+        "kg": 75
+       },
+       {
+        "wdh": "3",
+        "kg": 75
+       },
+       {
+        "wdh": "3",
+        "kg": 75
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 80
+       },
+       {
+        "wdh": "3",
+        "kg": 80
+       },
+       {
+        "wdh": "3",
+        "kg": 80
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 85
+       },
+       {
+        "wdh": "3",
+        "kg": 85
+       },
+       {
+        "wdh": "3",
+        "kg": 85
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 90
+       },
+       {
+        "wdh": "3",
+        "kg": 90
+       }
+      ]
+     ]
+    },
+    {
+     "id": "di-2",
+     "name": "Deadlift leicht",
+     "saetze": 3,
+     "wdh": "3",
+     "pause": 150,
+     "wochen": [
+      [
+       {
+        "wdh": "3",
+        "kg": 90
+       },
+       {
+        "wdh": "3",
+        "kg": 90
+       },
+       {
+        "wdh": "3",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 90
+       },
+       {
+        "wdh": "3",
+        "kg": 90
+       },
+       {
+        "wdh": "3",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 95
+       },
+       {
+        "wdh": "3",
+        "kg": 95
+       },
+       {
+        "wdh": "3",
+        "kg": 95
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 95
+       },
+       {
+        "wdh": "3",
+        "kg": 95
+       },
+       {
+        "wdh": "3",
+        "kg": 95
+       }
+      ]
+     ]
+    },
+    {
+     "id": "di-3",
+     "name": "Pull-ups",
+     "saetze": 3,
+     "wdh": "4-5",
+     "pause": 120,
+     "notiz": "Zusatzgewicht · Top-Satz zuerst",
+     "ziele": [
+      {
+       "wdh": "4-5",
+       "kg": 12.5
+      },
+      {
+       "wdh": "5-6",
+       "kg": 10
+      },
+      {
+       "wdh": "6-7",
+       "kg": 7.5
+      }
+     ]
+    },
+    {
+     "id": "di-4",
+     "name": "Lat Pulldown",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 59
+    },
+    {
+     "id": "di-5",
+     "name": "Biceps Hammer Kabel",
+     "saetze": 2,
+     "wdh": "8-12",
+     "pause": 75,
+     "gewicht": 41
+    },
+    {
+     "id": "di-6",
+     "name": "Y-Raise",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 2,
+     "notiz": "2-4 kg pro Hantel"
+    }
+   ]
+  },
+  {
+   "id": "do",
+   "name": "Do – Deadlift schwer + Bench leicht",
+   "uebungen": [
+    {
+     "id": "do-1",
+     "name": "Deadlift",
+     "saetze": 4,
+     "wdh": "3",
+     "pause": 210,
+     "notiz": "Aufwärmen: 60 kg x 3, 80 kg x 2, 100 kg x 1 · Back-off entfällt in Woche 4",
+     "wochen": [
+      [
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "3",
+        "kg": 105
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 115
+       },
+       {
+        "wdh": "3",
+        "kg": 115
+       },
+       {
+        "wdh": "3",
+        "kg": 115
+       },
+       {
+        "wdh": "5",
+        "kg": 97.5
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 120
+       },
+       {
+        "wdh": "3",
+        "kg": 120
+       },
+       {
+        "wdh": "3",
+        "kg": 120
+       },
+       {
+        "wdh": "5",
+        "kg": 102.5
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 125
+       },
+       {
+        "wdh": "3",
+        "kg": 125
+       }
+      ]
+     ]
+    },
+    {
+     "id": "do-2",
+     "name": "Flat Bench Pause",
+     "saetze": 5,
+     "wdh": "3",
+     "pause": 150,
+     "notiz": "1 Sek. auf der Brust",
+     "wochen": [
+      [
+       {
+        "wdh": "3",
+        "kg": 62.5
+       },
+       {
+        "wdh": "3",
+        "kg": 62.5
+       },
+       {
+        "wdh": "3",
+        "kg": 62.5
+       },
+       {
+        "wdh": "3",
+        "kg": 62.5
+       },
+       {
+        "wdh": "3",
+        "kg": 62.5
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 65
+       },
+       {
+        "wdh": "3",
+        "kg": 65
+       },
+       {
+        "wdh": "3",
+        "kg": 65
+       },
+       {
+        "wdh": "3",
+        "kg": 65
+       },
+       {
+        "wdh": "3",
+        "kg": 65
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 67.5
+       },
+       {
+        "wdh": "3",
+        "kg": 67.5
+       },
+       {
+        "wdh": "3",
+        "kg": 67.5
+       },
+       {
+        "wdh": "3",
+        "kg": 67.5
+       },
+       {
+        "wdh": "3",
+        "kg": 67.5
+       }
+      ],
+      [
+       {
+        "wdh": "3",
+        "kg": 70
+       },
+       {
+        "wdh": "3",
+        "kg": 70
+       },
+       {
+        "wdh": "3",
+        "kg": 70
+       },
+       {
+        "wdh": "3",
+        "kg": 70
+       },
+       {
+        "wdh": "3",
+        "kg": 70
+       }
+      ]
+     ]
+    },
+    {
+     "id": "do-3",
+     "name": "Cable Row breit",
+     "saetze": 3,
+     "wdh": "8-12",
+     "pause": 75,
+     "gewicht": 59
+    },
+    {
+     "id": "do-4",
+     "name": "Face Pull",
+     "saetze": 3,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 45
+    },
+    {
+     "id": "do-5",
+     "name": "Prone Leg Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 41
+    },
+    {
+     "id": "do-6",
+     "name": "Hüftabduktion",
+     "saetze": 2,
+     "wdh": "12-15",
+     "pause": 75,
+     "notiz": "Gewicht einpendeln"
+    }
+   ]
+  },
+  {
+   "id": "sa",
+   "name": "Sa – Kniebeuge moderat + Close-Grip + Overhead",
+   "uebungen": [
+    {
+     "id": "sa-1",
+     "name": "Kniebeuge moderat",
+     "saetze": 3,
+     "wdh": "5",
+     "pause": 150,
+     "wochen": [
+      [
+       {
+        "wdh": "5",
+        "kg": 90
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 90
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       },
+       {
+        "wdh": "5",
+        "kg": 90
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 92.5
+       },
+       {
+        "wdh": "5",
+        "kg": 92.5
+       },
+       {
+        "wdh": "5",
+        "kg": 92.5
+       }
+      ],
+      [
+       {
+        "wdh": "5",
+        "kg": 95
+       },
+       {
+        "wdh": "5",
+        "kg": 95
+       },
+       {
+        "wdh": "5",
+        "kg": 95
+       }
+      ]
+     ]
+    },
+    {
+     "id": "sa-2",
+     "name": "Close-Grip Bench",
+     "saetze": 4,
+     "wdh": "6",
+     "pause": 150,
+     "wochen": [
+      [
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       }
+      ],
+      [
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       },
+       {
+        "wdh": "6",
+        "kg": 65
+       }
+      ],
+      [
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       }
+      ],
+      [
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       },
+       {
+        "wdh": "6",
+        "kg": 67.5
+       }
+      ]
+     ]
+    },
+    {
+     "id": "sa-3",
+     "name": "Pull-ups moderat",
+     "saetze": 3,
+     "wdh": "6-8",
+     "pause": 90,
+     "gewicht": 5,
+     "notiz": "Zusatzgewicht · 2 Wdh. in Reserve · bei 3 x 8 sauber: +2,5 kg"
+    },
+    {
+     "id": "sa-4",
+     "name": "Military Press",
+     "saetze": 3,
+     "wdh": "9-10",
+     "pause": 120,
+     "ziele": [
+      {
+       "wdh": "9-10",
+       "kg": 35
+      },
+      {
+       "wdh": "8",
+       "kg": 40
+      },
+      {
+       "wdh": "6-7",
+       "kg": 45
+      }
+     ]
+    },
+    {
+     "id": "sa-5",
+     "name": "Seitheben Kabel",
+     "saetze": 3,
+     "wdh": "12-15",
+     "pause": 75,
+     "gewicht": 16
+    },
+    {
+     "id": "sa-6",
+     "name": "Pushdown",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 15,
+     "gewicht": 41,
+     "notiz": "Superset mit Biceps Curl"
+    },
+    {
+     "id": "sa-7",
+     "name": "Biceps Curl",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 75,
+     "gewicht": 10,
+     "notiz": "Superset mit Pushdown"
+    },
+    {
+     "id": "sa-8",
+     "name": "Rotation (Bauch)",
+     "saetze": 2,
+     "wdh": "10 pro Seite",
+     "pause": 15,
+     "notiz": "Superset mit Crunch Bank · Gewicht wählen"
+    },
+    {
+     "id": "sa-9",
+     "name": "Crunch Bank",
+     "saetze": 2,
+     "wdh": "10-12",
+     "pause": 60,
+     "notiz": "Superset mit Rotation · Gewicht wählen"
+    },
+    {
+     "id": "sa-10",
+     "name": "Side Plank",
+     "saetze": 2,
+     "wdh": "30-45 Sek. pro Seite",
+     "pause": 45,
+     "notiz": "Körpergewicht"
+    }
+   ]
+  }
+ ],
+ "wochen": 4,
+ "notiz": "4-Wochen-Block. Pausen: schwer 3-4 Min., Volumen 2-3 Min., Hilfsübungen 60-90 Sek."
+}
