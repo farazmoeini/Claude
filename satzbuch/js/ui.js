@@ -76,20 +76,39 @@ function audioBereit() {
     if (audio.state === "suspended") audio.resume();
   } catch { /* kein Ton verfügbar */ }
 }
+// Pausen-Ende: 4 kräftige Pieptöne + langer hoher Schlusston (~2,5 s), über einen Begrenzer
+// auf volle Lautstärke gebracht. Wie laut es wird, bestimmt die Medienlautstärke des Handys.
 function signal() {
-  if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+  if (navigator.vibrate) navigator.vibrate([500, 150, 500, 150, 900]);
   if (!store.state.einstellungen.ton || !audio) return;
-  const t0 = audio.currentTime;
-  [0, 0.25, 0.5].forEach((d, i) => {
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.frequency.value = i === 2 ? 1320 : 880;
-    g.gain.setValueAtTime(0.0001, t0 + d);
-    g.gain.exponentialRampToValueAtTime(0.4, t0 + d + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.18);
-    o.connect(g).connect(audio.destination);
-    o.start(t0 + d);
-    o.stop(t0 + d + 0.2);
-  });
+  const t0 = audio.currentTime + 0.02;
+  const begrenzer = audio.createDynamicsCompressor();
+  begrenzer.threshold.value = -6;
+  begrenzer.ratio.value = 12;
+  const gesamt = audio.createGain();
+  gesamt.gain.value = 1;
+  begrenzer.connect(gesamt).connect(audio.destination);
+  const toene = [
+    { ab: 0.0, dauer: 0.28, hz: 880 },
+    { ab: 0.4, dauer: 0.28, hz: 880 },
+    { ab: 0.8, dauer: 0.28, hz: 880 },
+    { ab: 1.2, dauer: 0.28, hz: 880 },
+    { ab: 1.6, dauer: 0.9, hz: 1320 },
+  ];
+  for (const t of toene) {
+    for (const [typ, anteil, faktor] of [["square", 0.55, 1], ["sine", 0.45, 2]]) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = typ;
+      o.frequency.value = t.hz * faktor;
+      g.gain.setValueAtTime(0.0001, t0 + t.ab);
+      g.gain.exponentialRampToValueAtTime(anteil, t0 + t.ab + 0.015);
+      g.gain.setValueAtTime(anteil, t0 + t.ab + t.dauer - 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t.ab + t.dauer);
+      o.connect(g).connect(begrenzer);
+      o.start(t0 + t.ab);
+      o.stop(t0 + t.ab + t.dauer + 0.02);
+    }
+  }
 }
 let wakeLock = null;
 async function bildschirmAn(an) {
@@ -487,6 +506,11 @@ const aktionen = {
     render();
   },
 
+  "ton-testen": () => {
+    audioBereit();
+    if (!store.state.einstellungen.ton) { toast("Der Ton ist ausgeschaltet."); return; }
+    signal();
+  },
   "fortschritt-block": (d) => { fortschrittBlock = d.plan; render(); },
   woche: (d) => { store.setzePlanWoche(d.plan, +d.w); render(); },
   "eigene-plaene": async () => {
@@ -618,6 +642,8 @@ const aktionen = {
       <label class="feldname" for="e-pause">Standard-Pause (Sekunden)</label>
       <input id="e-pause" class="text-feld" inputmode="numeric" value="${e.pause}" data-einst="pause">
       <label class="schalter"><span>Ton am Ende der Pause</span><input type="checkbox" data-einst="ton" ${e.ton ? "checked" : ""}></label>
+      <button class="btn voll" data-a="ton-testen">🔊 Ton testen</button>
+      <p class="klein">Zu leise? Die Lautstärke kommt von der Medienlautstärke des Handys (Lautstärketaste drücken, dann den Regler „Medien“ hochziehen).</p>
       <p class="abschnitt">Sicherung</p>
       <p class="dezent">Deine Daten liegen nur auf diesem Handy${dauerhaft ? " (vor automatischem Löschen geschützt)" : ""}. ${e.letzteSicherung ? "Letzte Sicherung: " + esc(datum(e.letzteSicherung, { day: "2-digit", month: "2-digit", year: "numeric" })) : "Noch keine Sicherung."}</p>
       <div class="btn-reihe"><button class="btn" data-a="export">Sicherung speichern</button><button class="btn" data-a="import-sicherung">Sicherung laden</button></div>
