@@ -1,7 +1,7 @@
 // Oberfläche von Satzbuch. Ein Zustand (store), Ansichten als HTML-Strings,
 // Ereignisse per data-a="aktion" an einer zentralen Stelle.
 import { createStore } from "./store.js";
-import { parsePlanText, validierePlan } from "./parser.js";
+import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
 import { uid, parseZahl, normName } from "./util.js";
 import * as S from "./stats.js";
 
@@ -106,6 +106,14 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") { bildschirmAn(!!store.aktiv); tick(); }
 });
 
+function zielAbweichung(s) {
+  if (!s.ziel) return false;
+  const [lo, hi] = String(s.ziel.wdh).match(/\d+/g)?.map(Number) ?? [];
+  const wdhOk = lo == null || s.wdh == null || (s.wdh >= lo && s.wdh <= (hi ?? lo));
+  const kgOk = s.ziel.kg == null || s.kg === s.ziel.kg;
+  return !(wdhOk && kgOk);
+}
+
 // ---------- Ansichten ----------
 function render() {
   const imTraining = !!store.aktiv;
@@ -152,6 +160,7 @@ function viewHeute() {
     </div>
     ${sicherungsHinweis()}
     <div class="zeile zwischen"><p class="abschnitt">${esc(plan.name)}</p><button class="btn klein-btn" data-a="tab" data-tab="plaene">Plan wechseln</button></div>
+    ${plan.wochen > 1 ? `<div class="wochen" role="group" aria-label="Blockwoche"><span class="dezent">Woche</span>${Array.from({ length: plan.wochen }, (_, i) => `<button class="chip" data-a="woche" data-w="${i + 1}" aria-pressed="${store.planWoche(plan.id) === i + 1}">${i + 1}</button>`).join("")}</div>` : ""}
     ${plan.tage.map((t) => {
       const l = letzterJeTag(t.id);
       return `<button class="tag-knopf" data-a="start" data-tag="${t.id}">
@@ -164,7 +173,7 @@ function viewHeute() {
 function viewTraining() {
   const a = store.aktiv;
   return `
-    <div class="tr-kopf"><div class="dezent">Seit <span id="dauer">0:00</span> · ${a.eintraege.reduce((n, e) => n + e.saetze.filter((s) => s.erledigtUm).length, 0)} Sätze</div>
+    <div class="tr-kopf"><div class="dezent">${a.woche ? `Woche ${a.woche} · ` : ""}Seit <span id="dauer">0:00</span> · ${a.eintraege.reduce((n, e) => n + e.saetze.filter((s) => s.erledigtUm).length, 0)} Sätze</div>
       <div class="zeile"><button class="btn klein-btn" data-a="abbrechen">Verwerfen</button><button class="btn primaer klein-btn" data-a="beenden">Beenden</button></div></div>
     ${a.eintraege.map((e, ei) => {
       const letzte = store.letzteSaetze(e.uebungName);
@@ -174,7 +183,7 @@ function viewTraining() {
         ${e.notiz ? `<div class="klein">${esc(e.notiz)}</div>` : ""}
         <table class="saetze"><thead><tr><th>#</th><th>kg</th><th>Wdh.</th><th></th></tr></thead><tbody>
         ${e.saetze.map((s, si) => `<tr class="${s.erledigtUm ? "erledigt" : ""}">
-          <td>${si + 1}</td>
+          <td>${si + 1}${zielAbweichung(s) ? `<div class="ziel">Ziel ${esc(s.ziel.wdh)}${s.ziel.kg != null ? ` @${kgText(s.ziel.kg)}` : ""}</div>` : ""}</td>
           <td><input class="feld" inputmode="decimal" enterkeyhint="next" aria-label="Gewicht Satz ${si + 1}" data-satz="${ei}:${si}" data-f="kg" value="${s.kg == null ? "" : kgText(s.kg)}" placeholder="kg"></td>
           <td><input class="feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen Satz ${si + 1}" data-satz="${ei}:${si}" data-f="wdh" value="${s.wdh ?? ""}" placeholder="Wdh."></td>
           <td><button class="haken" data-a="haken" data-e="${ei}" data-s="${si}" aria-label="Satz ${si + 1} ${s.erledigtUm ? "zurücksetzen" : "abhaken"}">✓</button></td></tr>`).join("")}
@@ -320,10 +329,16 @@ function editorHTML() {
       ${t.uebungen.map((u, ui) => `<div class="edit-uebung">
         <input class="text-feld name-feld" aria-label="Übung" placeholder="Übung" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="name" value="${esc(u.name)}" ${u.pruefen ? 'style="border-color:#fbbf24"' : ""}>
         <button data-a="ed-u-weg" data-t="${ti}" data-u="${ui}" aria-label="Übung löschen">✕</button>
+        ${u.wochen?.length ? `<p class="klein breit">Sätze, Wdh. und kg kommen aus den Blockwochen.</p>` : `
         <label>Sätze<input class="text-feld" inputmode="numeric" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="saetze" value="${esc(u.saetze)}"></label>
         <label>Wdh.<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="wdh" value="${esc(u.wdh)}"></label>
         <label>kg<input class="text-feld" inputmode="decimal" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="gewicht" value="${u.gewicht == null ? "" : kgText(u.gewicht)}"></label>
+        `}
         <label>Pause (s)<input class="text-feld" inputmode="numeric" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="pause" value="${esc(u.pause)}"></label>
+        <details class="breit" ${u.ziele?.length || u.wochen?.length || u._zieleRoh || u._wochenRoh ? "open" : ""}><summary class="klein">Ziel je Satz / Blockwochen</summary>
+        <label class="breit">Ziel je Satz (optional)<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="ziele" placeholder="z. B. 4-5@34p210 / 2x8@28" value="${esc(u._zieleRoh ?? zieleText(u.ziele))}"></label>
+        <label class="breit">Blockwochen (eine Zeile pro Woche, optional)<textarea class="text-feld" rows="${Math.max(2, u.wochen?.length || p.wochen || 2)}" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="wochen" placeholder="3x3@97,5 / 5@82,5">${esc(u._wochenRoh ?? (u.wochen || []).map(zieleText).join("\n"))}</textarea></label></details>
+        <label class="breit">Notiz<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="notiz" value="${esc(u.notiz || "")}"></label>
       </div>`).join("")}
       <button class="btn klein-btn" data-a="ed-u-plus" data-t="${ti}">+ Übung</button>
     </div>`).join("")}
@@ -341,6 +356,9 @@ function editorLesen() {
       if (f === "name") { if (el.value !== ue.name) delete ue.pruefen; ue.name = el.value; }
       else if (f === "wdh") ue.wdh = el.value.trim();
       else if (f === "gewicht") ue.gewicht = el.value.trim() ? parseZahl(el.value) ?? undefined : undefined;
+      else if (f === "ziele") ue._zieleRoh = el.value;
+      else if (f === "wochen") ue._wochenRoh = el.value;
+      else if (f === "notiz") ue.notiz = el.value.trim();
       else { const n = parseZahl(el.value); if (n && n > 0) ue[f] = Math.round(n); }
       if (f === "saetze" || f === "wdh") delete ue.pruefen;
     }
@@ -375,7 +393,8 @@ const aktionen = {
     const satz = store.aktiv.eintraege[e].saetze[s];
     if (satz.erledigtUm) { store.satzZuruecksetzen(e, s); render(); return; }
     store.satzAbhaken(e, s);
-    store.starteTimer(store.aktiv.eintraege[e].pause || store.state.einstellungen.pause);
+    const eintrag = store.aktiv.eintraege[e];
+    store.starteTimer(eintrag.saetze[s].pause || eintrag.pause || store.state.einstellungen.pause);
     timerGemeldet = false;
     render();
   },
@@ -390,7 +409,7 @@ const aktionen = {
     const e = store.aktiv.eintraege[+d.e];
     const w = prompt("Pause in Sekunden:", e.pause);
     const n = parseZahl(w);
-    if (n && n > 0) { e.pause = Math.round(n); store.save(); render(); }
+    if (n && n > 0) { e.pause = Math.round(n); e.saetze.forEach((x) => (x.pause = null)); store.save(); render(); }
   },
   "timer-plus": () => { store.verschiebeTimer(15); timerGemeldet = false; tick(); },
   "timer-minus": () => { store.verschiebeTimer(-15); tick(); },
@@ -424,7 +443,7 @@ const aktionen = {
     if (!t) return;
     const z = S.zusammenfassung(t);
     oeffneDialog(t.tagName || "Training", `
-      <p class="dezent">${esc(datum(t.start, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))} · ${z.dauerMin} min · Ø Pause ${S.formatDauer(z.oPause)}</p>
+      <p class="dezent">${esc(datum(t.start, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}${t.woche ? ` · Woche ${t.woche}` : ""} · ${z.dauerMin} min · Ø Pause ${S.formatDauer(z.oPause)}</p>
       ${t.eintraege.map((e, ei) => `<div class="karte"><h3>${esc(e.uebungName)}</h3>
         <table class="saetze"><thead><tr><th>#</th><th>kg</th><th>Wdh.</th><th>Pause davor</th></tr></thead><tbody>
         ${e.saetze.map((s, si) => `<tr><td>${si + 1}</td>
@@ -452,6 +471,7 @@ const aktionen = {
     render();
   },
 
+  woche: (d) => { store.setzePlanWoche(store.state.aktiverPlanId, +d.w); render(); },
   "plan-aktiv": (d) => { store.state.aktiverPlanId = d.id; store.save(); render(); toast("Plan ist jetzt aktiv."); },
   "plan-bearbeiten": (d) => oeffneEditor(store.plan(d.id)),
   "plan-loeschen": (d) => {
@@ -539,12 +559,23 @@ const aktionen = {
     editorLesen();
     const p = editorEntwurf;
     p.tage.forEach((t) => (t.uebungen = t.uebungen.filter((u) => u.name.trim())));
+    try {
+      for (const t of p.tage) for (const u of t.uebungen) {
+        if (u._zieleRoh !== undefined) { const z = parseZiele(u._zieleRoh); if (z.length) u.ziele = z; else delete u.ziele; delete u._zieleRoh; }
+        if (u._wochenRoh !== undefined) {
+          const w = u._wochenRoh.split("\n").map((z) => z.trim()).filter(Boolean).map(parseZiele);
+          if (w.length) u.wochen = w; else delete u.wochen;
+          delete u._wochenRoh;
+        }
+        if (!u.notiz) delete u.notiz;
+      }
+    } catch (err) { toast(err.message, 5000); return; }
     p.tage = p.tage.filter((t) => t.uebungen.length);
     if (!p.tage.length) { toast("Der Plan braucht mindestens eine Übung."); return; }
     delete p.hinweis;
     try {
       store.setPlan(p);
-    } catch (err) { toast(err.message); return; }
+    } catch (err) { toast(err.message, 5000); return; }
     schliesseDialog();
     tab = "heute";
     render();

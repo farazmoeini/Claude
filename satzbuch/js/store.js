@@ -12,6 +12,7 @@ function leererZustand() {
     aktiverPlanId: null,
     trainings: [],
     aktiv: null,
+    planWochen: {},
     einstellungen: { pause: 90, ton: true, apiKey: "", letzteSicherung: null },
   };
 }
@@ -32,7 +33,7 @@ export function createStore(storage = globalThis.localStorage) {
     try {
       const geladen = JSON.parse(roh);
       if (!istZustand(geladen)) throw new Error("unbekanntes Format");
-      state = { ...leererZustand(), ...geladen, einstellungen: { ...leererZustand().einstellungen, ...geladen.einstellungen } };
+      state = { ...leererZustand(), ...geladen, planWochen: geladen.planWochen || {}, einstellungen: { ...leererZustand().einstellungen, ...geladen.einstellungen } };
     } catch {
       // Nichts überschreiben, was sich vielleicht noch retten lässt.
       storage.setItem(SCHLUESSEL + ".defekt", roh);
@@ -71,6 +72,17 @@ export function createStore(storage = globalThis.localStorage) {
     plan(id) {
       return state.plaene.find((p) => p.id === id) ?? null;
     },
+    /** Aktuelle Blockwoche eines Plans (1 … plan.wochen). */
+    planWoche(id) {
+      const max = store.plan(id)?.wochen || 1;
+      return Math.min(Math.max(1, state.planWochen?.[id] || 1), max);
+    },
+    setzePlanWoche(id, n) {
+      const max = store.plan(id)?.wochen || 1;
+      state.planWochen ??= {};
+      state.planWochen[id] = Math.min(Math.max(1, Math.round(n) || 1), max);
+      store.save();
+    },
 
     /** Letzte erledigte Sätze einer Übung aus abgeschlossenen Trainings. */
     letzteSaetze(name) {
@@ -83,10 +95,11 @@ export function createStore(storage = globalThis.localStorage) {
     },
 
     // ---- Training ----
-    starteTraining(planId, tagId, jetzt = Date.now()) {
+    starteTraining(planId, tagId, jetzt = Date.now(), woche = store.planWoche(planId)) {
       const plan = store.plan(planId);
       const tag = plan?.tage.find((t) => t.id === tagId);
       if (!tag) throw new Error("Trainingstag nicht gefunden");
+      const w = plan.wochen > 1 ? woche : null;
       state.aktiv = {
         id: uid(),
         planId,
@@ -95,25 +108,32 @@ export function createStore(storage = globalThis.localStorage) {
         start: jetzt,
         ende: null,
         timer: null,
-        eintraege: tag.uebungen.map((u) => store._neuerEintrag(u)),
+        woche: w,
+        eintraege: tag.uebungen.map((u) => store._neuerEintrag(u, w || 1)),
       };
       store.save();
       return state.aktiv;
     },
-    _neuerEintrag(u) {
-      const anzahl = u.saetze || 3;
+    _neuerEintrag(u, woche = 1) {
+      const block = Array.isArray(u.wochen) && u.wochen.length > 0;
+      const ziele = (block ? u.wochen[Math.min(woche, u.wochen.length) - 1] : null) ?? u.ziele ?? null;
+      const anzahl = ziele?.length || u.saetze || 3;
       const letzte = store.letzteSaetze(u.name);
       const saetze = [];
       for (let i = 0; i < anzahl; i++) {
-        const vorlage = letzte ? letzte[Math.min(i, letzte.length - 1)] : null;
+        const z = ziele?.[i] ?? null;
+        // Block: der Plan gibt das Gewicht der Woche vor. Sonst zählt, was du letztes Mal gemacht hast.
+        const vorlage = block ? null : letzte?.[i] ?? (z ? null : letzte?.[letzte.length - 1] ?? null);
         saetze.push({
-          kg: vorlage ? vorlage.kg : u.gewicht ?? null,
-          wdh: vorlage ? vorlage.wdh : ersteZahl(u.wdh),
+          kg: vorlage ? vorlage.kg : z?.kg ?? u.gewicht ?? null,
+          wdh: vorlage ? vorlage.wdh : ersteZahl(z?.wdh ?? u.wdh),
+          ziel: z ? { wdh: z.wdh, ...(z.kg != null ? { kg: z.kg } : {}) } : null,
+          pause: z?.pause ?? null,
           erledigtUm: null,
           pauseVorher: null,
         });
       }
-      return { uebungName: u.name, zielWdh: String(u.wdh ?? ""), pause: u.pause || state.einstellungen.pause, notiz: u.notiz || "", saetze };
+      return { uebungName: u.name, zielWdh: ziele ? "" : String(u.wdh ?? ""), pause: u.pause || state.einstellungen.pause, notiz: u.notiz || "", saetze };
     },
     uebungHinzufuegen(name) {
       if (!state.aktiv) return;
@@ -128,7 +148,7 @@ export function createStore(storage = globalThis.localStorage) {
       const e = state.aktiv?.eintraege[eIdx];
       if (!e) return;
       const letzter = e.saetze[e.saetze.length - 1];
-      e.saetze.push({ kg: letzter?.kg ?? null, wdh: letzter?.wdh ?? null, erledigtUm: null, pauseVorher: null });
+      e.saetze.push({ kg: letzter?.kg ?? null, wdh: letzter?.wdh ?? null, ziel: null, pause: null, erledigtUm: null, pauseVorher: null });
       store.save();
     },
     satzEntfernen(eIdx, sIdx) {

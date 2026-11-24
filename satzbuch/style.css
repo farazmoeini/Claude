@@ -226,3 +226,13 @@ select.text-feld { appearance: auto; }
 }
 .lade { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--text-3); border-top-color: var(--akzent); border-radius: 50%; animation: dreh 0.8s linear infinite; vertical-align: middle; }
 @keyframes dreh { to { transform: rotate(360deg); } }
+
+.edit-uebung .breit { grid-column: 1 / -1; }
+.edit-uebung textarea { min-height: 64px; padding: 8px; font-size: 0.95rem; width: 100%; color: var(--text); resize: vertical; }
+.ziel { font-size: 0.68rem; line-height: 1.15; color: var(--text-3); margin-top: 2px; }
+.saetze td:first-child { width: 44px; }
+.edit-uebung details summary { padding: 6px 0; cursor: pointer; }
+.edit-uebung details label { display: flex; flex-direction: column; gap: 2px; font-size: 0.7rem; color: var(--text-3); margin-top: 6px; }
+.wochen { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.chip { min-width: 44px; min-height: 40px; border-radius: 999px; border: 1px solid var(--linie); background: var(--flaeche); font-weight: 700; }
+.chip[aria-pressed="true"] { background: var(--akzent); color: var(--akzent-text); border-color: transparent; }

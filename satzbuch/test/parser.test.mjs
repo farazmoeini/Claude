@@ -83,3 +83,36 @@ test("Titelzeile „Trainingsplan …“ wird zum Plannamen", () => {
   assert.equal(p.name, "Trainingsplan Halle41 – Muskelaufbau");
   assert.equal(parsePlanText("Dips 3x8", "datei").name, "datei");
 });
+
+import { parseZiele, zieleText } from "../js/parser.js";
+
+test("Satz-Ziele lesen und schreiben", () => {
+  assert.deepEqual(parseZiele("4-5@34 / 8@28 / 8@28"), [{ wdh: "4-5", kg: 34 }, { wdh: "8", kg: 28 }, { wdh: "8", kg: 28 }]);
+  assert.deepEqual(parseZiele("3x3@97,5 / 1x5@82,5"), [
+    { wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "5", kg: 82.5 },
+  ]);
+  assert.deepEqual(parseZiele("2×30-45 Sek."), [{ wdh: "30-45 Sek." }, { wdh: "30-45 Sek." }]);
+  assert.deepEqual(parseZiele("4-5@34p210 / 8@28"), [{ wdh: "4-5", kg: 34, pause: 210 }, { wdh: "8", kg: 28 }]);
+  assert.deepEqual(parseZiele(""), []);
+  assert.deepEqual(parseZiele(zieleText(parseZiele("4-5@34p210 / 2x8@28"))), parseZiele("4-5@34p210 / 2x8@28"));
+  assert.throws(() => parseZiele("@@"));
+  assert.equal(zieleText([{ wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "5", kg: 82.5, pause: 150 }]), "3x3@97,5 / 5@82,5p150");
+});
+
+test("validierePlan übernimmt Satz-Ziele und Blockwochen", () => {
+  const p = validierePlan({
+    name: "Kraft",
+    tage: [{ name: "Mo", uebungen: [
+      { name: "Kniebeuge", wochen: [[{ wdh: "3", kg: 97.5 }, { wdh: "5", kg: 82.5 }], [{ wdh: "3", kg: 105 }]] },
+      { name: "DB Bench", ziele: [{ wdh: "4-5", kg: 34, pause: 210 }, { wdh: "8", kg: 28 }] },
+    ] }],
+  });
+  assert.equal(p.wochen, 2);
+  const [kb, db] = p.tage[0].uebungen;
+  assert.equal(kb.wochen.length, 2);
+  assert.equal(kb.saetze, 2);
+  assert.deepEqual(db.ziele[0], { wdh: "4-5", kg: 34, pause: 210 });
+  assert.equal(db.saetze, 2);
+  assert.equal(db.wdh, "4-5");
+  assert.throws(() => validierePlan({ name: "x", tage: [{ name: "a", uebungen: [{ name: "b", ziele: "kaputt" }] }] }));
+});

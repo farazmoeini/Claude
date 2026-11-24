@@ -12,8 +12,18 @@ const UEBUNG = {
     gewicht: { anyOf: [{ type: "number" }, { type: "null" }], description: "kg, null wenn nicht angegeben" },
     pause: { type: "integer", description: "Pause zwischen Sätzen in Sekunden, 90 wenn nicht angegeben" },
     notiz: { type: "string", description: "Hinweise zur Ausführung, Gerät, Sitzposition; sonst leer" },
+    ziele: {
+      type: "array",
+      description: "Ein Eintrag pro Satz, nur wenn Sätze unterschiedliche Wdh. oder Gewichte haben (Top-Satz, Back-off, Pyramide); sonst leer",
+      items: {
+        type: "object",
+        properties: { wdh: { type: "string" }, kg: { anyOf: [{ type: "number" }, { type: "null" }] } },
+        required: ["wdh", "kg"],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["name", "saetze", "wdh", "gewicht", "pause", "notiz"],
+  required: ["name", "saetze", "wdh", "gewicht", "pause", "notiz", "ziele"],
   additionalProperties: false,
 };
 export const PLAN_SCHEMA = {
@@ -37,6 +47,8 @@ export const PLAN_SCHEMA = {
 const ANWEISUNG = `Das angehängte PDF ist ein Trainingsplan fürs Fitnessstudio. Übertrage ihn vollständig in das JSON-Format.
 - Ein Eintrag in "tage" pro Trainingstag bzw. Einheit (z. B. "Tag A – Push", "Montag", "Ganzkörper 1"). Gibt es nur eine Einheit, nimm einen Tag namens "Training".
 - Übungsnamen auf Deutsch so, wie sie im Plan stehen; Gerätenummern oder Einstellungen in "notiz".
+- Haben die Sätze einer Übung verschiedene Wdh. oder Gewichte (z. B. "4-5 / 8 / 8" mit "34 / 28 / 28"), trage jeden Satz in "ziele" ein. Supersätze als zwei Übungen mit Hinweis in "notiz".
+- Zusatzgewicht (z. B. "+12,5" bei Klimmzügen) als gewicht 12.5 mit Notiz "Zusatzgewicht"; "pro Hantel" ebenfalls in die Notiz.
 - Fehlen Angaben: saetze 3, wdh "10", gewicht null, pause 90.
 - Aufwärmen und Cardio nur aufnehmen, wenn sie als eigene Übung im Plan stehen.
 - "name" ist ein kurzer Name für den ganzen Plan.`;

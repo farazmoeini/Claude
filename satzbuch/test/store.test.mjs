@@ -114,3 +114,50 @@ test("beschädigter Speicher führt zu leerem Start statt Absturz", () => {
   const s = createStore(st);
   assert.deepEqual(s.state.trainings, []);
 });
+
+const blockPlan = {
+  name: "Kraft",
+  tage: [{ id: "mo", name: "Mo", uebungen: [
+    { name: "Kniebeuge", pause: 210, wochen: [
+      [{ wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "3", kg: 97.5 }, { wdh: "5", kg: 82.5, pause: 150 }],
+      [{ wdh: "3", kg: 105 }, { wdh: "3", kg: 105 }, { wdh: "3", kg: 105 }, { wdh: "5", kg: 90 }],
+    ] },
+    { name: "DB Bench", ziele: [{ wdh: "4-5", kg: 34, pause: 210 }, { wdh: "8", kg: 28 }, { wdh: "8", kg: 28 }] },
+  ] }],
+};
+
+test("Blockwoche bestimmt Sätze und Gewichte, auch nach einem Training", () => {
+  const s = createStore(fakeStorage());
+  const p = s.setPlan(blockPlan);
+  assert.equal(s.planWoche(p.id), 1);
+  const t = s.starteTraining(p.id, "mo", T0);
+  assert.equal(t.woche, 1);
+  const kb = t.eintraege[0];
+  assert.deepEqual(kb.saetze.map((x) => [x.kg, x.wdh, x.ziel.wdh]), [[97.5, 3, "3"], [97.5, 3, "3"], [97.5, 3, "3"], [82.5, 5, "5"]]);
+  assert.equal(kb.saetze[3].pause, 150);
+  assert.equal(kb.saetze[0].pause, null); // erbt die Pause der Übung
+  assert.equal(kb.pause, 210);
+  s.satzAbhaken(0, 0, T0 + 1000);
+  s.beendeTraining(T0 + 2000);
+
+  s.setzePlanWoche(p.id, 2);
+  const t2 = s.starteTraining(p.id, "mo", T0 + 864e5);
+  assert.equal(t2.woche, 2);
+  assert.deepEqual(t2.eintraege[0].saetze.map((x) => x.kg), [105, 105, 105, 90]);
+  s.setzePlanWoche(p.id, 9);
+  assert.equal(s.planWoche(p.id), 2); // auf Blocklänge begrenzt
+});
+
+test("Satz-Ziele: erstes Mal aus dem Plan, danach Werte vom letzten Mal je Satz", () => {
+  const s = createStore(fakeStorage());
+  const p = s.setPlan(blockPlan);
+  const t = s.starteTraining(p.id, "mo", T0);
+  const db = t.eintraege[1];
+  assert.deepEqual(db.saetze.map((x) => [x.kg, x.wdh]), [[34, 4], [28, 8], [28, 8]]);
+  s.aktualisiereSatz(1, 0, { kg: 36, wdh: 5 });
+  s.satzAbhaken(1, 0, T0 + 1000);
+  s.satzAbhaken(1, 1, T0 + 2000);
+  s.beendeTraining(T0 + 3000);
+  const t2 = s.starteTraining(p.id, "mo", T0 + 864e5);
+  assert.deepEqual(t2.eintraege[1].saetze.map((x) => [x.kg, x.wdh]), [[36, 5], [28, 8], [28, 8]]);
+});
