@@ -97,6 +97,14 @@ function audioBereit() {
 function signal() {
   if (navigator.vibrate) navigator.vibrate([500, 150, 500, 150, 900]);
   if (!store.state.einstellungen.ton || !audio) return;
+  if (audio.state !== "running") {
+    // angehalten (App war im Hintergrund, Anruf, andere App): erst fortsetzen, dann abspielen
+    audio.resume().then(() => audio.state === "running" && spieleSignal()).catch(() => {});
+    return;
+  }
+  spieleSignal();
+}
+function spieleSignal() {
   const t0 = audio.currentTime + 0.02;
   const begrenzer = audio.createDynamicsCompressor();
   begrenzer.threshold.value = -6;
@@ -139,7 +147,7 @@ async function bildschirmAn(an) {
   } catch { /* nicht unterstützt */ }
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { bildschirmAn(!!store.aktiv); tick(); pruefePlanUpdates(); }
+  if (document.visibilityState === "visible") { if (audio) audioBereit(); bildschirmAn(!!store.aktiv); tick(); pruefePlanUpdates(); }
 });
 
 function zielAbweichung(s) {
@@ -536,11 +544,6 @@ const aktionen = {
       toast("Update fehlgeschlagen: " + err.message);
     }
   },
-  "ton-testen": () => {
-    audioBereit();
-    if (!store.state.einstellungen.ton) { toast("Der Ton ist ausgeschaltet."); return; }
-    signal();
-  },
   "fortschritt-block": (d) => { fortschrittBlock = d.plan; render(); },
   woche: (d) => { store.setzePlanWoche(d.plan, +d.w); render(); },
   "eigene-plaene": async () => {
@@ -672,7 +675,6 @@ const aktionen = {
       <label class="feldname" for="e-pause">Standard-Pause (Sekunden)</label>
       <input id="e-pause" class="text-feld" inputmode="numeric" value="${e.pause}" data-einst="pause">
       <label class="schalter"><span>Ton am Ende der Pause</span><input type="checkbox" data-einst="ton" ${e.ton ? "checked" : ""}></label>
-      <button class="btn voll" data-a="ton-testen">🔊 Ton testen</button>
       <p class="klein">Zu leise? Die Lautstärke kommt von der Medienlautstärke des Handys (Lautstärketaste drücken, dann den Regler „Medien“ hochziehen).</p>
       <p class="abschnitt">Sicherung</p>
       <p class="dezent">Deine Daten liegen nur auf diesem Handy${dauerhaft ? " (vor automatischem Löschen geschützt)" : ""}. ${e.letzteSicherung ? "Letzte Sicherung: " + esc(datum(e.letzteSicherung, { day: "2-digit", month: "2-digit", year: "numeric" })) : "Noch keine Sicherung."}</p>
@@ -759,7 +761,10 @@ function tick() {
   const rest = S.restzeit(t.endetUm);
   const gesamt = Math.max(1, (t.endetUm - t.start) / 1000);
   const vorbei = rest === 0;
-  if (vorbei && !timerGemeldet) { timerGemeldet = true; if (Date.now() - t.endetUm < 5000) signal(); }
+  if (vorbei && !timerGemeldet) {
+    if (S.sollSignal(t.endetUm, Date.now(), false)) signal();
+    timerGemeldet = true;
+  }
   const ueber = Math.floor((Date.now() - t.endetUm) / 1000);
   const html = `<div class="zeit">${vorbei ? "+" + S.formatDauer(ueber) : S.formatDauer(rest)}</div>
     <div class="info">${vorbei ? "Pause vorbei – nächster Satz!" : "Pause"}<div class="balken"><i style="width:${vorbei ? 100 : Math.round((1 - rest / gesamt) * 100)}%"></i></div></div>
@@ -775,11 +780,12 @@ function tick() {
 setInterval(tick, 250);
 
 // ---------- Start ----------
-if (store.aktiv?.timer && S.restzeit(store.aktiv.timer.endetUm) === 0) timerGemeldet = true;
+// Beim (Neu-)Start: Pause schon länger vorbei → kein Ton mehr; gerade erst vorbei → Ton kommt noch.
+if (store.aktiv?.timer && Date.now() - store.aktiv.timer.endetUm >= S.SIGNAL_NACHLAUF_MS) timerGemeldet = true;
 render();
 pruefePlanUpdates();
 navigator.storage?.persist?.().catch(() => {});
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
-window.__satzbuch = { store, render };
+window.__satzbuch = { store, render, get audio() { return audio; } };

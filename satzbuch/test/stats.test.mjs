@@ -57,3 +57,14 @@ test("Trainings dieser Woche ab Montag", () => {
   const jetzt = Date.UTC(2026, 10, 25, 12);
   assert.equal(trainingsDieseWoche([t1, t2, tr("3", 23, []), tr("4", 24, [])], jetzt), 2);
 });
+
+import { sollSignal } from "../js/stats.js";
+
+test("Pausenton: auch nach dem Zurückkehren in die App, nur einmal, nicht nach Ewigkeiten", () => {
+  const ende = 1_000_000;
+  assert.equal(sollSignal(ende, ende - 1000, false), false); // läuft noch
+  assert.equal(sollSignal(ende, ende + 300, false), true); // gerade vorbei
+  assert.equal(sollSignal(ende, ende + 20_000, false), true); // App war 20 s weg (früher: still)
+  assert.equal(sollSignal(ende, ende + 20_000, true), false); // schon gemeldet
+  assert.equal(sollSignal(ende, ende + 5 * 60_000, false), false); // nach 5 Min. kein Ton mehr
+});

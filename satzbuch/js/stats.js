@@ -108,3 +108,10 @@ export function formatDauer(sek) {
   const m = Math.floor(sek / 60), s = sek % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/** Soll jetzt der Pausenton kommen? Einmal pro Pause; auch wenn die App erst später wieder
+ *  aktiv wird (Android friert Apps im Hintergrund ein), aber nicht mehr nach 2 Minuten. */
+export const SIGNAL_NACHLAUF_MS = 2 * 60_000;
+export function sollSignal(endetUm, jetzt, schonGemeldet) {
+  return !schonGemeldet && jetzt >= endetUm && jetzt - endetUm < SIGNAL_NACHLAUF_MS;
+}
