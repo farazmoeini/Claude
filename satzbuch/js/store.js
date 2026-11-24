@@ -13,7 +13,7 @@ function leererZustand() {
     trainings: [],
     aktiv: null,
     planWochen: {},
-    einstellungen: { pause: 90, ton: true, apiKey: "", letzteSicherung: null },
+    einstellungen: { pause: 90, ton: true, benachrichtigung: true, apiKey: "", letzteSicherung: null },
   };
 }
 

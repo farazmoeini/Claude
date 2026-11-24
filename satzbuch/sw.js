@@ -1,6 +1,7 @@
 // Offline-Cache. App-Dateien und Pläne: Netz zuerst (immer neueste Version), ohne Netz aus dem Cache.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache.
-const VERSION = "satzbuch-v10";
+const VERSION = "satzbuch-v11";
+const STATUS = "overload-status"; // merkt sich, für welches Pausenende schon benachrichtigt wurde
 const APP = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
   "js/ui.js", "js/store.js", "js/parser.js", "js/stats.js", "js/util.js", "js/pdf.js", "js/claude.js",
@@ -24,7 +25,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== VERSION) await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== VERSION && k !== STATUS) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -58,4 +59,45 @@ self.addEventListener("fetch", (e) => {
   }
   if (url.origin !== location.origin) return;
   e.respondWith(netzZuerst(req));
+});
+
+// ---------- Pausenende als Benachrichtigung, wenn die App nicht sichtbar ist ----------
+// Die App meldet jeden neuen/geänderten Timer. Der Dienst wartet bis zum Ende (Chrome erlaubt
+// bis zu 5 Min.) und benachrichtigt nur, wenn gerade kein App-Fenster sichtbar ist.
+let aktuellerTimer = null;
+
+self.addEventListener("message", (e) => {
+  const d = e.data || {};
+  if (d.typ !== "timer") return;
+  aktuellerTimer = d.timer || null;
+  if (!aktuellerTimer) return;
+  const meiner = aktuellerTimer;
+  const warten = Math.max(0, meiner.endetUm - Date.now());
+  if (warten > 290_000) return; // länger als Chrome den Dienst wachhält
+  e.waitUntil(new Promise((r) => setTimeout(r, warten)).then(async () => {
+    if (aktuellerTimer !== meiner) return; // inzwischen geändert, gestoppt oder neuer Satz
+    const fenster = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (fenster.some((c) => c.visibilityState === "visible")) return; // App piept selbst
+    await self.registration.showNotification("Pause vorbei", {
+      body: meiner.text || "Nächster Satz!",
+      tag: "pause",
+      renotify: true,
+      silent: false,
+      vibrate: [500, 150, 500, 150, 900],
+      icon: "icon-192.png",
+      badge: "icon-192.png",
+    });
+    const c = await caches.open(STATUS);
+    await c.put("gemeldet", new Response(String(meiner.endetUm)));
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const fenster = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const app = fenster.find((c) => new URL(c.url).pathname.startsWith(new URL(self.registration.scope).pathname));
+    if (app) return app.focus();
+    return self.clients.openWindow("./");
+  })());
 });

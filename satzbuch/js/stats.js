@@ -115,3 +115,20 @@ export const SIGNAL_NACHLAUF_MS = 2 * 60_000;
 export function sollSignal(endetUm, jetzt, schonGemeldet) {
   return !schonGemeldet && jetzt >= endetUm && jetzt - endetUm < SIGNAL_NACHLAUF_MS;
 }
+
+/** Erster noch nicht abgehakter Satz im laufenden Training. */
+export function naechsterSatz(aktiv) {
+  for (const e of aktiv?.eintraege ?? []) {
+    const i = e.saetze.findIndex((s) => !s.erledigtUm);
+    if (i >= 0) return { uebung: e.uebungName, satz: i + 1, kg: e.saetze[i].kg ?? null, wdh: e.saetze[i].wdh ?? null };
+  }
+  return null;
+}
+
+/** Text für die Benachrichtigung am Pausenende. */
+export function pausenText(aktiv) {
+  const n = naechsterSatz(aktiv);
+  if (!n) return "Alle Sätze erledigt – Training beenden?";
+  const werte = [n.kg != null ? `${String(n.kg).replace(".", ",")} kg` : "", n.wdh != null ? `${n.wdh}` : ""].filter(Boolean).join(" × ");
+  return `Weiter: ${n.uebung}, Satz ${n.satz}${werte ? " – " + werte : ""}`;
+}
