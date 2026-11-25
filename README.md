@@ -1,6 +1,6 @@
 # Money Apps
 
-Vier lauffähige Prototypen für App-Ideen mit gutem Umsatzpotenzial. Dazu die
+Lauffähige Prototypen für App-Ideen mit gutem Umsatzpotenzial. Dazu die
 Wettbewerbs-Analyse in [ANALYSE.md](ANALYSE.md).
 
 | App | Was sie macht | Technik | Start |
@@ -10,6 +10,7 @@ Wettbewerbs-Analyse in [ANALYSE.md](ANALYSE.md).
 | [**AngebotsBlitz**](angebotsblitz/) | Handwerker diktiert den Auftrag, daraus werden Angebot und Rechnung als PDF mit eigener Preisliste | Python, FastAPI, SQLite, fpdf2 | `uvicorn app:app --port 8200` |
 | [**Tellerblick**](tellerblick/) | Kalorien und Eiweiß per Foto, Tagesziel, Gewichtstrend | Python, FastAPI, SQLite, Claude Vision | `uvicorn app:app --port 8300` |
 | [**Zerfallzone**](zerfallzone/) | Vertikaler Arena-Battle-Royale: Solo, Duos, Trios, offline gegen Bots oder online mit Crossplay PC ↔ Browser. PC-App für Windows, Mac und Linux | Three.js, Node.js, WebSocket, Electron | `npm install && npm start` |
+| [**Overload**](satzbuch/) | Trainingstagebuch fürs Handy: Übungen, Fortschritt, Pausentimer. Plan aus PDF importieren | Statische PWA, läuft offline | `python3 -m http.server 8411` |
 
 Jede App hat ein eigenes README mit Funktionen, Start-Anleitung und dem Weg zum
 verkaufbaren Produkt.

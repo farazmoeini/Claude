@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f9d58">
+<meta name="description" content="Tellerblick – Kalorien und Eiweiß per Foto zählen.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Tellerblick</title>
+<style>
+  :root { --bg:#f4f6f5; --card:#fff; --text:#121614; --muted:#68716c; --line:#e3e7e5; --brand:#0f9d58; --brand2:#e6f5ec; --p:#2563eb; --c:#d97706; --f:#db2777; --bad:#dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e1210; --card:#171c19; --text:#e9eeeb; --muted:#93a099; --line:#26302b; --brand:#34c77b; --brand2:#163324; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { overscroll-behavior-y:none; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Inter,sans-serif; -webkit-text-size-adjust:100%; }
+  main { max-width:560px; margin:0 auto; padding:calc(14px + env(safe-area-inset-top)) 16px 150px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:12px; }
+  h1 { font-size:22px; margin:2px 0 12px; letter-spacing:-.02em; } h1 span { color:var(--brand); }
+  h2 { font-size:16px; margin:0 0 8px; }
+  a { color:var(--brand); }
+  .muted { color:var(--muted); font-size:13px; }
+  .small { font-size:12px; }
+  .row { display:flex; gap:10px; align-items:center; }
+  .between { justify-content:space-between; }
+  .btn { border:0; border-radius:12px; padding:12px 14px; font:600 15px/1.1 inherit; cursor:pointer; background:var(--brand); color:#fff; }
+  .btn.ghost { background:var(--brand2); color:var(--brand); }
+  .btn.danger { background:none; color:var(--bad); border:1px solid var(--bad); }
+  .btn.small { padding:7px 10px; font-size:13px; }
+  .btn.block { width:100%; }
+  .btn.icon { background:none; color:var(--muted); padding:4px 8px; font-size:18px; }
+  .btn:disabled { opacity:.5; }
+  .link { background:none; border:0; color:var(--brand); font:inherit; padding:0; cursor:pointer; text-decoration:underline; }
+  input, select { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:11px 10px; font:16px inherit; }
+  label { display:block; font-size:12.5px; color:var(--muted); margin:10px 0 4px; }
+  .check { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--text); margin:12px 0 0; }
+  .check input { width:20px; height:20px; flex:none; margin-top:1px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; background:var(--bg); border-radius:12px; padding:4px; margin-bottom:12px; }
+  .seg button { border:0; background:none; padding:9px; border-radius:9px; font:600 14px inherit; color:var(--muted); cursor:pointer; }
+  .seg button.on { background:var(--card); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  .err { color:var(--bad); font-size:13.5px; min-height:1em; margin-top:8px; }
+  .ring { width:150px; height:150px; flex:none; }
+  .macro { margin:7px 0; }
+  .macro .bar { height:8px; border-radius:99px; background:var(--line); overflow:hidden; margin-top:3px; }
+  .macro .bar div { height:100%; border-radius:99px; }
+  .entry { display:flex; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+  .entry img, .entry .ph { width:42px; height:42px; border-radius:10px; object-fit:cover; flex:none; display:grid; place-items:center; font-size:22px; }
+  .entry .n { flex:1; min-width:0; } .entry .n div:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tabs { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:8px 16px calc(8px + env(safe-area-inset-bottom)); z-index:5; }
+  .tabs .in { max-width:560px; margin:0 auto; display:flex; justify-content:space-around; }
+  .tabs button { background:none; border:0; color:var(--muted); font:600 12px inherit; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; padding:4px 14px; }
+  .tabs button.on { color:var(--brand); } .tabs button span { font-size:20px; }
+  .fab { position:fixed; bottom:calc(76px + env(safe-area-inset-bottom)); left:0; right:0; z-index:4; pointer-events:none; }
+  .fab .in { max-width:560px; margin:0 auto; padding:0 16px; display:flex; gap:10px; justify-content:flex-end; }
+  .fab .btn { pointer-events:auto; box-shadow:0 6px 20px rgba(0,0,0,.18); }
+  .sheet { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:10; display:flex; align-items:flex-end; }
+  .sheet .box { background:var(--card); width:100%; max-width:560px; margin:0 auto; border-radius:20px 20px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); max-height:92vh; overflow:auto; }
+  .item { border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; }
+  .chip { display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:99px; background:var(--brand2); color:var(--brand); font-weight:600; }
+  .preview { width:100%; max-height:220px; object-fit:cover; border-radius:14px; margin-bottom:10px; }
+  .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .kpi b { display:block; font-size:22px; }
+  .pkg { display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; border:2px solid var(--line); background:var(--card); color:var(--text); border-radius:14px; padding:14px; margin-bottom:10px; font:inherit; cursor:pointer; }
+  .pkg.on { border-color:var(--brand); background:var(--brand2); }
+  .benefit { display:flex; gap:10px; margin:8px 0; }
+  .list-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-top:1px solid var(--line); background:none; border-left:0; border-right:0; border-bottom:0; width:100%; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+  .loading { display:grid; place-items:center; min-height:60vh; color:var(--muted); }
+  svg text { fill:var(--muted); font-size:10px; }
+</style>
+</head>
+<body>
+<main id="view"><div class="loading">Lädt …</div></main>
+<div class="fab" id="fab" hidden><div class="in"><button class="btn ghost" id="fabSearch">🔍 Suchen</button><button class="btn" id="fabPhoto">📷 Foto</button></div></div>
+<div class="tabs" id="tabs" hidden><div class="in">
+  <button data-t="today" class="on"><span>🍽️</span>Heute</button><button data-t="progress"><span>📈</span>Verlauf</button><button data-t="settings"><span>⚙️</span>Einstellungen</button>
+</div></div>
+<script src="config.js"></script>
+<script src="native.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

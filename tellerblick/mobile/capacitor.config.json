@@ -1,0 +1,12 @@
+{
+  "appId": "de.tellerblick.app",
+  "appName": "Tellerblick",
+  "webDir": "www",
+  "backgroundColor": "#f4f6f5",
+  "ios": { "contentInset": "never", "scheme": "Tellerblick" },
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0f9d58", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": true, "style": "DEFAULT" }
+  }
+}

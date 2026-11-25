@@ -1,0 +1,19 @@
+{
+  "name": "Overload – Trainingstagebuch",
+  "short_name": "Overload",
+  "description": "Übungen, Fortschritt und Pausen im Gym tracken. Läuft offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121413",
+  "theme_color": "#121413",
+  "lang": "de",
+  "categories": ["health", "fitness"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

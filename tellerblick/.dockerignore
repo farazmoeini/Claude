@@ -1,0 +1,5 @@
+mobile
+data
+deploy
+**/__pycache__
+**/test_*.py
