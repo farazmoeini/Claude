@@ -1,0 +1,1142 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1795635857.7315602,
+    "seen": 1795635860.578593,
+    "ast_hash": "083822d0abbf48c5500710401ce951da",
+    "semantic_hash": ""
+  },
+  ".github/workflows/satzbuch-pages.yml": {
+    "mtime": 1795635648.4912105,
+    "seen": 1795635860.5786023,
+    "ast_hash": "e9316bc49923b4d3611309b7e5ae9568",
+    "semantic_hash": ""
+  },
+  ".github/workflows/tellerblick.yml": {
+    "mtime": 1795635648.491316,
+    "seen": 1795635860.5786064,
+    "ast_hash": "e350b7911a02254f477f2684bd8678a7",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/app.py": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5786092,
+    "ast_hash": "5fd2cc38b5834848b46f0f587f45c103",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/db.py": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5786111,
+    "ast_hash": "feca8b1d82e08b9c5828f37bef5e58fb",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/drafting.py": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5786133,
+    "ast_hash": "665083667a94c8e2a245bd2fd50b19f1",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/pdf.py": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5786152,
+    "ast_hash": "4b064dccf5b84b939a473414980c0082",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/test_drafting.py": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5786169,
+    "ast_hash": "32d4205610b5af1352cbca73febfac6c",
+    "semantic_hash": ""
+  },
+  "lernapp/catalogs/erste-hilfe.json": {
+    "mtime": 1795635648.492217,
+    "seen": 1795635860.5786188,
+    "ast_hash": "5290de7224d33d42415aca4e5e55fbec",
+    "semantic_hash": ""
+  },
+  "lernapp/catalogs/index.json": {
+    "mtime": 1795635648.4922986,
+    "seen": 1795635860.5786207,
+    "ast_hash": "b175c768aa8151a2b0e91777491ba28f",
+    "semantic_hash": ""
+  },
+  "lernapp/sw.js": {
+    "mtime": 1795635648.4922986,
+    "seen": 1795635860.5786228,
+    "ast_hash": "b3a8776df4c4b0026162db66e15333b9",
+    "semantic_hash": ""
+  },
+  "lernapp/tools/generate_catalog.py": {
+    "mtime": 1795635648.4924648,
+    "seen": 1795635860.578625,
+    "ast_hash": "0aacd6f75360732d8e91e41953b2fc8d",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/claude.js": {
+    "mtime": 1795635648.492642,
+    "seen": 1795635860.5786266,
+    "ast_hash": "44fa765a7dd0807bf164e19563ef93de",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/parser.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.5786283,
+    "ast_hash": "98c1ad0f0c766ef8882f01451d1d7099",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/pdf.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.5786304,
+    "ast_hash": "6e3fb42eb8781e2d67986f9f17adb305",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/stats.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.578632,
+    "ast_hash": "3d05c9b3c7601fe346c0dc909d2ab16b",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/store.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.5786338,
+    "ast_hash": "e0cef648bc3d187e2d53906478e55cbb",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/ui.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.5786355,
+    "ast_hash": "605c2c7829ec0726586f328ba01e6ed7",
+    "semantic_hash": ""
+  },
+  "satzbuch/js/util.js": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.5786374,
+    "ast_hash": "ca3b718925a17cf5f712b3e6f8eaa27a",
+    "semantic_hash": ""
+  },
+  "satzbuch/package.json": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.578639,
+    "ast_hash": "cad072ba17b44ec5ce0ed39dacf2adbe",
+    "semantic_hash": ""
+  },
+  "satzbuch/plans/beispiel-ppl.json": {
+    "mtime": 1795635648.4928539,
+    "seen": 1795635860.578641,
+    "ast_hash": "79fbfbb50e558148388219cb620ed9be",
+    "semantic_hash": ""
+  },
+  "satzbuch/plans/index.json": {
+    "mtime": 1795635648.4942782,
+    "seen": 1795635860.5786426,
+    "ast_hash": "43db7479cf137e5bfba45ba2743243ab",
+    "semantic_hash": ""
+  },
+  "satzbuch/plans/kompakt.json": {
+    "mtime": 1795635648.4942782,
+    "seen": 1795635860.5786448,
+    "ast_hash": "b663b66c399e21cc8367478e47c6c1f1",
+    "semantic_hash": ""
+  },
+  "satzbuch/plans/kraft.json": {
+    "mtime": 1795635648.4942782,
+    "seen": 1795635860.5786464,
+    "ast_hash": "fd12503e0c8763a2c72ee7c32194a287",
+    "semantic_hash": ""
+  },
+  "satzbuch/sw.js": {
+    "mtime": 1795635648.4942782,
+    "seen": 1795635860.5786483,
+    "ast_hash": "8540cd85f020ab80713dd4c99200def2",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/import.test.mjs": {
+    "mtime": 1795635648.4942782,
+    "seen": 1795635860.5786498,
+    "ast_hash": "511e18b9744608e6a5106a20b5245853",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/parser.test.mjs": {
+    "mtime": 1795635648.494608,
+    "seen": 1795635860.5786517,
+    "ast_hash": "3dabf5cc92747b2b5e2fa45585f0bc57",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/stats.test.mjs": {
+    "mtime": 1795635648.494608,
+    "seen": 1795635860.5786533,
+    "ast_hash": "21dc00f592db98c65998bcc4d713ef39",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/store.test.mjs": {
+    "mtime": 1795635648.494608,
+    "seen": 1795635860.578655,
+    "ast_hash": "93417ef6586c983757f95e29e1b4e2f3",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/tabelle.test.mjs": {
+    "mtime": 1795635648.494608,
+    "seen": 1795635860.5786567,
+    "ast_hash": "babb1bb7221bda24a79347fb73075888",
+    "semantic_hash": ""
+  },
+  "satzbuch/test/util.test.mjs": {
+    "mtime": 1795635648.494608,
+    "seen": 1795635860.5786586,
+    "ast_hash": "3ad8a5e790d4235d84f159fc32c2f38a",
+    "semantic_hash": ""
+  },
+  "streamcut/app.py": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.5786602,
+    "ast_hash": "c1fdcc770ffff0ff2c30701e58b595c0",
+    "semantic_hash": ""
+  },
+  "streamcut/pipeline.py": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.5786622,
+    "ast_hash": "5eb69384a939cbf13b1ee11c3d6d03a1",
+    "semantic_hash": ""
+  },
+  "streamcut/test_pipeline.py": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.5786638,
+    "ast_hash": "b5cc6480039e32a4f128084d100d1e89",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/app.py": {
+    "mtime": 1795635648.4955652,
+    "seen": 1795635860.5786657,
+    "ast_hash": "f008ce9132a004e64fb30d369603cb45",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/auth.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786674,
+    "ast_hash": "fab3ead5dfbef3287c8e17e8a19fb2eb",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/billing.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786693,
+    "ast_hash": "296070dafc08402fd749ab98f0669f5c",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/config.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786712,
+    "ast_hash": "175487b2ee85bc75da8ce6e05bf0ba2a",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/db.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.578673,
+    "ast_hash": "251898e068668ff1dd0293795f228b34",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/foods.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786748,
+    "ast_hash": "74694370561289d5c44b7349288d5bc7",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/nutrition.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786765,
+    "ast_hash": "a3dbfb929c7c1e9ff2add798d0275df0",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/test_api.py": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5786784,
+    "ast_hash": "e19f7c74f243c516600e5a0d91ca0038",
+    "semantic_hash": ""
+  },
+  "tellerblick/deploy/backup.sh": {
+    "mtime": 1795635648.4960685,
+    "seen": 1795635860.57868,
+    "ast_hash": "bcb5049264aa5677c1347c9d72542b4e",
+    "semantic_hash": ""
+  },
+  "tellerblick/deploy/docker-compose.yml": {
+    "mtime": 1795635648.4960685,
+    "seen": 1795635860.578685,
+    "ast_hash": "341846dcaa9666c730198f86aadd8f61",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/build.gradle": {
+    "mtime": 1795635648.4966016,
+    "seen": 1795635860.5786867,
+    "ast_hash": "28f66b009d4fac7477038430c6450c56",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/capacitor.build.gradle": {
+    "mtime": 1795635648.4966016,
+    "seen": 1795635860.5786886,
+    "ast_hash": "e7263e101184eb54407632610fa3afd8",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java": {
+    "mtime": 1795635648.4967046,
+    "seen": 1795635860.57869,
+    "ast_hash": "fbaf7cc870c663eb52dcf218531c439d",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/java/de/tellerblick/app/MainActivity.java": {
+    "mtime": 1795635648.496806,
+    "seen": 1795635860.5786917,
+    "ast_hash": "39e5129cb214e65fcc75aef77188415e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java": {
+    "mtime": 1795635648.503548,
+    "seen": 1795635860.5786936,
+    "ast_hash": "e91b4501c14da821682fa5c26a16d616",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/build.gradle": {
+    "mtime": 1795635648.503548,
+    "seen": 1795635860.5786955,
+    "ast_hash": "682315a426653617c6a74fc12bef55b6",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/capacitor.settings.gradle": {
+    "mtime": 1795635648.503548,
+    "seen": 1795635860.5786972,
+    "ast_hash": "2bf2c0519a7625e062c1876f4acc7a29",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/gradlew": {
+    "mtime": 1795635648.5039213,
+    "seen": 1795635860.5786994,
+    "ast_hash": "794669d78aef1dd5c7d889ef618b311a",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/settings.gradle": {
+    "mtime": 1795635648.5039213,
+    "seen": 1795635860.5787008,
+    "ast_hash": "f6cd925b3f859e23c3d819fe2459e0e4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/variables.gradle": {
+    "mtime": 1795635648.5039213,
+    "seen": 1795635860.5787027,
+    "ast_hash": "4b3fce8ea2a515a9d2e47e74757172ec",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/build.mjs": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.578704,
+    "ast_hash": "93c887b735771b0d8e08ae679bcf3690",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/capacitor.config.json": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.578706,
+    "ast_hash": "15bc46b39ff335f44591aa75b236d7e9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/AppDelegate.swift": {
+    "mtime": 1795635648.513522,
+    "seen": 1795635860.578708,
+    "ast_hash": "66cf80b6a9ef034e815c7d0135b97e36",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+    "mtime": 1795635648.5150795,
+    "seen": 1795635860.5787358,
+    "ast_hash": "9482c752eb96b98a4e7f9da65c8b236d",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Contents.json": {
+    "mtime": 1795635648.5150795,
+    "seen": 1795635860.5787406,
+    "ast_hash": "31cc68f34934a99c0b0c1bebde56309c",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Contents.json": {
+    "mtime": 1795635648.5150795,
+    "seen": 1795635860.5787425,
+    "ast_hash": "d0e5195c41b0faccfadc4d6904f8d4d4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/SceneDelegate.swift": {
+    "mtime": 1795635648.5179048,
+    "seen": 1795635860.578745,
+    "ast_hash": "109aded755e8064cd0c2de99e039aeb5",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/CapApp-SPM/Package.swift": {
+    "mtime": 1795635648.5180104,
+    "seen": 1795635860.5787468,
+    "ast_hash": "edcccbcb1dafdc1e24a64954fd19b7c4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift": {
+    "mtime": 1795635648.5180554,
+    "seen": 1795635860.5787487,
+    "ast_hash": "0d92cb44a62bc3f2d73464a2e4f9a890",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/package.json": {
+    "mtime": 1795635648.5180554,
+    "seen": 1795635860.5787504,
+    "ast_hash": "054236df37d476b13af674a51b2368fb",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/frame_screenshots.py": {
+    "mtime": 1795635648.51892,
+    "seen": 1795635860.5787523,
+    "ast_hash": "af72364162ac197f54cd276811332e25",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/app.js": {
+    "mtime": 1795635648.5398846,
+    "seen": 1795635860.578754,
+    "ast_hash": "6b193943dafea02544327ad351d2c32e",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/config.js": {
+    "mtime": 1795635648.5447133,
+    "seen": 1795635860.5787559,
+    "ast_hash": "5579bba5484c6c0dece1d61341c696a7",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/native.js": {
+    "mtime": 1795635648.5447133,
+    "seen": 1795635860.5787573,
+    "ast_hash": "dcd8c09cc638f5f3e8d2d8ef75e24499",
+    "semantic_hash": ""
+  },
+  ".claude/ARCHITECTURE_MAP.md": {
+    "mtime": 1795635776.7542777,
+    "seen": 1795635860.5787592,
+    "ast_hash": "e2d2fb6e74863d6aa87adc7ddbedea7d",
+    "semantic_hash": ""
+  },
+  ".claude/CLAUDE.md": {
+    "mtime": 1795635857.733366,
+    "seen": 1795635860.5787606,
+    "ast_hash": "9b31786b637be3c13978bec4c2330752",
+    "semantic_hash": ""
+  },
+  ".claude/COMMON_MISTAKES.md": {
+    "mtime": 1795635764.5398915,
+    "seen": 1795635860.5787623,
+    "ast_hash": "a0b544f0259fb1f565dce76e152c882e",
+    "semantic_hash": ""
+  },
+  ".claude/QUICK_START.md": {
+    "mtime": 1795635776.7556112,
+    "seen": 1795635860.578764,
+    "ast_hash": "dc04c9e01e061256023e8c1b28277d16",
+    "semantic_hash": ""
+  },
+  "ANALYSE.md": {
+    "mtime": 1795635648.491316,
+    "seen": 1795635860.5787659,
+    "ast_hash": "64f630df8da3beda262c43c6178e1b94",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1795635857.7307727,
+    "seen": 1795635860.5787678,
+    "ast_hash": "368d5d52ab823627cf3df9bd06c2dbb8",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1795635648.491316,
+    "seen": 1795635860.5787694,
+    "ast_hash": "4ee4bc6559496b08811acdf3326ddcbb",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/README.md": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5787709,
+    "ast_hash": "d08e619a053c40e6d6f53321a7757f67",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/requirements.txt": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5787728,
+    "ast_hash": "cee243a0a4bb2561fd945deaefacbac4",
+    "semantic_hash": ""
+  },
+  "angebotsblitz/static/index.html": {
+    "mtime": 1795635648.4915218,
+    "seen": 1795635860.5787745,
+    "ast_hash": "fe510c716a2e9c67a7de7a6ae3895627",
+    "semantic_hash": ""
+  },
+  "docs/INDEX.md": {
+    "mtime": 1795635764.5421011,
+    "seen": 1795635860.5787766,
+    "ast_hash": "c0809c13e8395cf6a88e30e5a848eb60",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-24-satzbuch.md": {
+    "mtime": 1795635648.49201,
+    "seen": 1795635860.5787783,
+    "ast_hash": "a2670f5667707c5b777ed25dc2b9746b",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-24-gym-tracker-design.md": {
+    "mtime": 1795635648.49201,
+    "seen": 1795635860.57878,
+    "ast_hash": "005e4a001bad24a31a9df1cfc4c873e4",
+    "semantic_hash": ""
+  },
+  "lernapp/README.md": {
+    "mtime": 1795635648.49201,
+    "seen": 1795635860.5787816,
+    "ast_hash": "3423fafa2bb8f39f66d88e37d94fcf43",
+    "semantic_hash": ""
+  },
+  "lernapp/index.html": {
+    "mtime": 1795635648.4922986,
+    "seen": 1795635860.578784,
+    "ast_hash": "3e21fc593396f1ecaceee5469a3c90ec",
+    "semantic_hash": ""
+  },
+  "satzbuch/README.md": {
+    "mtime": 1795635648.4924648,
+    "seen": 1795635860.578786,
+    "ast_hash": "d1439ecd594ddb3b300b93a32fabe020",
+    "semantic_hash": ""
+  },
+  "satzbuch/index.html": {
+    "mtime": 1795635648.492642,
+    "seen": 1795635860.578788,
+    "ast_hash": "462e4777a1c98bef42b2c4f7458dfa6b",
+    "semantic_hash": ""
+  },
+  "streamcut/README.md": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.57879,
+    "ast_hash": "6db01ed534a1f919c48a8bad4cd55e6c",
+    "semantic_hash": ""
+  },
+  "streamcut/requirements.txt": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.578793,
+    "ast_hash": "0fff6c3e7fe898f8d2ef2650bcde6160",
+    "semantic_hash": ""
+  },
+  "streamcut/static/index.html": {
+    "mtime": 1795635648.4949381,
+    "seen": 1795635860.578795,
+    "ast_hash": "de5e57f7c563252491ffd29f9226a315",
+    "semantic_hash": ""
+  },
+  "tellerblick/LAUNCH.md": {
+    "mtime": 1795635648.4955652,
+    "seen": 1795635860.5787966,
+    "ast_hash": "07f9ea1b90abfa9fd4a191e0109af79c",
+    "semantic_hash": ""
+  },
+  "tellerblick/README.md": {
+    "mtime": 1795635648.4955652,
+    "seen": 1795635860.5787985,
+    "ast_hash": "175f87d0c8523c05f26332ca4bf4c289",
+    "semantic_hash": ""
+  },
+  "tellerblick/backend/requirements.txt": {
+    "mtime": 1795635648.495827,
+    "seen": 1795635860.5788004,
+    "ast_hash": "f3b46968bab6d4cffc1e85897d6edce8",
+    "semantic_hash": ""
+  },
+  "tellerblick/legal/datenschutz.html": {
+    "mtime": 1795635648.4960685,
+    "seen": 1795635860.5788019,
+    "ast_hash": "247c1f8e5ee9a26b37f98b35ebb98135",
+    "semantic_hash": ""
+  },
+  "tellerblick/legal/impressum.html": {
+    "mtime": 1795635648.496155,
+    "seen": 1795635860.5788038,
+    "ast_hash": "5ca26105cdf89051f41f368eeaa8a4ea",
+    "semantic_hash": ""
+  },
+  "tellerblick/legal/nutzungsbedingungen.html": {
+    "mtime": 1795635648.496155,
+    "seen": 1795635860.5788054,
+    "ast_hash": "531f1316bd22056acb17e24e09dd3f29",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/CapApp-SPM/README.md": {
+    "mtime": 1795635648.5180104,
+    "seen": 1795635860.5788074,
+    "ast_hash": "d256f6b5922d4249607779141357d565",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/listing.md": {
+    "mtime": 1795635648.51892,
+    "seen": 1795635860.5788088,
+    "ast_hash": "23105258fb96872b68b43684e520136a",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/index.html": {
+    "mtime": 1795635648.5447133,
+    "seen": 1795635860.5788107,
+    "ast_hash": "1c0f06b538bbc68618ed33f16d9f15cb",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/reset.html": {
+    "mtime": 1795635648.5447133,
+    "seen": 1795635860.5788121,
+    "ast_hash": "2d94044acebd338ffe27dceee13882f8",
+    "semantic_hash": ""
+  },
+  "lernapp/icon.svg": {
+    "mtime": 1795635648.4922986,
+    "seen": 1795635860.5788138,
+    "ast_hash": "7875834cc0fef84d74593c803a6e00f5",
+    "semantic_hash": ""
+  },
+  "satzbuch/icon-192.png": {
+    "mtime": 1795635648.492642,
+    "seen": 1795635860.5788155,
+    "ast_hash": "719c28a747f4d86ba54f500e4f3c9c92",
+    "semantic_hash": ""
+  },
+  "satzbuch/icon-512.png": {
+    "mtime": 1795635648.492642,
+    "seen": 1795635860.5788174,
+    "ast_hash": "cc7a9c64af16b8368b7bd82f701f4342",
+    "semantic_hash": ""
+  },
+  "satzbuch/icon.svg": {
+    "mtime": 1795635648.492642,
+    "seen": 1795635860.5788188,
+    "ast_hash": "268395899e3ace1f9a87cc0310c033da",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-hdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788207,
+    "ast_hash": "97ea430c734c0a44b7d781b64002ef41",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-ldpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788224,
+    "ast_hash": "4f48bff2a1343fad4c74080658bb78c9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-mdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578824,
+    "ast_hash": "0da2fca8a81e36bfb8573b3b4c6614f8",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-hdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788257,
+    "ast_hash": "6aaf21fc8fb13ea208c7e2b87291330e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-ldpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788276,
+    "ast_hash": "94f127418779b08fc057ffe8ed2d52b9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-mdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578829,
+    "ast_hash": "8418bb8c89b251f85b46efef90c46183",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-xhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578831,
+    "ast_hash": "a2804611f33a56b486eb628e619194e0",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-xxhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788324,
+    "ast_hash": "54506959dfb283bd1ae1ffe29fb5c2aa",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-night-xxxhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578834,
+    "ast_hash": "6f04dc52fbf4452442947145e208cbba",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-xhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578836,
+    "ast_hash": "597820c4126da87cc29194000cfd6628",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-xxhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788379,
+    "ast_hash": "6db7e6e529e3f287d033de921e29c806",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-land-xxxhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.57884,
+    "ast_hash": "a2399f2eca74d235413fe4d3eba2373e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-night/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578842,
+    "ast_hash": "94f127418779b08fc057ffe8ed2d52b9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-hdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788434,
+    "ast_hash": "bd6afddf14e2082d80d2d8193168ac7c",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-ldpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788453,
+    "ast_hash": "c82b26d25b455a26a4b6c216436b295f",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-mdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788467,
+    "ast_hash": "ab5fd6bd307b4684dfd0c19670abe314",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-hdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788486,
+    "ast_hash": "7d185440ce5f42149c72f7946f01b576",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-ldpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.57885,
+    "ast_hash": "4cb5bf9b7e379ede3c643143b515cf2d",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-mdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.578852,
+    "ast_hash": "572cd5eab6a68ef603539bdd9b062b86",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-xhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788536,
+    "ast_hash": "8e136ae2bc57988c0fb64067ebe4982a",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-xxhdpi/splash.png": {
+    "mtime": 1795635648.4968438,
+    "seen": 1795635860.5788555,
+    "ast_hash": "7dfcbda46eb4f9f0d44aa68732bd5406",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-night-xxxhdpi/splash.png": {
+    "mtime": 1795635648.4998846,
+    "seen": 1795635860.578857,
+    "ast_hash": "87e13b0828eb1f5a7ca109508939143a",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-xhdpi/splash.png": {
+    "mtime": 1795635648.4998846,
+    "seen": 1795635860.5788586,
+    "ast_hash": "dadd9837ea6fdc40cc79e7d270935ed0",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-xxhdpi/splash.png": {
+    "mtime": 1795635648.4998846,
+    "seen": 1795635860.5788608,
+    "ast_hash": "cd5326a4fded1418ca9a0002706c2221",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable-port-xxxhdpi/splash.png": {
+    "mtime": 1795635648.4998846,
+    "seen": 1795635860.5788627,
+    "ast_hash": "d1adbca49cba306f21df52f12b18a652",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/drawable/splash.png": {
+    "mtime": 1795635648.5025642,
+    "seen": 1795635860.578864,
+    "ast_hash": "ab5fd6bd307b4684dfd0c19670abe314",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1795635648.5026927,
+    "seen": 1795635860.5788658,
+    "ast_hash": "3de341c91835c0cd624438676dc65ef7",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_background.png": {
+    "mtime": 1795635648.5027559,
+    "seen": 1795635860.578867,
+    "ast_hash": "1083ede8f5011e2b7d242d8d8a424a87",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.5027559,
+    "seen": 1795635860.5788684,
+    "ast_hash": "f1eeb6c59bca6018798d228613126c2c",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+    "mtime": 1795635648.5027559,
+    "seen": 1795635860.5788703,
+    "ast_hash": "cd99032c5d6d65409bb0e11a911bf46e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-ldpi/ic_launcher.png": {
+    "mtime": 1795635648.5027559,
+    "seen": 1795635860.578872,
+    "ast_hash": "d866b4f4be291e8353934cd48ef14e1e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-ldpi/ic_launcher_background.png": {
+    "mtime": 1795635648.5028203,
+    "seen": 1795635860.5788734,
+    "ast_hash": "3c15a1192ddfb626495bebeee562159e",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-ldpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.5028203,
+    "seen": 1795635860.5788748,
+    "ast_hash": "b7fd9c43c593a3c96d61af44d9d2b2d1",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-ldpi/ic_launcher_round.png": {
+    "mtime": 1795635648.5028203,
+    "seen": 1795635860.5788765,
+    "ast_hash": "2a173bffdd2a05632800b33fc0705a55",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1795635648.5028203,
+    "seen": 1795635860.578878,
+    "ast_hash": "e67ad541d5f8f17b430ac339364baa75",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_background.png": {
+    "mtime": 1795635648.502868,
+    "seen": 1795635860.5788796,
+    "ast_hash": "9d95f6db46eb0724c432dae3ebab7117",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.502868,
+    "seen": 1795635860.5788813,
+    "ast_hash": "100542605f412a8410b4092c7176c424",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+    "mtime": 1795635648.502868,
+    "seen": 1795635860.5788832,
+    "ast_hash": "51083005dff719a11a37c6f7320ca0a0",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1795635648.502868,
+    "seen": 1795635860.5788848,
+    "ast_hash": "8ee059698904d0445347fa46f977e36c",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_background.png": {
+    "mtime": 1795635648.5029175,
+    "seen": 1795635860.5788867,
+    "ast_hash": "a54701dbfa1c617da009f792005325c7",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.5029175,
+    "seen": 1795635860.5788884,
+    "ast_hash": "9365be646c07a1df7fc866d743a71a36",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+    "mtime": 1795635648.5029175,
+    "seen": 1795635860.5788906,
+    "ast_hash": "4668c3fd85b8707f6b139b8e8dcde6b9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1795635648.5029175,
+    "seen": 1795635860.578892,
+    "ast_hash": "28bf2427ca5454da10c9383ae2849078",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_background.png": {
+    "mtime": 1795635648.5030403,
+    "seen": 1795635860.578894,
+    "ast_hash": "21877e05e61c9ef69978e004f2dcc7e9",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.5030403,
+    "seen": 1795635860.5788956,
+    "ast_hash": "39e3128a04f2a342301cb09432dffcaf",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+    "mtime": 1795635648.5030403,
+    "seen": 1795635860.5788977,
+    "ast_hash": "5f584ecae27dd4ef34360f2f1f628f0b",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1795635648.5030403,
+    "seen": 1795635860.5788991,
+    "ast_hash": "4a71f3d7915aa586f5ba8f3e286cff2a",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_background.png": {
+    "mtime": 1795635648.5032828,
+    "seen": 1795635860.578901,
+    "ast_hash": "76810e74202e8dd92a73dced1a7ade7a",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1795635648.5032828,
+    "seen": 1795635860.5789022,
+    "ast_hash": "d314d8b4a394b674c6cce904f15d7b92",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+    "mtime": 1795635648.5032828,
+    "seen": 1795635860.5789046,
+    "ast_hash": "c3144c1103fef61ea5488b585da4390f",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/assets/icon-background.png": {
+    "mtime": 1795635648.5039213,
+    "seen": 1795635860.5789063,
+    "ast_hash": "2d77a3e430e71c8805d17e5e878744b7",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/assets/icon-foreground.png": {
+    "mtime": 1795635648.504184,
+    "seen": 1795635860.578908,
+    "ast_hash": "65c00072c409325a7a3de39f2c5ca974",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/assets/icon-only.png": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.57891,
+    "ast_hash": "27867a9c404f046f30e721a230d0245c",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/assets/splash-dark.png": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.578912,
+    "ast_hash": "c03ef8cb39db994b240334904bf238a3",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/assets/splash.png": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.5789137,
+    "ast_hash": "7a61f35c971ffb700828f502a41dc7cf",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-128.webp": {
+    "mtime": 1795635648.5078845,
+    "seen": 1795635860.578916,
+    "ast_hash": "4ed4ed6bb16f4eec1c19761b671e02e4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-192.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.5789182,
+    "ast_hash": "4973f1189078cb57db12417859b04cb7",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-256.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.57892,
+    "ast_hash": "2e1548d578e02ad981bdd74d38c917cb",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-48.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.5789218,
+    "ast_hash": "ec0ea6968fc5ba5d511ca3d6c287bd83",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-512.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.5789237,
+    "ast_hash": "06a2c2368559141d6494cf63d823dccf",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-72.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.5789258,
+    "ast_hash": "bdb362f785213d77823498f9ff088f53",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/icons/icon-96.webp": {
+    "mtime": 1795635648.5127578,
+    "seen": 1795635860.5789273,
+    "ast_hash": "0de78b1fb845c1f337290f6ac7fbf7d5",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png": {
+    "mtime": 1795635648.5135934,
+    "seen": 1795635860.5789287,
+    "ast_hash": "8cd829dc4da1b0a01fc3bc06a5e21237",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@1x~universal~anyany-dark.png": {
+    "mtime": 1795635648.5151708,
+    "seen": 1795635860.5789301,
+    "ast_hash": "b3ecf2fc2ab4bd0db35affb27ad0b047",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@1x~universal~anyany.png": {
+    "mtime": 1795635648.5151708,
+    "seen": 1795635860.5789318,
+    "ast_hash": "820efb544a1b12a9dcc6c49f860933a4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@2x~universal~anyany-dark.png": {
+    "mtime": 1795635648.5151708,
+    "seen": 1795635860.5789332,
+    "ast_hash": "b3ecf2fc2ab4bd0db35affb27ad0b047",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@2x~universal~anyany.png": {
+    "mtime": 1795635648.5151708,
+    "seen": 1795635860.5789351,
+    "ast_hash": "820efb544a1b12a9dcc6c49f860933a4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@3x~universal~anyany-dark.png": {
+    "mtime": 1795635648.5158846,
+    "seen": 1795635860.5789363,
+    "ast_hash": "b3ecf2fc2ab4bd0db35affb27ad0b047",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/Default@3x~universal~anyany.png": {
+    "mtime": 1795635648.5158846,
+    "seen": 1795635860.5789378,
+    "ast_hash": "820efb544a1b12a9dcc6c49f860933a4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png": {
+    "mtime": 1795635648.5158846,
+    "seen": 1795635860.578941,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png": {
+    "mtime": 1795635648.5158846,
+    "seen": 1795635860.5789428,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png": {
+    "mtime": 1795635648.5158846,
+    "seen": 1795635860.5789442,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/feature-graphic.png": {
+    "mtime": 1795635648.5180554,
+    "seen": 1795635860.5789459,
+    "ast_hash": "d457f3f1e99d688952d84944053c1fcb",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/play-icon-512.png": {
+    "mtime": 1795635648.51892,
+    "seen": 1795635860.578947,
+    "ast_hash": "4f3f05dafbfa3a206f0f52d63ffd9335",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/android-1.png": {
+    "mtime": 1795635648.5198846,
+    "seen": 1795635860.5789485,
+    "ast_hash": "7f8842705fabbe321e9c9569a14c587f",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/android-2.png": {
+    "mtime": 1795635648.5198846,
+    "seen": 1795635860.57895,
+    "ast_hash": "90391fddbca553e63c5f0c77b87f2cbc",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/android-3.png": {
+    "mtime": 1795635648.5238845,
+    "seen": 1795635860.5789516,
+    "ast_hash": "225dc89f65d876814bc821daf6369e72",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/android-4.png": {
+    "mtime": 1795635648.5238845,
+    "seen": 1795635860.5789533,
+    "ast_hash": "28500daa5f9bdeed3d9aa15b9c435e2a",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.5-1.png": {
+    "mtime": 1795635648.5278845,
+    "seen": 1795635860.5789547,
+    "ast_hash": "45986792799dee7ee003b7615c41373d",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.5-2.png": {
+    "mtime": 1795635648.5278845,
+    "seen": 1795635860.5789564,
+    "ast_hash": "71d5305f698cace4a75d52dda7e4ff5c",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.5-3.png": {
+    "mtime": 1795635648.5318844,
+    "seen": 1795635860.5789578,
+    "ast_hash": "49cb0ba3701e9c90cedba34f4b4a9c3f",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.5-4.png": {
+    "mtime": 1795635648.5318844,
+    "seen": 1795635860.5789595,
+    "ast_hash": "afe330dd450641af2d0269f5c4db145b",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.9-1.png": {
+    "mtime": 1795635648.5358846,
+    "seen": 1795635860.5789614,
+    "ast_hash": "a36f9a2e303fbac9ba951f9ea8b72298",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.9-2.png": {
+    "mtime": 1795635648.5358846,
+    "seen": 1795635860.578963,
+    "ast_hash": "151f8df1d5d440de0137a360d9336c49",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.9-3.png": {
+    "mtime": 1795635648.5398846,
+    "seen": 1795635860.5789642,
+    "ast_hash": "ea2f65faa86d494c050edea8e3768560",
+    "semantic_hash": ""
+  },
+  "tellerblick/store/screenshots/ios-6.9-4.png": {
+    "mtime": 1795635648.5398846,
+    "seen": 1795635860.5789657,
+    "ast_hash": "24937e9d3be3a1a09bf9cdbf4645308a",
+    "semantic_hash": ""
+  },
+  "tellerblick/web/icon.svg": {
+    "mtime": 1795635648.5447133,
+    "seen": 1795635860.5789673,
+    "ast_hash": "efa47e3fa71fa3a42f08e4d92cd46ec4",
+    "semantic_hash": ""
+  },
+  "tellerblick/mobile/package-lock.json": {
+    "mtime": 1795635648.5180554,
+    "seen": 1795635860.5789688,
+    "ast_hash": "715274c0eeddf385c9d1a3feda6de67c",
+    "semantic_hash": ""
+  }
+}
