@@ -27,3 +27,14 @@ test("Hinweise: je Punkt eine Zeile, Stichwort vor dem Doppelpunkt, × statt x",
   assert.deepEqual(hinweisTeile(""), []);
   assert.deepEqual(hinweisTeile(null), []);
 });
+
+import { aehnlicherPlan } from "../js/util.js";
+
+test("ähnlichen vorhandenen Plan zum Import finden", () => {
+  const plaene = [{ id: "k", name: "Kraft" }, { id: "p", name: "Kompakt" }, { id: "b", name: "Push / Pull / Beine" }];
+  assert.equal(aehnlicherPlan("Kraftplan 4 Tage", plaene)?.id, "k");
+  assert.equal(aehnlicherPlan("Plan Kompakt", plaene)?.id, "p");
+  assert.equal(aehnlicherPlan("kompakt", plaene)?.id, "p");
+  assert.equal(aehnlicherPlan("Ganzkörper Anfänger", plaene), null);
+  assert.equal(aehnlicherPlan("Plan", plaene), null); // zu allgemein
+});

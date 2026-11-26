@@ -1,10 +1,11 @@
 // Offline-Cache. App-Dateien und Pläne: Netz zuerst (immer neueste Version), ohne Netz aus dem Cache.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache.
-const VERSION = "satzbuch-v17";
-const STATUS = "overload-status"; // merkt sich, für welches Pausenende schon benachrichtigt wurde
+const VERSION = "satzbuch-v18";
+const STATUS = "overload-status";
+const TEILEN = "overload-teilen"; // per „Teilen → Overload“ angekommene Datei, bis die App sie abholt // merkt sich, für welches Pausenende schon benachrichtigt wurde
 const APP = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
-  "js/ui.js", "js/store.js", "js/parser.js", "js/stats.js", "js/util.js", "js/pdf.js", "js/claude.js",
+  "js/ui.js", "js/store.js", "js/parser.js", "js/stats.js", "js/util.js", "js/pdf.js", "js/claude.js", "js/import.js", "js/dateien.js",
   "plans/index.json",
   "fonts/barlow-400.woff2", "fonts/barlow-500.woff2", "fonts/barlow-600.woff2", "fonts/big-shoulders-display.woff2",
 ];
@@ -26,7 +27,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== VERSION && k !== STATUS) await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== VERSION && k !== STATUS && k !== TEILEN) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -47,8 +48,27 @@ async function netzZuerst(req) {
   }
 }
 
+// „Teilen → Overload“ (Web Share Target): Datei ablegen, App mit ?teilen=1 öffnen
+async function geteilteDatei(req) {
+  const ziel = new URL("./?teilen=1", self.registration.scope).href;
+  try {
+    const form = await req.formData();
+    let datei = form.getAll("datei").find((d) => d && typeof d === "object" && d.size > 0);
+    if (!datei) {
+      const text = [form.get("title"), form.get("text")].filter(Boolean).join("\n");
+      if (text) datei = new File([text], "geteilt.txt", { type: "text/plain" });
+    }
+    if (datei) {
+      const c = await caches.open(TEILEN);
+      await c.put("datei", new Response(datei, { headers: { "content-type": datei.type || "application/octet-stream", "x-name": encodeURIComponent(datei.name || "geteilt") } }));
+    }
+  } catch { /* App zeigt dann einen Hinweis */ }
+  return Response.redirect(ziel, 303);
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
+  if (req.method === "POST" && new URL(req.url).pathname.endsWith("/teilen")) { e.respondWith(geteilteDatei(req)); return; }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.hostname === "cdnjs.cloudflare.com") {

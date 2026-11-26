@@ -44,7 +44,7 @@ export const PLAN_SCHEMA = {
   additionalProperties: false,
 };
 
-const ANWEISUNG = `Das angehängte PDF ist ein Trainingsplan fürs Fitnessstudio. Übertrage ihn vollständig in das JSON-Format.
+const ANWEISUNG = `Der angehängte Inhalt (PDF, Foto oder Text) ist ein Trainingsplan fürs Fitnessstudio. Übertrage ihn vollständig in das JSON-Format.
 - Ein Eintrag in "tage" pro Trainingstag bzw. Einheit (z. B. "Tag A – Push", "Montag", "Ganzkörper 1"). Gibt es nur eine Einheit, nimm einen Tag namens "Training".
 - Übungsnamen auf Deutsch so, wie sie im Plan stehen; Gerätenummern oder Einstellungen in "notiz".
 - Haben die Sätze einer Übung verschiedene Wdh. oder Gewichte (z. B. "4-5 / 8 / 8" mit "34 / 28 / 28"), trage jeden Satz in "ziele" ein. Supersätze als zwei Übungen mit Hinweis in "notiz".
@@ -67,6 +67,17 @@ export async function planMitClaude(file, apiKey, fetchFn = globalThis.fetch) {
   const anhang = istBild
     ? { type: "image", source: { type: "base64", media_type: file.type, data: daten } }
     : { type: "document", source: { type: "base64", media_type: "application/pdf", data: daten } };
+  return anfrage(anhang, apiKey, fetchFn);
+}
+
+/** Plan aus bereits gelesenem Text (z. B. Word, Excel, CSV) von Claude strukturieren lassen. */
+export async function planAusTextMitClaude(text, apiKey, fetchFn = globalThis.fetch) {
+  if (!apiKey) throw new Error("Kein API-Schlüssel hinterlegt (Einstellungen).");
+  const anhang = { type: "text", text: `Hier der Trainingsplan als Text (Tabellenzellen durch Tabs getrennt):\n\n${String(text).slice(0, 60000)}` };
+  return anfrage(anhang, apiKey, fetchFn);
+}
+
+async function anfrage(anhang, apiKey, fetchFn) {
 
   const res = await fetchFn("https://api.anthropic.com/v1/messages", {
     method: "POST",

@@ -40,3 +40,17 @@ export function hinweisTeile(notiz) {
       return m ? { stichwort: m[1].trim(), text: m[2].trim() } : { stichwort: "", text: t };
     });
 }
+
+/** Vorhandenen Plan mit ähnlichem Namen finden (gemeinsames Wort ab 4 Buchstaben, auch als Wortanfang). */
+export function aehnlicherPlan(name, plaene) {
+  const allgemein = new Set(["plan", "training", "trainingsplan", "tage", "woche", "wochen", "neu", "version"]);
+  const woerter = (n) => (normName(n).match(/[a-zäöüß]{4,}/g) || []).filter((w) => !allgemein.has(w));
+  const neu = woerter(name);
+  let best = null, punkte = 0;
+  for (const p of plaene) {
+    const alt = woerter(p.name);
+    const treffer = neu.filter((a) => alt.some((b) => a === b || a.startsWith(b) || b.startsWith(a))).length;
+    if (treffer > punkte) { best = p; punkte = treffer; }
+  }
+  return best;
+}
