@@ -9,11 +9,60 @@
   "background_color": "#23262b",
   "theme_color": "#23262b",
   "lang": "de",
-  "categories": ["health", "fitness"],
+  "categories": [
+    "health",
+    "fitness"
+  ],
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
-  ]
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "share_target": {
+    "action": "./teilen",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "datei",
+          "accept": [
+            "application/pdf",
+            ".pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".docx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xlsx",
+            "text/csv",
+            ".csv",
+            "text/plain",
+            ".txt",
+            "application/json",
+            ".json",
+            "image/*"
+          ]
+        }
+      ]
+    }
+  }
 }

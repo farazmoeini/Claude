@@ -104,3 +104,13 @@ test("Info-Tabellen ohne Sätze x Wdh. werden ignoriert; Supersatz-Hinweise je �
   assert.equal(finde(p, "Rudern").notiz, "Superset mit Schrägbank");
   assert.equal(finde(p, "Rudern").gewicht, 59);
 });
+
+test("Freie Überschrift mit Doppelpunkt (z. B. Excel-Blattname) wird Trainingstag", () => {
+  const p = parsePlanText(T("Zirkel am Abend:", KOPF, ["Bankdrücken", "3 x 8", "60"], "Kraftausdauer:", KOPF, ["Kniebeuge", "3 x 5", "100"]), "Plan");
+  assert.deepEqual(p.tage.map((t) => t.name), ["Zirkel am Abend", "Kraftausdauer"]);
+});
+
+test("Umgebrochene Zeitangabe im Tagesnamen wird entfernt", () => {
+  const p = parsePlanText(T("Plan", "Sa: Kniebeuge moderat + Overhead (ca. 71", "Min.)", KOPF, ["Kniebeuge", "3 x 5", "90"]), "Plan");
+  assert.deepEqual(p.tage.map((t) => t.name), ["Sa – Kniebeuge moderat + Overhead"]);
+});

@@ -14,18 +14,22 @@ auf Android und iPhone, **offline**, ohne Konto. Alle Daten bleiben auf dem Hand
 | **Pläne** | Mehrere Pläne, einer aktiv. Gewicht und Pause je Satz (Top-Satz/Back-offs, Pyramiden), Blockwochen mit eigenem Gewicht pro Woche. Editor für Tage, Übungen, Sätze, Wdh., kg, Pause. Als Datei teilen |
 | **Sicherung** | Export/Import als JSON-Datei, Erinnerung nach 30 Tagen |
 
-## Plan aus PDF: drei Wege
+## Plan importieren
 
-1. **PDF an Claude im Chat schicken.** Claude legt den Plan als `plans/<name>.json` an und trägt ihn in
-   `plans/index.json` ein. In der App: *Pläne → Mitgelieferte Pläne*. Klappt auch bei Scans.
-   ⚠ Das Repo ist öffentlich, mitgelieferte Pläne sind also für jeden sichtbar. Wer das nicht möchte,
-   lässt sich von Claude nur die `.json`-Datei geben und lädt sie mit *Plan-Datei (.json)*.
-2. **„PDF importieren“ in der App.** Liest den Text, erkennt Tage und Übungen in Formen wie
-   `Bankdrücken 3x10 80kg 90s`, `Kniebeuge 5 Sätze à 5 Wdh. 2 min Pause`, Tabellen
-   (`Übung | Sätze | Wdh. | Gewicht`) und Überschriften (`Tag 1`, `Montag`, `Push` …).
-   Danach immer eine Vorschau zum Korrigieren.
-3. **„PDF oder Foto mit Claude lesen“.** Mit eigenem API-Schlüssel (Einstellungen) liest Claude
-   jedes Format, auch Fotos vom Plan an der Wand. Der Schlüssel bleibt auf dem Gerät.
+Unter *Pläne → Plan importieren* (oder in WhatsApp, Gmail, Dateien: **Teilen → Overload**):
+
+| Datei | Wie |
+|---|---|
+| PDF | Text und Tabellen (inkl. umbrochener Zellen, Gewichtsspalte, Blocktabelle W1…Wn) |
+| Word (.docx) | Überschriften und Tabellen |
+| Excel (.xlsx) | jedes Blatt ein Trainingstag |
+| CSV / Text | Zeilen wie `Bankdrücken 3x10 80kg` oder Tabellen mit `;`/`,` |
+| Plan-Datei (.json) | aus „Als Datei teilen“ |
+| Foto / Scan | mit eigenem Claude-API-Schlüssel (Einstellungen) |
+
+Danach zeigt eine Vorschau, was erkannt wurde (Tage, Übungen, Gewichte, Block). Gibt es schon einen
+ähnlichen Plan, bietet sie an, ihn zu ersetzen – Trainings und Fortschritt bleiben erhalten.
+Wird wenig erkannt und ist ein Schlüssel hinterlegt, liest automatisch Claude.
 
 ## Installieren (Android)
 
@@ -37,7 +41,7 @@ Danach startet Satzbuch wie eine normale App, auch ohne Netz.
 ```bash
 cd satzbuch
 python3 -m http.server 8411     # http://localhost:8411
-npm test                        # 50 Tests: Parser, Tabellen, Speicher, Statistik, Import
+npm test                        # 63 Tests: Parser, Tabellen, Speicher, Statistik, Import
 ```
 
 Kein Build-Schritt, keine Abhängigkeiten. pdf.js wird beim ersten PDF-Import von cdnjs geladen

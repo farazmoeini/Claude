@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Overload: Hantelscheibe mit drei Griffen, zugleich das „O“. Inhalt in der Maskable-Schutzzone (r ≤ 204). -->
   <rect width="512" height="512" fill="#23262b"/>
-  <g fill="#f2c230">
-    <rect x="96" y="196" width="40" height="120" rx="12"/>
-    <rect x="146" y="166" width="44" height="180" rx="12"/>
-    <rect x="322" y="166" width="44" height="180" rx="12"/>
-    <rect x="376" y="196" width="40" height="120" rx="12"/>
-    <rect x="190" y="240" width="132" height="32" rx="8"/>
+  <circle cx="256" cy="256" r="176" fill="#f2c230"/>
+  <g fill="#23262b">
+    <rect x="221" y="102" width="70" height="26" rx="13" transform="rotate(0 256 256)"/>
+    <rect x="221" y="102" width="70" height="26" rx="13" transform="rotate(120 256 256)"/>
+    <rect x="221" y="102" width="70" height="26" rx="13" transform="rotate(240 256 256)"/>
   </g>
+  <circle cx="256" cy="256" r="84" fill="#23262b"/>
+  <circle cx="256" cy="256" r="44" fill="#f2c230"/>
+  <circle cx="256" cy="256" r="20" fill="#23262b"/>
 </svg>

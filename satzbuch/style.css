@@ -372,3 +372,11 @@ body.im-training.mit-timer .toast { bottom: calc(112px + env(safe-area-inset-bot
 .aktions-liste strong { font-weight: 600; }
 .aktions-liste li:first-child strong { color: var(--akzent-ink); }
 .aktions-liste span { color: var(--text-3); font-size: 0.85rem; }
+
+/* Import-Vorschau */
+.import-tage { list-style: none; margin: 14px 0 6px; padding: 0; }
+.import-tage li { padding: 10px 0; border-top: 1px solid var(--linie); }
+.import-tage strong { display: block; font-weight: 600; }
+.import-tage span { display: block; color: var(--text-3); font-size: 0.85rem; margin-top: 2px; }
+.import-laden { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.teilen-tipp { margin: 14px 0 0; }

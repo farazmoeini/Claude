@@ -297,14 +297,14 @@ export function parsePlanText(text, name = "Importierter Plan") {
 
     const wt = zeile.match(RE_WOCHENTAG);
     if (wt && zeile.length <= 70) {
-      const rest = wt[2].replace(/\s*\(ca\.[^)]*\)\s*$/i, "").trim();
+      const rest = wt[2].replace(/\s*\(ca\.[^)]*\)?\s*$/i, "").trim();
       const kurz = wt[1][0].toUpperCase() + wt[1][1].toLowerCase();
       neuerTag(rest ? `${kurz} – ${rest}` : kurz, kurz.toLowerCase());
       kopf = null;
       continue;
     }
     if (tabellenDok) {
-      if (RE_UEBERSCHRIFT.test(zeile) && zeile.length <= 40) { neuerTag(zeile.replace(/:$/, "")); kopf = null; }
+      if ((RE_UEBERSCHRIFT.test(zeile) || /:$/.test(zeile)) && zeile.length <= 40) { neuerTag(zeile.replace(/:$/, "")); kopf = null; }
       else if (!titel && !tage.length && !kopf && zeile.length <= 50 && !blockZeilen.length) titel = zeile;
       continue;
     }

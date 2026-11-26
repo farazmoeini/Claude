@@ -2,8 +2,9 @@
 // Ereignisse per data-a="aktion" an einer zentralen Stelle.
 import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
-import { uid, parseZahl, normName, verschiebe, hinweisTeile } from "./util.js";
+import { uid, parseZahl, normName, verschiebe, hinweisTeile, aehnlicherPlan } from "./util.js";
 import * as S from "./stats.js";
+const IMPORT_ACCEPT = ".pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json,image/*,application/pdf";
 
 const store = createStore();
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -17,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -282,6 +283,62 @@ function saetzeText(aktiv) {
   return n === 1 ? "1 Satz" : `${n} Sätze`;
 }
 
+// ---------- Import (alle Dateiarten) ----------
+let importErgebnis = null; // { plan, datei, art, weg, aehnlich }
+
+async function importiereDatei(datei, { mitClaude = false } = {}) {
+  const apiKey = store.state.einstellungen.apiKey;
+  oeffneDialog("Plan wird gelesen", `<p class="import-laden"><span class="lade"></span> ${esc(datei.name || "Datei")}</p><p class="klein">${mitClaude ? "Claude liest den Plan, das dauert meist 20–60 Sekunden." : "Einen Moment."}</p>`);
+  try {
+    let ergebnis;
+    if (mitClaude) {
+      const { planMitClaude } = await import("./claude.js");
+      ergebnis = { plan: { ...(await planMitClaude(datei, apiKey)), id: uid() }, art: "claude", weg: "von Claude gelesen" };
+    } else {
+      const { dateiZuPlan } = await import("./import.js");
+      ergebnis = await dateiZuPlan(datei, { apiKey });
+    }
+    importErgebnis = { ...ergebnis, datei, aehnlich: aehnlicherPlan(ergebnis.plan.name, store.state.plaene) };
+    zeigeImportVorschau();
+  } catch (err) {
+    oeffneDialog("Plan nicht erkannt", `<p>${esc(err.message)}</p>${err.rat ? `<p class="dezent">${esc(err.rat)}</p>` : ""}
+      <div class="btn-reihe"><button class="btn" data-a="import-datei">Andere Datei wählen</button></div>`);
+  }
+}
+
+function zeigeImportVorschau() {
+  const { plan, weg, aehnlich, art } = importErgebnis;
+  const uebungen = plan.tage.reduce((n, t) => n + t.uebungen.length, 0);
+  const unsicher = plan.tage.reduce((n, t) => n + t.uebungen.filter((u) => u.pruefen).length, 0);
+  const mitGewicht = plan.tage.reduce((n, t) => n + t.uebungen.filter((u) => u.gewicht != null || u.ziele?.some((z) => z.kg != null) || u.wochen?.length).length, 0);
+  const eckdaten = [`${plan.tage.length} ${plan.tage.length === 1 ? "Tag" : "Tage"}`, `${uebungen} Übungen`, mitGewicht ? `${mitGewicht} mit Gewicht` : "", plan.wochen > 1 ? `${plan.wochen}-Wochen-Block` : ""].filter(Boolean).join(", ");
+  const claudeMoeglich = store.state.einstellungen.apiKey && !/Claude/.test(weg) && ["pdf", "bild"].includes(art);
+  oeffneDialog("Plan erkannt", `
+    <p class="dezent">${esc(eckdaten)}, ${esc(weg)}.</p>
+    <label class="feldname" for="import-name">Name</label>
+    <input id="import-name" class="text-feld" value="${esc(aehnlich ? aehnlich.name : plan.name)}">
+    <ol class="import-tage">${plan.tage.map((t) => `<li><strong>${esc(t.name)}</strong><span>${esc(t.uebungen.map((u) => u.name).slice(0, 4).join(", "))}${t.uebungen.length > 4 ? ` und ${t.uebungen.length - 4} weitere` : ""}</span></li>`).join("")}</ol>
+    ${unsicher ? `<p class="pruefen">${unsicher} ${unsicher === 1 ? "Übung" : "Übungen"} ohne erkannte Sätze. Unter „Anpassen“ prüfen.</p>` : ""}
+    ${aehnlich ? `<label class="schalter"><span>Ersetzt deinen Plan „${esc(aehnlich.name)}“. Trainings und Fortschritt bleiben erhalten.</span><input type="checkbox" id="import-ersetzen" checked></label>` : ""}
+    <div class="btn-reihe"><button class="btn primaer" data-a="import-speichern">Speichern</button><button class="btn" data-a="import-anpassen">Anpassen</button></div>
+    ${claudeMoeglich ? `<p><button class="link-btn" data-a="import-claude-genauer">Mit Claude genauer lesen</button></p>` : ""}`, { schliessenText: "Abbrechen" });
+}
+
+// Über „Teilen → Overload“ angekommene Datei (der Service Worker legt sie bereit)
+async function geteilteDateiImportieren() {
+  if (!new URLSearchParams(location.search).has("teilen")) return;
+  history.replaceState(history.state, "", location.pathname);
+  try {
+    const cache = await caches.open("overload-teilen");
+    const r = await cache.match("datei");
+    if (!r) { toast("Die geteilte Datei ist nicht angekommen. Versuch es noch einmal."); return; }
+    await cache.delete("datei");
+    const name = decodeURIComponent(r.headers.get("x-name") || "geteilt");
+    const datei = new File([await r.blob()], name, { type: r.headers.get("content-type") || "" });
+    importiereDatei(datei);
+  } catch { toast("Die geteilte Datei konnte nicht geöffnet werden."); }
+}
+
 // ---------- Ansichten ----------
 function render() {
   const imTraining = imTrainingAnsicht();
@@ -353,9 +410,9 @@ function viewHeute() {
   const tr = store.state.trainings;
   const plaene = [...store.state.plaene].sort((a, b) => (b.id === store.state.aktiverPlanId) - (a.id === store.state.aktiverPlanId));
   if (!plaene.length) {
-    return `<div class="karte willkommen"><h2>Leg deinen Plan an</h2><p class="dezent">Übernimm „Kompakt“ und „Kraft“ mit einem Tipp, hol einen Plan aus einem PDF oder bau dir selbst einen.</p>
+    return `<div class="karte willkommen"><h2>Leg deinen Plan an</h2><p class="dezent">Übernimm „Kompakt“ und „Kraft“ mit einem Tipp, hol einen Plan aus einer Datei (PDF, Word, Excel) oder bau dir selbst einen.</p>
       <div class="btn-reihe"><button class="btn primaer voll" data-a="eigene-plaene">Kompakt + Kraft übernehmen</button></div>
-      <div class="btn-reihe"><button class="btn" data-a="import-pdf">Plan aus PDF</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div></div>`;
+      <div class="btn-reihe"><button class="btn" data-a="import-datei">Plan aus Datei</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div></div>`;
   }
   return `
     ${wochenLeisteHTML(tr)}
@@ -536,12 +593,11 @@ function viewPlaene() {
     </li>`).join("")}</ul>` : ""}
     <h2 class="abschnitt-titel">Plan hinzufügen</h2>
     <ul class="aktions-liste">
-      <li><button data-a="import-pdf"><strong>Aus PDF</strong><span>Liest Tabellen und Gewichte, du prüfst vor dem Speichern</span></button></li>
-      <li><button data-a="import-claude"><strong>PDF oder Foto mit Claude</strong><span>${hatKey ? "Auch Scans und Fotos, nutzt deinen API-Schlüssel" : "Braucht einen Claude-API-Schlüssel in den Einstellungen"}</span></button></li>
+      <li><button data-a="import-datei"><strong>Plan importieren</strong><span>PDF, Word, Excel, CSV, Text${hatKey ? " oder Foto" : ""}. Du siehst vorher, was erkannt wurde.</span></button></li>
       <li><button data-a="mitgeliefert"><strong>Mitgelieferte Pläne</strong><span>Kompakt, Kraft und ein Beispiel</span></button></li>
-      <li><button data-a="import-json"><strong>Plan-Datei öffnen</strong><span>Eine geteilte .json-Datei</span></button></li>
       <li><button data-a="plan-neu"><strong>Selbst anlegen</strong><span>Leerer Plan im Editor</span></button></li>
-    </ul>`;
+    </ul>
+    <p class="klein teilen-tipp">Tipp: In WhatsApp, Gmail oder der Dateien-App „Teilen“ antippen und Overload wählen. Der Plan landet direkt hier.</p>`;
 }
 
 // ---------- Plan-Editor (auch Import-Vorschau) ----------
@@ -760,50 +816,39 @@ const aktionen = {
     herunterladen(datei.name, text);
   },
   "plan-neu": () => oeffneEditor({ id: uid(), name: "Mein Plan", quelle: "manuell", tage: [{ id: uid(), name: "Tag A", uebungen: [{ id: uid(), name: "", saetze: 3, wdh: "10", pause: store.state.einstellungen.pause }] }] }, "Neuer Plan"),
-  "import-pdf": async () => {
-    const file = await dateiWaehlen("application/pdf,.pdf");
-    if (!file) return;
-    oeffneDialog("PDF wird gelesen", `<p><span class="lade"></span> Einen Moment …</p>`);
-    try {
-      const { pdfZuText } = await import("./pdf.js");
-      const text = await pdfZuText(file);
-      const plan = parsePlanText(text, file.name.replace(/\.pdf$/i, ""));
-      if (!plan.tage.length) {
-        oeffneDialog("Kein Text gefunden", `<p>In diesem PDF steht kein lesbarer Text, wahrscheinlich ist es ein Scan oder ein Foto.</p>
-          <p class="dezent">So geht es trotzdem:</p><ul class="dezent"><li>Mit „PDF oder Foto mit Claude lesen“ (eigener API-Schlüssel nötig), oder</li><li>schick das PDF an Claude im Chat. Der Plan erscheint dann unter „Mitgelieferte Pläne“.</li></ul>`);
-        return;
-      }
-      plan.hinweis = "Erkannt aus deinem PDF. Bitte kurz prüfen und bei Bedarf korrigieren.";
-      oeffneEditor(plan, "Import prüfen");
-    } catch (err) {
-      oeffneDialog("PDF konnte nicht gelesen werden", `<p>${esc(err.message)}</p><p class="dezent">Beim ersten PDF-Import braucht die App einmal Internet.</p>`);
-    }
+  "import-datei": async () => {
+    const datei = await dateiWaehlen(IMPORT_ACCEPT);
+    if (datei) importiereDatei(datei);
   },
+  "import-pdf": () => aktionen["import-datei"](),
+  "import-json": () => aktionen["import-datei"](),
   "import-claude": async () => {
-    const key = store.state.einstellungen.apiKey;
-    if (!key) { aktionen.einstellungen(); toast("Trag zuerst deinen Claude-API-Schlüssel ein."); return; }
-    const file = await dateiWaehlen("application/pdf,.pdf,image/jpeg,image/png,image/webp");
-    if (!file) return;
-    oeffneDialog("Claude liest deinen Plan", `<p><span class="lade"></span> Das dauert meist 20–60 Sekunden …</p>`);
-    try {
-      const { planMitClaude } = await import("./claude.js");
-      const plan = await planMitClaude(file, key);
-      plan.hinweis = "Von Claude erkannt. Bitte kurz prüfen.";
-      oeffneEditor(plan, "Import prüfen");
-    } catch (err) {
-      oeffneDialog("Hat nicht geklappt", `<p>${esc(err.message)}</p>`);
-    }
+    if (!store.state.einstellungen.apiKey) { aktionen.einstellungen(); toast("Trag zuerst deinen Claude-API-Schlüssel ein."); return; }
+    const datei = await dateiWaehlen("application/pdf,.pdf,image/jpeg,image/png,image/webp");
+    if (datei) importiereDatei(datei, { mitClaude: true });
   },
-  "import-json": async () => {
-    const file = await dateiWaehlen("application/json,.json");
-    if (!file) return;
+  "import-claude-genauer": () => { if (importErgebnis?.datei) importiereDatei(importErgebnis.datei, { mitClaude: true }); },
+  "import-speichern": () => {
+    if (!importErgebnis) return;
+    const plan = { ...importErgebnis.plan, name: ($("#import-name")?.value || importErgebnis.plan.name).trim() || importErgebnis.plan.name };
+    const ersetzen = $("#import-ersetzen")?.checked && importErgebnis.aehnlich;
     try {
-      const roh = JSON.parse(await file.text());
-      if (roh.version === 1 && roh.trainings) { toast("Das ist eine Sicherung. Bitte unter Einstellungen → Sicherung laden."); return; }
-      oeffneEditor({ ...validierePlan(roh), id: uid() }, "Import prüfen");
-    } catch (err) {
-      toast("Keine gültige Plan-Datei: " + err.message);
-    }
+      if (ersetzen) { store.ersetzePlan(importErgebnis.aehnlich.id, plan); store.state.aktiverPlanId = importErgebnis.aehnlich.id; store.save(); }
+      else store.setPlan(plan);
+    } catch (err) { toast(err.message, 5000); return; }
+    importErgebnis = null;
+    schliesseDialog();
+    tab = "heute";
+    render();
+    window.scrollTo(0, 0);
+    toast(ersetzen ? `„${plan.name}“ ersetzt. Deine Trainings sind erhalten.` : `„${plan.name}“ gespeichert.`);
+  },
+  "import-anpassen": () => {
+    if (!importErgebnis) return;
+    const plan = { ...importErgebnis.plan, name: ($("#import-name")?.value || importErgebnis.plan.name).trim() };
+    if ($("#import-ersetzen")?.checked && importErgebnis.aehnlich) plan._ersetzeId = importErgebnis.aehnlich.id;
+    importErgebnis = null;
+    oeffneEditor(plan, "Import anpassen");
   },
   mitgeliefert: async () => {
     try {
@@ -854,8 +899,11 @@ const aktionen = {
     p.tage = p.tage.filter((t) => t.uebungen.length);
     if (!p.tage.length) { toast("Der Plan braucht mindestens eine Übung."); return; }
     delete p.hinweis;
+    const ersetzeId = p._ersetzeId;
+    delete p._ersetzeId;
     try {
-      store.setPlan(p);
+      if (ersetzeId && store.plan(ersetzeId)) { store.ersetzePlan(ersetzeId, p); store.state.aktiverPlanId = ersetzeId; store.save(); }
+      else store.setPlan(p);
     } catch (err) { toast(err.message, 5000); return; }
     schliesseDialog();
     tab = "heute";
@@ -937,6 +985,9 @@ document.addEventListener("change", (ev) => {
     else if (k === "pause") { const n = parseZahl(el.value); if (n && n > 0) e.pause = Math.round(n); else el.value = e.pause; }
     else if (k === "apiKey") e.apiKey = el.value.trim();
     store.save();
+  } else if (el.id === "import-ersetzen" && importErgebnis) {
+    // Ersetzen behält den bisherigen Namen, als neuer Plan gilt der Name aus der Datei
+    $("#import-name").value = el.checked && importErgebnis.aehnlich ? importErgebnis.aehnlich.name : importErgebnis.plan.name;
   } else if (el.dataset.aChange === "fortschritt-wahl") {
     fortschrittUebung = el.value;
     render();
@@ -993,6 +1044,7 @@ setInterval(tick, 250);
 if (store.aktiv?.timer && Date.now() - store.aktiv.timer.endetUm >= S.SIGNAL_NACHLAUF_MS) timerGemeldet = true;
 render();
 pruefePlanUpdates();
+geteilteDateiImportieren();
 navigator.storage?.persist?.().catch(() => {});
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
