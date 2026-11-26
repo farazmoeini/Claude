@@ -18,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -179,7 +179,7 @@ function spieleSignal() {
   begrenzer.threshold.value = -6;
   begrenzer.ratio.value = 12;
   const gesamt = audio.createGain();
-  gesamt.gain.value = 0.55; // 55 % der vollen Lautstärke
+  gesamt.gain.value = 0.45; // 45 % der vollen Lautstärke
   begrenzer.connect(gesamt).connect(audio.destination);
   const toene = [
     { ab: 0.0, dauer: 0.28, hz: 880 },
