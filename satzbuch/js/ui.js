@@ -49,6 +49,7 @@ async function pruefePlanUpdates() {
   } catch { /* offline: später erneut */ } finally { updatePruefungLaeuft = false; }
 }
 let editorEntwurf = null;
+let editorStart = null; // Stand beim Öffnen des Editors (für „ungespeicherte Änderungen?“)
 let timerGemeldet = false;
 let verstecktSeit = null; // seit wann die App nicht sichtbar ist (null = sichtbar)
 let gemeldeterTimer = ""; // zuletzt an den Hintergrund-Dienst gemeldeter Timer
@@ -98,12 +99,48 @@ function oeffneDialog(titel, inhalt, { schliessenText = "Schließen" } = {}) {
   dialog.innerHTML = `<div class="dlg-kopf"><h2>${esc(titel)}</h2><button class="btn klein-btn" data-a="dialog-zu">${esc(schliessenText)}</button></div><div class="dlg-inhalt">${inhalt}</div>`;
   if (!dialog.open) dialog.showModal();
   dialog.scrollTop = 0;
+  historieSync();
 }
 function schliesseDialog() {
   if (dialog.open) dialog.close();
   editorEntwurf = null;
+  editorStart = null;
+  historieSync();
 }
-dialog.addEventListener("click", (e) => { if (e.target === dialog) schliesseDialog(); });
+/** Darf das Fenster ohne Rückfrage zu? Im Plan-Editor mit ungespeicherten Änderungen wird gefragt. */
+function dialogDarfSchliessen() {
+  if (!editorEntwurf || editorStart === null) return true;
+  editorLesen();
+  return JSON.stringify(editorEntwurf) === editorStart || confirm("Änderungen am Plan verwerfen?");
+}
+dialog.addEventListener("click", (e) => { if (e.target === dialog && dialogDarfSchliessen()) schliesseDialog(); });
+// Zurück-Geste/Esc schließt ein offenes Fenster direkt (Android: „CloseWatcher“)
+dialog.addEventListener("cancel", (e) => { if (!dialogDarfSchliessen()) e.preventDefault(); });
+dialog.addEventListener("close", () => { editorEntwurf = null; editorStart = null; historieSync(); });
+
+// ---------- Zurück-Taste (Android) ----------
+// Solange etwas „offen“ ist (Training, Fenster, anderer Bereich als „Heute“), liegt ein eigener
+// Eintrag im Verlauf. Die Zurück-Taste landet dann hier, statt die App zu schließen.
+let ignorierePop = 0;
+function historieSync() {
+  const tief = !!store.aktiv || tab !== "heute" || dialog.open;
+  const istTief = history.state?.overload === "tief";
+  if (tief && !istTief) history.pushState({ overload: "tief" }, "");
+  else if (!tief && istTief) { ignorierePop++; history.back(); }
+}
+window.addEventListener("popstate", () => {
+  if (ignorierePop) { ignorierePop--; return; }
+  if (dialog.open) {
+    if (dialogDarfSchliessen()) schliesseDialog();
+  } else if (store.aktiv) {
+    toast("Training läuft – zum Verlassen „Beenden“ oder „Verwerfen“ tippen.");
+  } else if (tab !== "heute") {
+    tab = "heute";
+    render();
+    window.scrollTo(0, 0);
+  }
+  historieSync();
+});
 
 // ---------- Ton, Vibration, Bildschirm ----------
 let audio = null;
@@ -229,6 +266,7 @@ function render() {
   ansicht.innerHTML = imTraining ? viewTraining() : { heute: viewHeute, verlauf: viewVerlauf, fortschritt: viewFortschritt, plaene: viewPlaene }[tab]();
   if (!imTraining && tab === "fortschritt") chartInteraktion();
   bildschirmAn(imTraining);
+  historieSync();
   tick();
 }
 
@@ -492,6 +530,8 @@ function editorLesen() {
 function oeffneEditor(plan, titel = "Plan bearbeiten") {
   editorEntwurf = JSON.parse(JSON.stringify(plan));
   oeffneDialog(titel, editorHTML(), { schliessenText: "Abbrechen" });
+  editorLesen(); // Felder einmal einlesen, damit der Vergleich nur echte Änderungen sieht
+  editorStart = JSON.stringify(editorEntwurf);
 }
 function editorNeuZeichnen() {
   const top = dialog.scrollTop;
