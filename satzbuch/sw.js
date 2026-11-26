@@ -1,6 +1,6 @@
 // Offline-Cache. App-Dateien und Pläne: Netz zuerst (immer neueste Version), ohne Netz aus dem Cache.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache.
-const VERSION = "satzbuch-v19";
+const VERSION = "satzbuch-v20";
 const STATUS = "overload-status";
 const TEILEN = "overload-teilen"; // per „Teilen → Overload“ angekommene Datei, bis die App sie abholt // merkt sich, für welches Pausenende schon benachrichtigt wurde
 const APP = [
@@ -99,10 +99,13 @@ self.addEventListener("message", (e) => {
     if (aktuellerTimer !== meiner) return; // inzwischen geändert, gestoppt oder neuer Satz
     const fenster = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     if (fenster.some((c) => c.visibilityState === "visible")) return; // App piept selbst
+    // Jede Pause als neue Benachrichtigung (eigene Kennung): Android spielt beim bloßen Ersetzen
+    // einer noch sichtbaren Benachrichtigung mit gleicher Kennung oft keinen Ton ab.
+    for (const alt of await self.registration.getNotifications()) if (alt.tag.startsWith("pause")) alt.close();
     await self.registration.showNotification("Pause vorbei", {
       body: meiner.text || "Nächster Satz!",
-      tag: "pause",
-      renotify: true,
+      tag: `pause-${meiner.endetUm}`,
+      requireInteraction: false,
       silent: false,
       vibrate: [500, 150, 500, 150, 900],
       icon: "icon-192.png",

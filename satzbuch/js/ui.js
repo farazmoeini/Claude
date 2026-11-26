@@ -18,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -221,6 +221,8 @@ document.addEventListener("visibilitychange", () => {
     bildschirmAn(!!store.aktiv);
     tick();
     verstecktSeit = null;
+    // Zurück in der App: liegengebliebene Pausen-Benachrichtigungen wegräumen
+    navigator.serviceWorker?.ready.then((reg) => reg.getNotifications()).then((liste) => liste?.forEach((n) => n.tag.startsWith("pause") && n.close())).catch(() => {});
     pruefePlanUpdates();
   } else verstecktSeit = Date.now();
 });
