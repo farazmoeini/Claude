@@ -25,9 +25,7 @@
   --serie-1: #b38812;
   --serie-2: #4a86e8;
   --chart-flaeche: #2c3036;
-  /* Wettkampf-Scheibenfarben */
-  --p20: #2563c9; --p15: #f2c230; --p10: #2e9e5b; --p5: #e9e9e4; --p2-5: #d3283a; --p1-25: #a3aab2;
-
+  
   --schrift: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --schrift-zahl: "Big Shoulders Display", "Barlow", system-ui, sans-serif;
   --nav-h: 64px;
@@ -193,21 +191,6 @@ body.im-training.mit-timer { padding-bottom: calc(124px + env(safe-area-inset-bo
 .uebung:first-of-type { border-top: 0; padding-top: 6px; }
 .ue-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .uebung.fertig .ue-kopf h3 { color: var(--text-3); }
-
-/* Scheiben pro Seite */
-.scheiben { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; }
-.hantel { display: inline-flex; align-items: center; height: 48px; }
-.hantel-griff { width: 26px; height: 5px; background: var(--text-3); border-radius: 2px 0 0 2px; }
-.hantel-ende { width: 12px; height: 7px; background: var(--text-3); border-radius: 0 2px 2px 0; }
-.scheibe { display: block; margin-right: 2px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); }
-.scheibe.s20 { width: 9px; height: 48px; background: var(--p20); }
-.scheibe.s15 { width: 8px; height: 42px; background: var(--p15); }
-.scheibe.s10 { width: 7px; height: 36px; background: var(--p10); }
-.scheibe.s5 { width: 6px; height: 26px; background: var(--p5); }
-.scheibe.s2-5 { width: 5px; height: 20px; background: var(--p2-5); }
-.scheibe.s1-25 { width: 4px; height: 16px; background: var(--p1-25); }
-.scheiben-text { color: var(--text-2); font-size: 0.9rem; line-height: 1.3; }
-.scheiben-text b { display: block; color: var(--text); font: 700 1.15rem/1.1 var(--schrift-zahl); }
 
 /* Sätze: eine Zeile je Satz, Einheit leise im Feld */
 .saetze { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
@@ -380,3 +363,63 @@ body.im-training.mit-timer .toast { bottom: calc(112px + env(safe-area-inset-bot
 .import-tage span { display: block; color: var(--text-3); font-size: 0.85rem; margin-top: 2px; }
 .import-laden { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .teilen-tipp { margin: 14px 0 0; }
+
+/* ===================== ENTWÜRFE (Vorschau, nach Auswahl fest eingebaut) ===================== */
+/* Gemeinsam: weniger Gelb, keine Zierlinien */
+[data-entwurf] .leiste button[aria-current="page"] { color: var(--text); }
+[data-entwurf] .leiste button[aria-current="page"]::before { display: none; }
+[data-entwurf] .leiste svg { width: 22px; height: 22px; }
+[data-entwurf] .hinweise { border-left: 0; padding-left: 0; }
+[data-entwurf] .timer { box-shadow: none; background: var(--flaeche-2); }
+[data-entwurf] .timer.vorbei { box-shadow: none; }
+[data-entwurf] .laufend { background: var(--flaeche); box-shadow: none; }
+[data-entwurf] .tag-zeile.naechster .tag-kurz { color: var(--text); }
+[data-entwurf] .naechster-hinweis { color: var(--text-3); font-weight: 500; }
+[data-entwurf] .chip { border-color: transparent; color: var(--text-3); font-family: var(--schrift); font-weight: 600; font-size: 0.9rem; min-width: 40px; }
+[data-entwurf] .chip[aria-pressed="true"] { background: var(--flaeche-2); color: var(--text); }
+[data-entwurf] .saetze li.erledigt .satz-nr { color: var(--text-3); }
+[data-entwurf] .aktions-liste li:first-child strong { color: var(--text); }
+[data-entwurf] .link-btn { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+[data-entwurf] .hinweis-zeile { border: 0; padding: 0; color: var(--text-3); }
+
+/* Entwurf A „Ruhig“: eine Schrift, kleine Überschriften, keine Wochenleiste */
+[data-entwurf="a"] h1, [data-entwurf="a"] h2, [data-entwurf="a"] h3,
+[data-entwurf="a"] .tag-kurz, [data-entwurf="a"] .tr-uhr, [data-entwurf="a"] .feld, [data-entwurf="a"] .timer .zeit,
+[data-entwurf="a"] .timer button, [data-entwurf="a"] .kachel .wert, [data-entwurf="a"] .satz-nr, [data-entwurf="a"] .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
+[data-entwurf="a"] .kopf h1 { font-size: 1.3rem; font-weight: 600; }
+[data-entwurf="a"] body.im-training .kopf h1, [data-entwurf="a"] .im-training .kopf h1 { font-size: 1.1rem; }
+[data-entwurf="a"] .block-kopf h2, [data-entwurf="a"] h2 { font-size: 1.15rem; font-weight: 600; }
+[data-entwurf="a"] h3 { font-size: 1.05rem; font-weight: 600; }
+[data-entwurf="a"] .woche-leiste ol { display: none; }
+[data-entwurf="a"] .woche-leiste p { margin-top: 0; color: var(--text-3); }
+[data-entwurf="a"] .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
+[data-entwurf="a"] .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
+[data-entwurf="a"] .tr-uhr { font-size: 1.1rem; font-weight: 600; }
+[data-entwurf="a"] .feld { font-size: 1.15rem; font-weight: 600; min-height: 46px; }
+[data-entwurf="a"] .satz-nr { font-size: 0.95rem; font-weight: 500; }
+[data-entwurf="a"] .timer .zeit { font-size: 1.9rem; font-weight: 600; }
+[data-entwurf="a"] .kachel .wert { font-size: 1.5rem; font-weight: 600; }
+[data-entwurf="a"] .kachel { border-top: 0; padding-top: 0; }
+[data-entwurf="a"] .plan-info strong { font-size: 1.05rem; font-weight: 600; }
+[data-entwurf="a"] .haken { border-color: var(--linie); }
+[data-entwurf="a"] .saetze li.erledigt .haken { background: var(--flaeche-2); color: var(--akzent-ink); }
+
+/* Entwurf B „Zahlen im Fokus“: Text schlicht, nur Zahlen in der schmalen Schrift, Woche als Punkte */
+[data-entwurf="b"] h1, [data-entwurf="b"] h2, [data-entwurf="b"] h3, [data-entwurf="b"] .tag-kurz, [data-entwurf="b"] .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
+[data-entwurf="b"] .kopf h1 { font-size: 1.3rem; font-weight: 600; }
+[data-entwurf="b"] .im-training .kopf h1 { font-size: 1.1rem; }
+[data-entwurf="b"] .block-kopf h2, [data-entwurf="b"] h2 { font-size: 1.15rem; font-weight: 600; }
+[data-entwurf="b"] h3 { font-size: 1.05rem; font-weight: 600; }
+[data-entwurf="b"] .plan-info strong { font-size: 1.05rem; font-weight: 600; }
+[data-entwurf="b"] .woche-leiste ol { display: flex; gap: 0; justify-content: space-between; max-width: 320px; }
+[data-entwurf="b"] .woche-leiste li { gap: 6px; }
+[data-entwurf="b"] .woche-leiste li span { font-size: 0.75rem; font-weight: 500; }
+[data-entwurf="b"] .woche-leiste li i { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--linie); opacity: 1; }
+[data-entwurf="b"] .woche-leiste li.vorbei i { background: var(--linie); opacity: 1; }
+[data-entwurf="b"] .woche-leiste li.ja i { background: var(--akzent); }
+[data-entwurf="b"] .woche-leiste li.heute i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text-2); }
+[data-entwurf="b"] .woche-leiste p { color: var(--text-3); font-size: 0.88rem; }
+[data-entwurf="b"] .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
+[data-entwurf="b"] .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
+[data-entwurf="b"] .tr-uhr { font-size: 1.6rem; }
+[data-entwurf="b"] .timer .zeit { font-size: 2.4rem; }

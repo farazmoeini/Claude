@@ -133,20 +133,7 @@ export function pausenText(aktiv) {
   return `Weiter: ${n.uebung}, Satz ${n.satz}${werte ? " – " + werte : ""}`;
 }
 
-// ---------- Langhantel: Scheiben pro Seite ----------
-export const SCHEIBEN = [20, 15, 10, 5, 2.5, 1.25];
-
-/** Scheiben je Seite für ein Gesamtgewicht (Stange 20 kg); null, wenn nicht genau ladbar. */
-export function scheibenProSeite(kg, stange = 20, verfuegbar = SCHEIBEN) {
-  if (kg == null || kg < stange) return null;
-  let rest = Math.round(((kg - stange) / 2) * 100) / 100;
-  const out = [];
-  for (const s of verfuegbar) {
-    while (rest >= s - 1e-9) { out.push(s); rest = Math.round((rest - s) * 100) / 100; }
-  }
-  return rest < 1e-9 ? out : null;
-}
-
+// ---------- Langhantel erkennen (Vorauswahl im Fortschritt) ----------
 export function istLanghantel(name) {
   const n = String(name ?? "");
   if (/\bdb\b|kurzhantel|kabel|maschine|smith|hammer|einbeinig/i.test(n)) return false;

@@ -4,6 +4,8 @@ import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
 import { uid, parseZahl, normName, verschiebe, hinweisTeile, aehnlicherPlan } from "./util.js";
 import * as S from "./stats.js";
+// ENTWURF-VORSCHAU: ?entwurf=a oder ?entwurf=b
+{ const e = new URLSearchParams(location.search).get("entwurf"); if (e) document.documentElement.dataset.entwurf = e; }
 const IMPORT_ACCEPT = ".pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json,image/*,application/pdf";
 
 const store = createStore();
@@ -265,19 +267,6 @@ async function schonBenachrichtigt(endetUm) {
   } catch { return false; }
 }
 
-/** Grafik „Scheiben pro Seite“ für Langhantel-Übungen (nächster offener Satz). */
-function scheibenHTML(e) {
-  if (!S.istLanghantel(e.uebungName)) return "";
-  const satz = e.saetze.find((x) => !x.erledigtUm) ?? e.saetze[e.saetze.length - 1];
-  const scheiben = S.scheibenProSeite(satz?.kg);
-  if (!scheiben) return "";
-  const text = scheiben.length ? `${scheiben.map(kgText).join(" + ")} kg` : "nur die Stange";
-  return `<div class="scheiben" role="img" aria-label="Pro Seite: ${esc(text)}">
-    <span class="hantel" aria-hidden="true"><span class="hantel-griff"></span>${scheiben.map((k) => `<span class="scheibe s${String(k).replace(".", "-")}"></span>`).join("")}<span class="hantel-ende"></span></span>
-    <span class="scheiben-text"><b>${kgText(satz.kg)} kg</b> pro Seite ${esc(text)}</span>
-  </div>`;
-}
-
 function saetzeText(aktiv) {
   const n = aktiv.eintraege.reduce((summe, e) => summe + e.saetze.filter((x) => x.erledigtUm).length, 0);
   return n === 1 ? "1 Satz" : `${n} Sätze`;
@@ -447,7 +436,6 @@ function viewTraining() {
             </div>
           </details>
         </header>
-        <div class="scheiben-platz" data-scheiben="${ei}">${scheibenHTML(e)}</div>
         ${hinweise.length ? `<ul class="hinweise">${hinweise.map((h) => `<li>${h.stichwort ? `<b>${esc(h.stichwort)}</b> ` : ""}${esc(h.text)}</li>`).join("")}</ul>` : ""}
         ${letzte ? `<p class="letztes">Letztes Mal${letzteBlock ? "" : " (anderer Block)"} <span>${letzte.map((x) => `${kgText(x.kg)}×${x.wdh ?? "–"}`).join("  ")}</span></p>` : ""}
         <ol class="saetze">
@@ -976,8 +964,6 @@ document.addEventListener("change", (ev) => {
     const wert = el.value.trim();
     if (wert && parseZahl(wert) == null) { el.value = ""; toast("Bitte nur Zahlen eingeben."); }
     store.aktualisiereSatz(e, s, { [el.dataset.f]: wert && parseZahl(wert) != null ? wert : "" });
-    const platz = document.querySelector(`[data-scheiben="${e}"]`);
-    if (platz && store.aktiv) platz.innerHTML = scheibenHTML(store.aktiv.eintraege[e]);
   } else if (el.dataset.einst) {
     const e = store.state.einstellungen, k = el.dataset.einst;
     if (k === "ton") e.ton = el.checked;
