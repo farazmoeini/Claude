@@ -364,62 +364,38 @@ body.im-training.mit-timer .toast { bottom: calc(112px + env(safe-area-inset-bot
 .import-laden { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .teilen-tipp { margin: 14px 0 0; }
 
-/* ===================== ENTWÜRFE (Vorschau, nach Auswahl fest eingebaut) ===================== */
-/* Gemeinsam: weniger Gelb, keine Zierlinien */
-[data-entwurf] .leiste button[aria-current="page"] { color: var(--text); }
-[data-entwurf] .leiste button[aria-current="page"]::before { display: none; }
-[data-entwurf] .leiste svg { width: 22px; height: 22px; }
-[data-entwurf] .hinweise { border-left: 0; padding-left: 0; }
-[data-entwurf] .timer { box-shadow: none; background: var(--flaeche-2); }
-[data-entwurf] .timer.vorbei { box-shadow: none; }
-[data-entwurf] .laufend { background: var(--flaeche); box-shadow: none; }
-[data-entwurf] .tag-zeile.naechster .tag-kurz { color: var(--text); }
-[data-entwurf] .naechster-hinweis { color: var(--text-3); font-weight: 500; }
-[data-entwurf] .chip { border-color: transparent; color: var(--text-3); font-family: var(--schrift); font-weight: 600; font-size: 0.9rem; min-width: 40px; }
-[data-entwurf] .chip[aria-pressed="true"] { background: var(--flaeche-2); color: var(--text); }
-[data-entwurf] .saetze li.erledigt .satz-nr { color: var(--text-3); }
-[data-entwurf] .aktions-liste li:first-child strong { color: var(--text); }
-[data-entwurf] .link-btn { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-[data-entwurf] .hinweis-zeile { border: 0; padding: 0; color: var(--text-3); }
+/* ===================== Ruhig & Zahlen im Fokus (Version 19) ===================== */
+/* Ruhiger Grundton: wenig Gelb, keine Zierlinien */
+:root .leiste button[aria-current="page"] { color: var(--text); }
+:root .leiste button[aria-current="page"]::before { display: none; }
+:root .leiste svg { width: 22px; height: 22px; }
+:root .hinweise { border-left: 0; padding-left: 0; }
+:root .laufend { background: var(--flaeche); box-shadow: none; }
+:root .tag-zeile.naechster .tag-kurz { color: var(--text); }
+:root .naechster-hinweis { color: var(--text-3); font-weight: 500; }
+:root .chip { border-color: transparent; color: var(--text-3); font-family: var(--schrift); font-weight: 600; font-size: 0.9rem; min-width: 40px; }
+:root .chip[aria-pressed="true"] { background: var(--flaeche-2); color: var(--text); }
+:root .saetze li.erledigt .satz-nr { color: var(--text-3); }
+:root .aktions-liste li:first-child strong { color: var(--text); }
+:root .link-btn { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+:root .hinweis-zeile { border: 0; padding: 0; color: var(--text-3); }
 
-/* Entwurf A „Ruhig“: eine Schrift, kleine Überschriften, keine Wochenleiste */
-[data-entwurf="a"] h1, [data-entwurf="a"] h2, [data-entwurf="a"] h3,
-[data-entwurf="a"] .tag-kurz, [data-entwurf="a"] .tr-uhr, [data-entwurf="a"] .feld, [data-entwurf="a"] .timer .zeit,
-[data-entwurf="a"] .timer button, [data-entwurf="a"] .kachel .wert, [data-entwurf="a"] .satz-nr, [data-entwurf="a"] .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
-[data-entwurf="a"] .kopf h1 { font-size: 1.3rem; font-weight: 600; }
-[data-entwurf="a"] body.im-training .kopf h1, [data-entwurf="a"] .im-training .kopf h1 { font-size: 1.1rem; }
-[data-entwurf="a"] .block-kopf h2, [data-entwurf="a"] h2 { font-size: 1.15rem; font-weight: 600; }
-[data-entwurf="a"] h3 { font-size: 1.05rem; font-weight: 600; }
-[data-entwurf="a"] .woche-leiste ol { display: none; }
-[data-entwurf="a"] .woche-leiste p { margin-top: 0; color: var(--text-3); }
-[data-entwurf="a"] .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
-[data-entwurf="a"] .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
-[data-entwurf="a"] .tr-uhr { font-size: 1.1rem; font-weight: 600; }
-[data-entwurf="a"] .feld { font-size: 1.15rem; font-weight: 600; min-height: 46px; }
-[data-entwurf="a"] .satz-nr { font-size: 0.95rem; font-weight: 500; }
-[data-entwurf="a"] .timer .zeit { font-size: 1.9rem; font-weight: 600; }
-[data-entwurf="a"] .kachel .wert { font-size: 1.5rem; font-weight: 600; }
-[data-entwurf="a"] .kachel { border-top: 0; padding-top: 0; }
-[data-entwurf="a"] .plan-info strong { font-size: 1.05rem; font-weight: 600; }
-[data-entwurf="a"] .haken { border-color: var(--linie); }
-[data-entwurf="a"] .saetze li.erledigt .haken { background: var(--flaeche-2); color: var(--akzent-ink); }
-
-/* Entwurf B „Zahlen im Fokus“: Text schlicht, nur Zahlen in der schmalen Schrift, Woche als Punkte */
-[data-entwurf="b"] h1, [data-entwurf="b"] h2, [data-entwurf="b"] h3, [data-entwurf="b"] .tag-kurz, [data-entwurf="b"] .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
-[data-entwurf="b"] .kopf h1 { font-size: 1.3rem; font-weight: 600; }
-[data-entwurf="b"] .im-training .kopf h1 { font-size: 1.1rem; }
-[data-entwurf="b"] .block-kopf h2, [data-entwurf="b"] h2 { font-size: 1.15rem; font-weight: 600; }
-[data-entwurf="b"] h3 { font-size: 1.05rem; font-weight: 600; }
-[data-entwurf="b"] .plan-info strong { font-size: 1.05rem; font-weight: 600; }
-[data-entwurf="b"] .woche-leiste ol { display: flex; gap: 0; justify-content: space-between; max-width: 320px; }
-[data-entwurf="b"] .woche-leiste li { gap: 6px; }
-[data-entwurf="b"] .woche-leiste li span { font-size: 0.75rem; font-weight: 500; }
-[data-entwurf="b"] .woche-leiste li i { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--linie); opacity: 1; }
-[data-entwurf="b"] .woche-leiste li.vorbei i { background: var(--linie); opacity: 1; }
-[data-entwurf="b"] .woche-leiste li.ja i { background: var(--akzent); }
-[data-entwurf="b"] .woche-leiste li.heute i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text-2); }
-[data-entwurf="b"] .woche-leiste p { color: var(--text-3); font-size: 0.88rem; }
-[data-entwurf="b"] .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
-[data-entwurf="b"] .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
-[data-entwurf="b"] .tr-uhr { font-size: 1.6rem; }
-[data-entwurf="b"] .timer .zeit { font-size: 2.4rem; }
+/* Zahlen im Fokus: Text schlicht, nur Zahlen in der schmalen Schrift, Woche als Punkte */
+:root h1, :root h2, :root h3, :root .tag-kurz, :root .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
+:root .kopf h1 { font-size: 1.3rem; font-weight: 600; }
+:root .im-training .kopf h1 { font-size: 1.1rem; }
+:root .block-kopf h2, :root h2 { font-size: 1.15rem; font-weight: 600; }
+:root h3 { font-size: 1.05rem; font-weight: 600; }
+:root .plan-info strong { font-size: 1.05rem; font-weight: 600; }
+:root .woche-leiste ol { display: flex; gap: 0; justify-content: space-between; max-width: 320px; }
+:root .woche-leiste li { gap: 6px; }
+:root .woche-leiste li span { font-size: 0.75rem; font-weight: 500; }
+:root .woche-leiste li i { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--linie); opacity: 1; }
+:root .woche-leiste li.vorbei i { background: var(--linie); opacity: 1; }
+:root .woche-leiste li.ja i { background: var(--akzent); }
+:root .woche-leiste li.heute i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text-2); }
+:root .woche-leiste p { color: var(--text-3); font-size: 0.88rem; }
+:root .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
+:root .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
+:root .tr-uhr { font-size: 1.6rem; }
+:root .timer .zeit { font-size: 2.4rem; }

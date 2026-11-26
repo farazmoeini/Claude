@@ -4,8 +4,6 @@ import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
 import { uid, parseZahl, normName, verschiebe, hinweisTeile, aehnlicherPlan } from "./util.js";
 import * as S from "./stats.js";
-// ENTWURF-VORSCHAU: ?entwurf=a oder ?entwurf=b
-{ const e = new URLSearchParams(location.search).get("entwurf"); if (e) document.documentElement.dataset.entwurf = e; }
 const IMPORT_ACCEPT = ".pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json,image/*,application/pdf";
 
 const store = createStore();
@@ -20,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
