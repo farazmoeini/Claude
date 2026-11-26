@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p _site/satzbuch
           cp -r satzbuch/index.html satzbuch/style.css satzbuch/sw.js satzbuch/manifest.webmanifest \
-                satzbuch/icon.svg satzbuch/icon-192.png satzbuch/icon-512.png satzbuch/js satzbuch/plans _site/satzbuch/
+                satzbuch/icon.svg satzbuch/icon-192.png satzbuch/icon-512.png satzbuch/js satzbuch/plans satzbuch/fonts _site/satzbuch/
           printf '<!doctype html><meta http-equiv="refresh" content="0; url=satzbuch/">' > _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

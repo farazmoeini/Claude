@@ -17,7 +17,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -127,6 +127,7 @@ dialog.addEventListener("close", () => { editorEntwurf = null; editorStart = nul
 // Solange etwas „offen“ ist (Training, Fenster, anderer Bereich als „Heute“), liegt ein eigener
 // Eintrag im Verlauf. Die Zurück-Taste landet dann hier, statt die App zu schließen.
 let ignorierePop = 0;
+if ("scrollRestoration" in history) history.scrollRestoration = "manual"; // nach „Zurück“ oben beginnen
 function historieSync() {
   const tief = imTrainingAnsicht() || tab !== "heute" || dialog.open;
   const istTief = history.state?.overload === "tief";
@@ -263,6 +264,19 @@ async function schonBenachrichtigt(endetUm) {
   } catch { return false; }
 }
 
+/** Grafik „Scheiben pro Seite“ für Langhantel-Übungen (nächster offener Satz). */
+function scheibenHTML(e) {
+  if (!S.istLanghantel(e.uebungName)) return "";
+  const satz = e.saetze.find((x) => !x.erledigtUm) ?? e.saetze[e.saetze.length - 1];
+  const scheiben = S.scheibenProSeite(satz?.kg);
+  if (!scheiben) return "";
+  const text = scheiben.length ? `${scheiben.map(kgText).join(" + ")} kg` : "nur die Stange";
+  return `<div class="scheiben" role="img" aria-label="Pro Seite: ${esc(text)}">
+    <span class="hantel" aria-hidden="true"><span class="hantel-griff"></span>${scheiben.map((k) => `<span class="scheibe s${String(k).replace(".", "-")}"></span>`).join("")}<span class="hantel-ende"></span></span>
+    <span class="scheiben-text"><b>${kgText(satz.kg)} kg</b> pro Seite ${esc(text)}</span>
+  </div>`;
+}
+
 function saetzeText(aktiv) {
   const n = aktiv.eintraege.reduce((summe, e) => summe + e.saetze.filter((x) => x.erledigtUm).length, 0);
   return n === 1 ? "1 Satz" : `${n} Sätze`;
@@ -293,6 +307,8 @@ function sicherungsHinweis() {
     <div class="btn-reihe"><button class="btn" data-a="export">Jetzt sichern</button></div></div>`;
 }
 
+const RE_TAG_KURZ = /^(mo|di|mi|do|fr|sa|so)(?:\s*[–:.-]\s*|\s+)(.*)$/i;
+
 function blockHTML(plan, tr) {
   const eigene = tr.filter((t) => t.planId === plan.id);
   const letztes = eigene[eigene.length - 1];
@@ -302,16 +318,34 @@ function blockHTML(plan, tr) {
     const i = plan.tage.findIndex((t) => t.id === letztes.tagId);
     return plan.tage[(i + 1) % plan.tage.length]?.id;
   })();
+  const aktuelleWoche = store.planWoche(plan.id);
   return `<section class="block" aria-label="${esc(plan.name)}">
-    <div class="zeile zwischen block-kopf"><h2>${esc(plan.name)}</h2><span class="klein">${letztes ? "zuletzt " + esc(tageHer(letztes.start)) : `${plan.tage.length} Einheiten`}</span></div>
-    ${plan.wochen > 1 ? `<div class="wochen" role="group" aria-label="Blockwoche ${esc(plan.name)}"><span class="dezent">Woche</span>${Array.from({ length: plan.wochen }, (_, i) => `<button class="chip" data-a="woche" data-plan="${plan.id}" data-w="${i + 1}" aria-pressed="${store.planWoche(plan.id) === i + 1}">${i + 1}</button>`).join("")}</div>` : ""}
-    ${plan.tage.map((t) => {
+    <header class="block-kopf"><h2>${esc(plan.name)}</h2>
+      ${plan.wochen > 1 ? `<div class="wochen" role="group" aria-label="Blockwoche von ${esc(plan.name)}">${Array.from({ length: plan.wochen }, (_, i) => `<button class="chip" data-a="woche" data-plan="${plan.id}" data-w="${i + 1}" aria-pressed="${aktuelleWoche === i + 1}" aria-label="Woche ${i + 1}">W${i + 1}</button>`).join("")}</div>` : ""}
+    </header>
+    <ol class="tage">${plan.tage.map((t, i) => {
       const l = letzterJeTag(t.id);
-      return `<button class="tag-knopf" data-a="start" data-plan="${plan.id}" data-tag="${t.id}">
-        <div><strong>${esc(t.name)}</strong> ${t.id === naechster ? '<span class="badge">als Nächstes</span>' : ""}
-        <div class="dezent">${t.uebungen.length} Übungen${l ? " · zuletzt " + esc(tageHer(l.start)) : ""}</div></div>
-        <span class="los" aria-hidden="true">▶</span></button>`;
-    }).join("")}
+      const m = t.name.match(RE_TAG_KURZ);
+      const kurz = m ? m[1][0].toUpperCase() + m[1][1].toLowerCase() : String(i + 1);
+      const titel = m && m[2] ? m[2] : t.name;
+      const meta = [`${t.uebungen.length} Übungen`, l ? `zuletzt ${tageHer(l.start)}` : ""].filter(Boolean).join(", ");
+      return `<li><button class="tag-zeile${t.id === naechster ? " naechster" : ""}" data-a="start" data-plan="${plan.id}" data-tag="${t.id}">
+        <span class="tag-kurz" aria-hidden="true">${esc(kurz)}</span>
+        <span class="tag-text"><strong>${esc(titel)}</strong><span>${esc(meta)}</span></span>
+        ${t.id === naechster ? `<span class="naechster-hinweis">als Nächstes</span>` : ""}
+      </button></li>`;
+    }).join("")}</ol>
+  </section>`;
+}
+
+function wochenLeisteHTML(tr) {
+  const tage = S.wochenTage(tr);
+  const n = S.trainingsDieseWoche(tr);
+  const letztes = tr[tr.length - 1];
+  const satz = `${n === 1 ? "1 Training" : `${n} Trainings`} diese Woche${letztes ? `, zuletzt ${tageHer(letztes.start)}` : ""}`;
+  return `<section class="woche-leiste" aria-label="${esc(satz)}">
+    <ol>${tage.map((t) => `<li class="${t.trainiert ? "ja" : ""}${t.heute ? " heute" : ""}${t.vorbei && !t.trainiert ? " vorbei" : ""}"><span>${t.kurz}</span><i aria-hidden="true"></i></li>`).join("")}</ol>
+    <p>${esc(satz)}</p>
   </section>`;
 }
 
@@ -319,19 +353,15 @@ function viewHeute() {
   const tr = store.state.trainings;
   const plaene = [...store.state.plaene].sort((a, b) => (b.id === store.state.aktiverPlanId) - (a.id === store.state.aktiverPlanId));
   if (!plaene.length) {
-    return `<div class="karte akzent"><h2>Willkommen!</h2><p class="dezent">Übernimm deine Pläne „Kompakt“ und „Kraft“ mit einem Tipp, oder leg einen eigenen Plan an.</p>
+    return `<div class="karte willkommen"><h2>Leg deinen Plan an</h2><p class="dezent">Übernimm „Kompakt“ und „Kraft“ mit einem Tipp, hol einen Plan aus einem PDF oder bau dir selbst einen.</p>
       <div class="btn-reihe"><button class="btn primaer voll" data-a="eigene-plaene">Kompakt + Kraft übernehmen</button></div>
       <div class="btn-reihe"><button class="btn" data-a="import-pdf">Plan aus PDF</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div></div>`;
   }
-  const letztes = tr[tr.length - 1];
   return `
-    <div class="kacheln">
-      <div class="kachel"><div class="wert">${S.trainingsDieseWoche(tr)}</div><div class="bez">Trainings diese Woche</div></div>
-      <div class="kachel"><div class="wert">${letztes ? esc(tageHer(letztes.start)) : "–"}</div><div class="bez">Letztes Training</div></div>
-    </div>
-    ${store.aktiv ? `<div class="karte akzent laufend"><div class="zeile zwischen"><div><strong>Training läuft: ${esc(store.aktiv.tagName)}</strong>
-      <div class="dezent">seit <span id="dauer">0:00</span> · ${saetzeText(store.aktiv)}</div></div></div>
-      <div class="btn-reihe"><button class="btn primaer voll" data-a="fortsetzen">Fortsetzen</button></div></div>` : ""}
+    ${wochenLeisteHTML(tr)}
+    ${store.aktiv ? `<section class="laufend" aria-label="Laufendes Training"><div><strong>${esc(store.aktiv.tagName)}</strong>
+      <span class="dezent">läuft seit <span id="dauer">0:00</span>, ${saetzeText(store.aktiv)}</span></div>
+      <button class="btn primaer" data-a="fortsetzen">Fortsetzen</button></section>` : ""}
     ${sicherungsHinweis()}
     ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.altId)?.name || e.name)}“</strong>
       <div class="dezent">Deine Trainings und dein Fortschritt bleiben erhalten.</div>
@@ -342,13 +372,14 @@ function viewHeute() {
 function viewTraining() {
   const a = store.aktiv;
   return `
-    <div class="tr-kopf"><div class="dezent">${a.woche ? `Woche ${a.woche} · ` : ""}Seit <span id="dauer">0:00</span> · ${saetzeText(a)}</div>
+    <div class="tr-kopf"><div class="tr-status"><span class="tr-uhr" id="dauer">0:00</span><span class="dezent">${a.woche ? `Woche ${a.woche}, ` : ""}${saetzeText(a)}</span></div>
       <div class="zeile"><button class="btn klein-btn" data-a="abbrechen">Verwerfen</button><button class="btn primaer klein-btn" data-a="beenden">Beenden</button></div></div>
     ${a.eintraege.map((e, ei) => {
       const letzteBlock = store.letzteSaetze(e.uebungName, a.planId);
       const letzte = letzteBlock ?? store.letzteSaetze(e.uebungName);
-      return `<section class="karte uebung">
-        <div class="zeile zwischen"><h3>${esc(e.uebungName)}</h3><span class="klein">${e.zielWdh ? esc(e.saetze.length + "×" + e.zielWdh) + " · " : ""}Pause ${S.formatDauer(e.pause)}</span></div>
+      return `<section class="uebung${e.saetze.every((x) => x.erledigtUm) ? " fertig" : ""}">
+        <header class="ue-kopf"><h3>${esc(e.uebungName)}</h3><span class="klein">${e.zielWdh ? esc(e.saetze.length + " × " + e.zielWdh) + ", " : ""}Pause ${S.formatDauer(e.pause)}</span></header>
+        <div class="scheiben-platz" data-scheiben="${ei}">${scheibenHTML(e)}</div>
         ${letzte ? `<div class="klein">Letztes Mal${letzteBlock ? "" : " (anderer Block)"}: ${letzte.map((s) => kgText(s.kg) + "×" + (s.wdh ?? "–")).join(", ")}</div>` : ""}
         ${e.notiz ? `<div class="klein">${esc(e.notiz)}</div>` : ""}
         <table class="saetze"><thead><tr><th>#</th><th>kg</th><th>Wdh.</th><th></th></tr></thead><tbody>
@@ -383,7 +414,13 @@ function viewFortschritt() {
   const namen = S.alleUebungen(tr);
   if (!namen.length) return `<div class="leer">Hier siehst du deinen Fortschritt, sobald du ein Training abgeschlossen hast.</div>`;
   const blockWahl = bloecke.length > 1 ? `<div class="wochen" role="group" aria-label="Block"><span class="dezent">Block</span>${[{ id: "alle", name: "Alle" }, ...bloecke].map((p) => `<button class="chip breit-chip" data-a="fortschritt-block" data-plan="${p.id}" aria-pressed="${fortschrittBlock === p.id}">${esc(p.name)}</button>`).join("")}</div>` : "";
-  if (!fortschrittUebung || !namen.some((n) => normName(n) === normName(fortschrittUebung))) fortschrittUebung = namen[0];
+  if (!fortschrittUebung || !namen.some((n) => normName(n) === normName(fortschrittUebung))) {
+    // Vorauswahl: zuerst eine Langhantel-Übung mit Gewicht, sonst irgendeine mit Gewicht
+    const mitGewicht = namen.filter((n) => S.verlauf(tr, n).some((x) => x.maxKg > 0));
+    const anzahl = (n) => S.verlauf(tr, n).length;
+    const sortiert = [...mitGewicht].sort((a, b) => anzahl(b) - anzahl(a) || S.istLanghantel(b) - S.istLanghantel(a));
+    fortschrittUebung = sortiert.find((n) => S.istLanghantel(n) && anzahl(n) > 1) ?? sortiert[0] ?? namen[0];
+  }
   const v = S.verlauf(tr, fortschrittUebung);
   const b = S.bestleistungen(tr, fortschrittUebung);
   const pause = S.oPauseUebung(tr, fortschrittUebung);
@@ -409,6 +446,7 @@ function viewFortschritt() {
 // Linien-Diagramm: geschätztes 1RM und schwerstes Gewicht je Training, eine Achse (kg).
 function diagramm(v) {
   if (v.length < 2) return `<div class="chart-box"><p class="dezent" style="padding:12px">Ab zwei Trainings mit dieser Übung siehst du hier die Kurve.</p></div>`;
+  if (!v.some((x) => x.maxKg > 0)) return `<div class="chart-box"><p class="dezent" style="padding:12px">Diese Übung machst du ohne Gewicht, darum gibt es keine Kurve. Deine Sätze und Wiederholungen findest du im Verlauf.</p></div>`;
   const W = 340, H = 190, L = 34, R = 44, O = 12, U = 24;
   const werte = v.flatMap((x) => [x.e1rm, x.maxKg]).filter((x) => x > 0);
   let min = Math.min(...werte), max = Math.max(...werte);
@@ -622,14 +660,14 @@ const aktionen = {
     const z = S.zusammenfassung(fertig);
     const prs = S.neuePRs(store.state.trainings, fertig);
     const prNamen = fertig.eintraege.filter((e) => prs.includes(normName(e.uebungName))).map((e) => e.uebungName);
-    oeffneDialog("Stark! 💪", `
+    oeffneDialog("Training gespeichert", `
       <div class="kacheln">
         <div class="kachel"><div class="wert">${z.dauerMin} min</div><div class="bez">Dauer</div></div>
         <div class="kachel"><div class="wert">${z.saetze}</div><div class="bez">Sätze</div></div>
         <div class="kachel"><div class="wert">${zahl(z.volumen)}</div><div class="bez">kg bewegt</div></div>
         <div class="kachel"><div class="wert">${S.formatDauer(z.oPause)}</div><div class="bez">Ø Pause</div></div>
       </div>
-      ${prNamen.length ? `<p class="pr">🏆 Neue Bestleistung: ${prNamen.map(esc).join(", ")}</p>` : ""}
+      ${prNamen.length ? `<p class="pr">Neue Bestleistung: ${prNamen.map(esc).join(", ")}</p>` : ""}
       <button class="btn primaer voll" data-a="dialog-zu">Fertig</button>`);
   },
 
@@ -873,6 +911,8 @@ document.addEventListener("change", (ev) => {
     const wert = el.value.trim();
     if (wert && parseZahl(wert) == null) { el.value = ""; toast("Bitte nur Zahlen eingeben."); }
     store.aktualisiereSatz(e, s, { [el.dataset.f]: wert && parseZahl(wert) != null ? wert : "" });
+    const platz = document.querySelector(`[data-scheiben="${e}"]`);
+    if (platz && store.aktiv) platz.innerHTML = scheibenHTML(store.aktiv.eintraege[e]);
   } else if (el.dataset.einst) {
     const e = store.state.einstellungen, k = el.dataset.einst;
     if (k === "ton") e.ton = el.checked;

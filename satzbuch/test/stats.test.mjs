@@ -82,3 +82,30 @@ test("Benachrichtigung nennt den nächsten offenen Satz", () => {
   assert.equal(naechsterSatz(fertig), null);
   assert.equal(pausenText(fertig), "Alle Sätze erledigt – Training beenden?");
 });
+
+import { scheibenProSeite, istLanghantel, wochenTage } from "../js/stats.js";
+
+test("Scheiben pro Seite für eine 20-kg-Stange", () => {
+  assert.deepEqual(scheibenProSeite(105), [20, 20, 2.5]);
+  assert.deepEqual(scheibenProSeite(117.5), [20, 20, 5, 2.5, 1.25]);
+  assert.deepEqual(scheibenProSeite(62.5), [20, 1.25]);
+  assert.deepEqual(scheibenProSeite(20), []);
+  assert.equal(scheibenProSeite(19), null); // leichter als die Stange
+  assert.equal(scheibenProSeite(101), null); // mit diesen Scheiben nicht ladbar
+  assert.equal(scheibenProSeite(null), null);
+});
+
+test("Langhantel-Übungen erkennen, Kurzhantel/Kabel/Maschine nicht", () => {
+  for (const n of ["Kniebeuge", "Kniebeuge moderat", "Deadlift", "Flat Bench Volumen", "Close-Grip Bench", "Romanian Deadlift", "Bankdrücken"]) assert.equal(istLanghantel(n), true, n);
+  for (const n of ["DB Bench 15°", "Schrägbank Kurzhanteln (30°)", "Biceps Hammer Kabel", "Pectoral Fly Maschine", "Pull-ups", "Einbeiniges RDL"]) assert.equal(istLanghantel(n), false, n);
+});
+
+test("Wochenleiste Mo–So mit trainierten Tagen", () => {
+  const mi = Date.UTC(2026, 10, 25, 12); // Mittwoch
+  const tr = [{ start: Date.UTC(2026, 10, 23, 17) }, { start: Date.UTC(2026, 10, 25, 9) }, { start: Date.UTC(2026, 10, 20, 9) }];
+  const w = wochenTage(tr, mi);
+  assert.deepEqual(w.map((t) => t.kurz), ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]);
+  assert.deepEqual(w.map((t) => t.trainiert), [true, false, true, false, false, false, false]);
+  assert.deepEqual(w.map((t) => t.heute), [false, false, true, false, false, false, false]);
+  assert.deepEqual(w.map((t) => t.vorbei), [true, true, false, false, false, false, false]);
+});
