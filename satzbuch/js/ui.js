@@ -2,7 +2,7 @@
 // Ereignisse per data-a="aktion" an einer zentralen Stelle.
 import { createStore } from "./store.js";
 import { parsePlanText, validierePlan, parseZiele, zieleText } from "./parser.js";
-import { uid, parseZahl, normName, verschiebe } from "./util.js";
+import { uid, parseZahl, normName, verschiebe, hinweisTeile } from "./util.js";
 import * as S from "./stats.js";
 
 const store = createStore();
@@ -17,7 +17,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -303,8 +303,8 @@ function sicherungsHinweis() {
   const n = store.state.trainings.length;
   const alt = letzteSicherung ? Date.now() - letzteSicherung > 30 * 864e5 : n >= 3;
   if (!alt || !n) return "";
-  return `<div class="karte"><div class="zeile zwischen"><div><strong>Sicherung empfohlen</strong><div class="dezent">${letzteSicherung ? "Letzte Sicherung " + tageHer(letzteSicherung) : "Noch keine Sicherung"}. Deine Daten liegen nur auf diesem Handy.</div></div></div>
-    <div class="btn-reihe"><button class="btn" data-a="export">Jetzt sichern</button></div></div>`;
+  const text = letzteSicherung ? `Letzte Sicherung ${tageHer(letzteSicherung)}` : "Deine Trainings sind noch nicht gesichert";
+  return `<div class="hinweis-zeile"><span>${esc(text)}</span><button class="link-btn" data-a="export">Jetzt sichern</button></div>`;
 }
 
 const RE_TAG_KURZ = /^(mo|di|mi|do|fr|sa|so)(?:\s*[–:.-]\s*|\s+)(.*)$/i;
@@ -363,9 +363,7 @@ function viewHeute() {
       <span class="dezent">läuft seit <span id="dauer">0:00</span>, ${saetzeText(store.aktiv)}</span></div>
       <button class="btn primaer" data-a="fortsetzen">Fortsetzen</button></section>` : ""}
     ${sicherungsHinweis()}
-    ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.altId)?.name || e.name)}“</strong>
-      <div class="dezent">Deine Trainings und dein Fortschritt bleiben erhalten.</div>
-      <div class="btn-reihe"><button class="btn primaer" data-a="plan-update" data-datei="${esc(e.datei)}">Übernehmen</button></div></div>`).join("")}
+    ${planUpdates.map((e) => `<div class="hinweis-zeile akzent"><span>Neue Version von „${esc(store.plan(e.altId)?.name || e.name)}“. Deine Trainings bleiben erhalten.</span><button class="link-btn" data-a="plan-update" data-datei="${esc(e.datei)}">Übernehmen</button></div>`).join("")}
     ${plaene.map((p) => blockHTML(p, tr)).join("")}`;
 }
 
@@ -377,22 +375,35 @@ function viewTraining() {
     ${a.eintraege.map((e, ei) => {
       const letzteBlock = store.letzteSaetze(e.uebungName, a.planId);
       const letzte = letzteBlock ?? store.letzteSaetze(e.uebungName);
+      const hinweise = hinweisTeile(e.notiz);
+      const vorgabe = [e.zielWdh ? `${e.saetze.length} × ${e.zielWdh}` : "", `Pause ${S.formatDauer(e.pause)}`].filter(Boolean).join(", ");
       return `<section class="uebung${e.saetze.every((x) => x.erledigtUm) ? " fertig" : ""}">
-        <header class="ue-kopf"><h3>${esc(e.uebungName)}</h3><span class="klein">${e.zielWdh ? esc(e.saetze.length + " × " + e.zielWdh) + ", " : ""}Pause ${S.formatDauer(e.pause)}</span></header>
+        <header class="ue-kopf">
+          <div><h3>${esc(e.uebungName)}</h3><p class="ue-vorgabe">${esc(vorgabe)}</p></div>
+          <details class="mehr">
+            <summary aria-label="Weitere Aktionen für ${esc(e.uebungName)}">⋯</summary>
+            <div class="mehr-menue">
+              <button data-a="satz-plus" data-e="${ei}">Satz hinzufügen</button>
+              <button data-a="satz-minus" data-e="${ei}">Letzten Satz entfernen</button>
+              <button data-a="pause-aendern" data-e="${ei}">Pause ändern</button>
+              <button class="gefahr" data-a="uebung-weg" data-e="${ei}">Übung entfernen</button>
+            </div>
+          </details>
+        </header>
         <div class="scheiben-platz" data-scheiben="${ei}">${scheibenHTML(e)}</div>
-        ${letzte ? `<div class="klein">Letztes Mal${letzteBlock ? "" : " (anderer Block)"}: ${letzte.map((s) => kgText(s.kg) + "×" + (s.wdh ?? "–")).join(", ")}</div>` : ""}
-        ${e.notiz ? `<div class="klein">${esc(e.notiz)}</div>` : ""}
-        <table class="saetze"><thead><tr><th>#</th><th>kg</th><th>Wdh.</th><th></th></tr></thead><tbody>
-        ${e.saetze.map((s, si) => `<tr class="${s.erledigtUm ? "erledigt" : ""}">
-          <td>${si + 1}${zielAbweichung(s) ? `<div class="ziel">Ziel ${esc(s.ziel.wdh)}${s.ziel.kg != null ? ` @${kgText(s.ziel.kg)}` : ""}</div>` : ""}</td>
-          <td><input class="feld" inputmode="decimal" enterkeyhint="next" aria-label="Gewicht Satz ${si + 1}" data-satz="${ei}:${si}" data-f="kg" value="${s.kg == null ? "" : kgText(s.kg)}" placeholder="kg"></td>
-          <td><input class="feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen Satz ${si + 1}" data-satz="${ei}:${si}" data-f="wdh" value="${s.wdh ?? ""}" placeholder="Wdh."></td>
-          <td><button class="haken" data-a="haken" data-e="${ei}" data-s="${si}" aria-label="Satz ${si + 1} ${s.erledigtUm ? "zurücksetzen" : "abhaken"}">✓</button></td></tr>`).join("")}
-        </tbody></table>
-        <div class="mini-aktionen"><button data-a="satz-plus" data-e="${ei}">+ Satz</button><button data-a="satz-minus" data-e="${ei}">− Satz</button><button data-a="pause-aendern" data-e="${ei}">Pause ändern</button><button data-a="uebung-weg" data-e="${ei}">Entfernen</button></div>
+        ${hinweise.length ? `<ul class="hinweise">${hinweise.map((h) => `<li>${h.stichwort ? `<b>${esc(h.stichwort)}</b> ` : ""}${esc(h.text)}</li>`).join("")}</ul>` : ""}
+        ${letzte ? `<p class="letztes">Letztes Mal${letzteBlock ? "" : " (anderer Block)"} <span>${letzte.map((x) => `${kgText(x.kg)}×${x.wdh ?? "–"}`).join("  ")}</span></p>` : ""}
+        <ol class="saetze">
+        ${e.saetze.map((x, si) => `<li class="${x.erledigtUm ? "erledigt" : ""}">
+          <span class="satz-nr">${si + 1}${zielAbweichung(x) ? `<span class="ziel">Ziel ${esc(x.ziel.wdh)}${x.ziel.kg != null ? ` @${kgText(x.ziel.kg)}` : ""}</span>` : ""}</span>
+          <label class="feld-huelle" data-einheit="kg"><input class="feld" inputmode="decimal" enterkeyhint="next" aria-label="Gewicht Satz ${si + 1} in kg" data-satz="${ei}:${si}" data-f="kg" value="${x.kg == null ? "" : kgText(x.kg)}" placeholder="–"></label>
+          <label class="feld-huelle" data-einheit="Wdh."><input class="feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen Satz ${si + 1}" data-satz="${ei}:${si}" data-f="wdh" value="${x.wdh ?? ""}" placeholder="–"></label>
+          <button class="haken" data-a="haken" data-e="${ei}" data-s="${si}" aria-label="Satz ${si + 1} ${x.erledigtUm ? "zurücksetzen" : "abhaken"}">✓</button>
+        </li>`).join("")}
+        </ol>
       </section>`;
     }).join("")}
-    <button class="btn voll" data-a="uebung-plus">+ Übung hinzufügen</button>`;
+    <button class="btn-leise voll" data-a="uebung-plus">+ Übung hinzufügen</button>`;
 }
 
 function viewVerlauf() {
@@ -510,23 +521,27 @@ function viewPlaene() {
   const hatKey = !!store.state.einstellungen.apiKey;
   return `
     ${store.state.plaene.length ? "" : `<div class="leer">Noch kein Plan. Importiere dein PDF oder leg selbst einen an.</div>`}
-    ${store.state.plaene.map((p) => `<div class="karte ${p.id === store.state.aktiverPlanId ? "akzent" : ""}">
-      <div class="zeile zwischen"><strong>${esc(p.name)}</strong>${p.id === store.state.aktiverPlanId ? '<span class="badge">aktiv</span>' : ""}</div>
-      <div class="dezent">${p.tage.length} Tage · ${p.tage.reduce((n, t) => n + t.uebungen.length, 0)} Übungen</div>
-      <div class="btn-reihe">
-        ${p.id === store.state.aktiverPlanId ? "" : `<button class="btn klein-btn" data-a="plan-aktiv" data-id="${p.id}">Aktiv setzen</button>`}
-        <button class="btn klein-btn" data-a="plan-bearbeiten" data-id="${p.id}">Bearbeiten</button>
-        <button class="btn klein-btn" data-a="plan-export" data-id="${p.id}">Teilen</button>
-        <button class="btn klein-btn gefahr" data-a="plan-loeschen" data-id="${p.id}">Löschen</button>
-      </div></div>`).join("")}
-    <p class="abschnitt">Plan hinzufügen</p>
-    <div class="karte">
-      <button class="btn primaer voll" data-a="import-pdf">PDF importieren</button>
-      <p class="klein">Liest den Text aus deinem PDF. Danach prüfst du alles, bevor es gespeichert wird.</p>
-      <button class="btn voll" data-a="import-claude">PDF oder Foto mit Claude lesen</button>
-      <p class="klein">${hatKey ? "Erkennt fast jedes Format, auch Scans und Fotos. Nutzt deinen API-Schlüssel." : "Braucht einen eigenen Claude-API-Schlüssel (Einstellungen). Alternativ: Schick das PDF an Claude im Chat, dann landet der Plan unter „Mitgelieferte Pläne“."}</p>
-      <div class="btn-reihe"><button class="btn" data-a="mitgeliefert">Mitgelieferte Pläne</button><button class="btn" data-a="import-json">Plan-Datei (.json)</button><button class="btn" data-a="plan-neu">Selbst anlegen</button></div>
-    </div>`;
+    ${store.state.plaene.length ? `<ul class="plan-liste">${store.state.plaene.map((p) => `<li>
+      <div class="plan-info"><strong>${esc(p.name)}</strong>
+        <span>${p.tage.length} Tage, ${p.tage.reduce((n, t) => n + t.uebungen.length, 0)} Übungen${p.wochen > 1 ? `, ${p.wochen}-Wochen-Block` : ""}</span></div>
+      <button class="btn klein-btn" data-a="plan-bearbeiten" data-id="${p.id}">Bearbeiten</button>
+      <details class="mehr">
+        <summary aria-label="Weitere Aktionen für ${esc(p.name)}">⋯</summary>
+        <div class="mehr-menue">
+          ${p.id === store.state.aktiverPlanId ? "" : `<button data-a="plan-aktiv" data-id="${p.id}">Oben auf Heute zeigen</button>`}
+          <button data-a="plan-export" data-id="${p.id}">Als Datei teilen</button>
+          <button class="gefahr" data-a="plan-loeschen" data-id="${p.id}">Plan löschen</button>
+        </div>
+      </details>
+    </li>`).join("")}</ul>` : ""}
+    <h2 class="abschnitt-titel">Plan hinzufügen</h2>
+    <ul class="aktions-liste">
+      <li><button data-a="import-pdf"><strong>Aus PDF</strong><span>Liest Tabellen und Gewichte, du prüfst vor dem Speichern</span></button></li>
+      <li><button data-a="import-claude"><strong>PDF oder Foto mit Claude</strong><span>${hatKey ? "Auch Scans und Fotos, nutzt deinen API-Schlüssel" : "Braucht einen Claude-API-Schlüssel in den Einstellungen"}</span></button></li>
+      <li><button data-a="mitgeliefert"><strong>Mitgelieferte Pläne</strong><span>Kompakt, Kraft und ein Beispiel</span></button></li>
+      <li><button data-a="import-json"><strong>Plan-Datei öffnen</strong><span>Eine geteilte .json-Datei</span></button></li>
+      <li><button data-a="plan-neu"><strong>Selbst anlegen</strong><span>Leerer Plan im Editor</span></button></li>
+    </ul>`;
 }
 
 // ---------- Plan-Editor (auch Import-Vorschau) ----------
@@ -553,10 +568,10 @@ function editorHTML() {
         <label>kg<input class="text-feld" inputmode="decimal" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="gewicht" value="${u.gewicht == null ? "" : kgText(u.gewicht)}"></label>
         `}
         <label>Pause (s)<input class="text-feld" inputmode="numeric" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="pause" value="${esc(u.pause)}"></label>
-        <details class="breit" ${u.ziele?.length || u.wochen?.length || u._zieleRoh || u._wochenRoh ? "open" : ""}><summary class="klein">Ziel je Satz / Blockwochen</summary>
+        <details class="breit" ${u.ziele?.length || u.wochen?.length || u._zieleRoh || u._wochenRoh ? "open" : ""}><summary class="klein">Notiz, Ziel je Satz${p.wochen > 1 || u.wochen?.length ? ", Blockwochen" : ""}${u.notiz ? " (Notiz vorhanden)" : ""}</summary>
+        <label class="breit">Notiz (im Training sichtbar, Punkte „ · “ trennen Zeilen)<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="notiz" value="${esc(u.notiz || "")}"></label>
         <label class="breit">Ziel je Satz (optional)<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="ziele" placeholder="z. B. 4-5@34p210 / 2x8@28" value="${esc(u._zieleRoh ?? zieleText(u.ziele))}"></label>
-        <label class="breit">Blockwochen (eine Zeile pro Woche, optional)<textarea class="text-feld" rows="${Math.max(2, u.wochen?.length || p.wochen || 2)}" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="wochen" placeholder="3x3@97,5 / 5@82,5">${esc(u._wochenRoh ?? (u.wochen || []).map(zieleText).join("\n"))}</textarea></label></details>
-        <label class="breit">Notiz<input class="text-feld" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="notiz" value="${esc(u.notiz || "")}"></label>
+${p.wochen > 1 || u.wochen?.length ? `        <label class="breit">Blockwochen (eine Zeile pro Woche, optional)<textarea class="text-feld" rows="${Math.max(2, u.wochen?.length || p.wochen || 2)}" data-ed="u" data-t="${ti}" data-u="${ui}" data-f="wochen" placeholder="3x3@97,5 / 5@82,5">${esc(u._wochenRoh ?? (u.wochen || []).map(zieleText).join("\n"))}</textarea></label>` : ""}</details>
       </div>`).join("")}
       <button class="btn klein-btn" data-a="ed-u-plus" data-t="${ti}">+ Übung</button>
     </div>`).join("")}
@@ -729,7 +744,7 @@ const aktionen = {
       toast("Pläne konnten nicht geladen werden: " + err.message);
     }
   },
-  "plan-aktiv": (d) => { store.state.aktiverPlanId = d.id; store.save(); render(); toast("Plan ist jetzt aktiv."); },
+  "plan-aktiv": (d) => { store.state.aktiverPlanId = d.id; store.save(); render(); toast("Steht jetzt oben auf Heute."); },
   "plan-bearbeiten": (d) => oeffneEditor(store.plan(d.id)),
   "plan-loeschen": (d) => {
     const p = store.plan(d.id);
@@ -898,6 +913,8 @@ const aktionen = {
 };
 
 document.addEventListener("click", (ev) => {
+  // offenes „⋯“-Menü schließen, wenn daneben getippt wird
+  for (const d of document.querySelectorAll("details.mehr[open]")) if (!d.contains(ev.target)) d.open = false;
   const el = ev.target.closest("[data-a]");
   if (!el) return;
   const fn = aktionen[el.dataset.a];
@@ -931,7 +948,7 @@ document.addEventListener("keydown", (ev) => {
   const el = ev.target;
   if (ev.key !== "Enter" || !el.dataset?.satz) return;
   ev.preventDefault();
-  if (el.dataset.f === "kg") el.closest("tr").querySelector('[data-f="wdh"]').focus();
+  if (el.dataset.f === "kg") el.closest("li").querySelector('[data-f="wdh"]').focus();
   else el.blur();
 });
 

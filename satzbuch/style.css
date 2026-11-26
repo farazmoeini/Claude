@@ -189,11 +189,10 @@ body.im-training.mit-timer { padding-bottom: calc(124px + env(safe-area-inset-bo
 .tr-kopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 2px 0 10px; }
 .tr-status { display: flex; align-items: baseline; gap: 10px; }
 .tr-uhr { font: 800 2.1rem/1 var(--schrift-zahl); font-variant-numeric: tabular-nums; }
-.uebung { padding: 18px 0 12px; border-top: 2px solid var(--linie); }
+.uebung { padding: 20px 0 16px; border-top: 1px solid var(--linie); }
 .uebung:first-of-type { border-top: 0; padding-top: 6px; }
-.ue-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ue-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .uebung.fertig .ue-kopf h3 { color: var(--text-3); }
-.uebung > .klein { margin-top: 3px; }
 
 /* Scheiben pro Seite */
 .scheiben { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; }
@@ -210,27 +209,73 @@ body.im-training.mit-timer { padding-bottom: calc(124px + env(safe-area-inset-bo
 .scheiben-text { color: var(--text-2); font-size: 0.9rem; line-height: 1.3; }
 .scheiben-text b { display: block; color: var(--text); font: 700 1.15rem/1.1 var(--schrift-zahl); }
 
-/* Sätze */
-.saetze { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-top: 4px; }
-.saetze th { font-size: 0.75rem; font-weight: 600; color: var(--text-3); text-align: center; }
-.saetze td { text-align: center; }
-.saetze td:first-child { width: 44px; color: var(--text-3); font: 700 1.25rem var(--schrift-zahl); }
-.ziel { font: 500 0.68rem/1.15 var(--schrift); color: var(--akzent-ink); margin-top: 2px; }
+/* Sätze: eine Zeile je Satz, Einheit leise im Feld */
+.saetze { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.saetze li { display: grid; grid-template-columns: 36px 1fr 1fr 48px; align-items: center; gap: 8px; }
+.satz-nr { color: var(--text-3); font: 700 1.2rem/1 var(--schrift-zahl); text-align: center; }
+.ziel { display: block; font: 500 0.66rem/1.15 var(--schrift); color: var(--akzent-ink); margin-top: 3px; }
+.feld-huelle { position: relative; display: block; }
+.feld-huelle::after {
+  content: attr(data-einheit); position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font: 500 0.78rem var(--schrift); color: var(--text-3); pointer-events: none;
+}
 .feld {
-  width: 100%; min-height: 48px; padding: 6px; border-radius: var(--r-klein);
-  border: 1px solid transparent; background: var(--flaeche-2);
-  text-align: center; font: 700 1.5rem var(--schrift-zahl); font-variant-numeric: tabular-nums;
+  width: 100%; min-height: 50px; padding: 6px 34px 6px 10px; border-radius: var(--r-klein);
+  border: 1px solid transparent; background: var(--flaeche);
+  text-align: left; font: 700 1.55rem var(--schrift-zahl); font-variant-numeric: tabular-nums;
 }
-.feld::placeholder { color: var(--text-3); font: 500 0.95rem var(--schrift); }
-.feld:focus { outline: 2px solid var(--akzent-ink); outline-offset: -1px; }
+.feld::placeholder { color: var(--text-3); }
+.feld:focus { outline: 2px solid var(--akzent-ink); outline-offset: -1px; background: var(--flaeche-2); }
 .haken {
-  width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--linie);
-  background: transparent; color: var(--text-3); font-size: 1.25rem; font-weight: 700;
+  width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--linie);
+  background: transparent; color: var(--text-3); font-size: 1.2rem; font-weight: 700;
 }
-tr.erledigt .feld { background: transparent; color: var(--text-2); }
-tr.erledigt .haken { background: var(--akzent); color: var(--akzent-text); border-color: transparent; }
-.mini-aktionen { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 2px; }
-.mini-aktionen button { border: 0; background: none; color: var(--text-2); padding: 10px 0; font-size: 0.9rem; font-weight: 500; }
+.saetze li.erledigt .feld { background: transparent; color: var(--text-2); }
+.saetze li.erledigt .satz-nr { color: var(--akzent-ink); }
+.saetze li.erledigt .haken { background: var(--akzent); color: var(--akzent-text); border-color: transparent; }
+
+/* Kopf einer Übung, Hinweise, letztes Mal */
+.ue-vorgabe { margin: 3px 0 0; color: var(--text-3); font-size: 0.86rem; }
+.hinweise { list-style: none; margin: 10px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--linie); display: grid; gap: 3px; }
+.hinweise li { color: var(--text-2); font-size: 0.88rem; line-height: 1.35; }
+.hinweise b { color: var(--text); font-weight: 600; }
+.letztes { margin: 10px 0 0; color: var(--text-3); font-size: 0.84rem; }
+.letztes span { color: var(--text-2); font-variant-numeric: tabular-nums; word-spacing: 0.25em; }
+
+/* Menü „⋯“ */
+.mehr { position: relative; flex: none; }
+.mehr summary {
+  list-style: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--text-3); font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
+.mehr summary::-webkit-details-marker { display: none; }
+.mehr[open] summary { background: var(--flaeche); color: var(--text); }
+.mehr-menue {
+  position: absolute; right: 0; top: 44px; z-index: 4; min-width: 220px; padding: 6px;
+  background: var(--flaeche-2); border-radius: var(--r); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: grid;
+}
+.mehr-menue button { text-align: left; padding: 12px 12px; border: 0; background: none; border-radius: var(--r-klein); font-weight: 500; }
+.mehr-menue button:active { background: var(--flaeche); }
+.mehr-menue .gefahr { color: var(--gefahr); }
+
+/* Schmale Hinweiszeilen auf Heute */
+.hinweis-zeile {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 14px; padding: 10px 0; border-top: 1px solid var(--linie); border-bottom: 1px solid var(--linie);
+  color: var(--text-2); font-size: 0.9rem;
+}
+.hinweis-zeile.akzent span { color: var(--text); }
+.link-btn { border: 0; background: none; padding: 8px 0; color: var(--akzent-ink); font-weight: 600; white-space: nowrap; }
+.btn-leise { min-height: 48px; margin-top: 14px; border: 1px dashed var(--linie); border-radius: var(--r-klein); background: none; color: var(--text-2); font-weight: 500; }
+.btn-leise.voll { width: 100%; }
+
+/* Pläne */
+.plan-liste { list-style: none; margin: 4px 0 0; padding: 0; }
+.plan-liste li { display: flex; align-items: center; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--linie); }
+.plan-info { flex: 1; min-width: 0; }
+.plan-info strong { display: block; font: 800 1.45rem/1.1 var(--schrift-zahl); }
+.plan-info span { display: block; color: var(--text-3); font-size: 0.84rem; margin-top: 2px; }
 
 /* Pausentimer */
 .timer {
@@ -317,3 +362,13 @@ body.im-training.mit-timer .toast { bottom: calc(112px + env(safe-area-inset-bot
   .lade { animation: none; }
   .btn:active { transform: none; }
 }
+
+/* Plan hinzufügen: schlichte Liste */
+.abschnitt-titel { font-size: 1.5rem; margin: 30px 0 6px; }
+.aktions-liste { list-style: none; margin: 0; padding: 0; }
+.aktions-liste li + li { border-top: 1px solid var(--linie); }
+.aktions-liste button { width: 100%; text-align: left; padding: 13px 4px; border: 0; background: none; display: grid; gap: 2px; }
+.aktions-liste button:active { background: var(--flaeche); }
+.aktions-liste strong { font-weight: 600; }
+.aktions-liste li:first-child strong { color: var(--akzent-ink); }
+.aktions-liste span { color: var(--text-3); font-size: 0.85rem; }

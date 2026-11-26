@@ -37,7 +37,7 @@ Danach startet Satzbuch wie eine normale App, auch ohne Netz.
 ```bash
 cd satzbuch
 python3 -m http.server 8411     # http://localhost:8411
-npm test                        # 49 Tests: Parser, Tabellen, Speicher, Statistik, Import
+npm test                        # 50 Tests: Parser, Tabellen, Speicher, Statistik, Import
 ```
 
 Kein Build-Schritt, keine Abhängigkeiten. pdf.js wird beim ersten PDF-Import von cdnjs geladen
