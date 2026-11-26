@@ -83,17 +83,7 @@ test("Benachrichtigung nennt den nächsten offenen Satz", () => {
   assert.equal(pausenText(fertig), "Alle Sätze erledigt – Training beenden?");
 });
 
-import { scheibenProSeite, istLanghantel, wochenTage } from "../js/stats.js";
-
-test("Scheiben pro Seite für eine 20-kg-Stange", () => {
-  assert.deepEqual(scheibenProSeite(105), [20, 20, 2.5]);
-  assert.deepEqual(scheibenProSeite(117.5), [20, 20, 5, 2.5, 1.25]);
-  assert.deepEqual(scheibenProSeite(62.5), [20, 1.25]);
-  assert.deepEqual(scheibenProSeite(20), []);
-  assert.equal(scheibenProSeite(19), null); // leichter als die Stange
-  assert.equal(scheibenProSeite(101), null); // mit diesen Scheiben nicht ladbar
-  assert.equal(scheibenProSeite(null), null);
-});
+import { istLanghantel, wochenTage } from "../js/stats.js";
 
 test("Langhantel-Übungen erkennen, Kurzhantel/Kabel/Maschine nicht", () => {
   for (const n of ["Kniebeuge", "Kniebeuge moderat", "Deadlift", "Flat Bench Volumen", "Close-Grip Bench", "Romanian Deadlift", "Bankdrücken"]) assert.equal(istLanghantel(n), true, n);

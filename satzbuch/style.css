@@ -25,9 +25,7 @@
   --serie-1: #b38812;
   --serie-2: #4a86e8;
   --chart-flaeche: #2c3036;
-  /* Wettkampf-Scheibenfarben */
-  --p20: #2563c9; --p15: #f2c230; --p10: #2e9e5b; --p5: #e9e9e4; --p2-5: #d3283a; --p1-25: #a3aab2;
-
+  
   --schrift: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --schrift-zahl: "Big Shoulders Display", "Barlow", system-ui, sans-serif;
   --nav-h: 64px;
@@ -193,21 +191,6 @@ body.im-training.mit-timer { padding-bottom: calc(124px + env(safe-area-inset-bo
 .uebung:first-of-type { border-top: 0; padding-top: 6px; }
 .ue-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .uebung.fertig .ue-kopf h3 { color: var(--text-3); }
-
-/* Scheiben pro Seite */
-.scheiben { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; }
-.hantel { display: inline-flex; align-items: center; height: 48px; }
-.hantel-griff { width: 26px; height: 5px; background: var(--text-3); border-radius: 2px 0 0 2px; }
-.hantel-ende { width: 12px; height: 7px; background: var(--text-3); border-radius: 0 2px 2px 0; }
-.scheibe { display: block; margin-right: 2px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); }
-.scheibe.s20 { width: 9px; height: 48px; background: var(--p20); }
-.scheibe.s15 { width: 8px; height: 42px; background: var(--p15); }
-.scheibe.s10 { width: 7px; height: 36px; background: var(--p10); }
-.scheibe.s5 { width: 6px; height: 26px; background: var(--p5); }
-.scheibe.s2-5 { width: 5px; height: 20px; background: var(--p2-5); }
-.scheibe.s1-25 { width: 4px; height: 16px; background: var(--p1-25); }
-.scheiben-text { color: var(--text-2); font-size: 0.9rem; line-height: 1.3; }
-.scheiben-text b { display: block; color: var(--text); font: 700 1.15rem/1.1 var(--schrift-zahl); }
 
 /* Sätze: eine Zeile je Satz, Einheit leise im Feld */
 .saetze { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
@@ -380,3 +363,39 @@ body.im-training.mit-timer .toast { bottom: calc(112px + env(safe-area-inset-bot
 .import-tage span { display: block; color: var(--text-3); font-size: 0.85rem; margin-top: 2px; }
 .import-laden { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .teilen-tipp { margin: 14px 0 0; }
+
+/* ===================== Ruhig & Zahlen im Fokus (Version 19) ===================== */
+/* Ruhiger Grundton: wenig Gelb, keine Zierlinien */
+:root .leiste button[aria-current="page"] { color: var(--text); }
+:root .leiste button[aria-current="page"]::before { display: none; }
+:root .leiste svg { width: 22px; height: 22px; }
+:root .hinweise { border-left: 0; padding-left: 0; }
+:root .laufend { background: var(--flaeche); box-shadow: none; }
+:root .tag-zeile.naechster .tag-kurz { color: var(--text); }
+:root .naechster-hinweis { color: var(--text-3); font-weight: 500; }
+:root .chip { border-color: transparent; color: var(--text-3); font-family: var(--schrift); font-weight: 600; font-size: 0.9rem; min-width: 40px; }
+:root .chip[aria-pressed="true"] { background: var(--flaeche-2); color: var(--text); }
+:root .saetze li.erledigt .satz-nr { color: var(--text-3); }
+:root .aktions-liste li:first-child strong { color: var(--text); }
+:root .link-btn { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+:root .hinweis-zeile { border: 0; padding: 0; color: var(--text-3); }
+
+/* Zahlen im Fokus: Text schlicht, nur Zahlen in der schmalen Schrift, Woche als Punkte */
+:root h1, :root h2, :root h3, :root .tag-kurz, :root .plan-info strong { font-family: var(--schrift); letter-spacing: 0; }
+:root .kopf h1 { font-size: 1.3rem; font-weight: 600; }
+:root .im-training .kopf h1 { font-size: 1.1rem; }
+:root .block-kopf h2, :root h2 { font-size: 1.15rem; font-weight: 600; }
+:root h3 { font-size: 1.05rem; font-weight: 600; }
+:root .plan-info strong { font-size: 1.05rem; font-weight: 600; }
+:root .woche-leiste ol { display: flex; gap: 0; justify-content: space-between; max-width: 320px; }
+:root .woche-leiste li { gap: 6px; }
+:root .woche-leiste li span { font-size: 0.75rem; font-weight: 500; }
+:root .woche-leiste li i { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--linie); opacity: 1; }
+:root .woche-leiste li.vorbei i { background: var(--linie); opacity: 1; }
+:root .woche-leiste li.ja i { background: var(--akzent); }
+:root .woche-leiste li.heute i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text-2); }
+:root .woche-leiste p { color: var(--text-3); font-size: 0.88rem; }
+:root .tag-zeile { grid-template-columns: 34px 1fr auto; min-height: 60px; }
+:root .tag-kurz { font-size: 0.9rem; font-weight: 600; color: var(--text-3); }
+:root .tr-uhr { font-size: 1.6rem; }
+:root .timer .zeit { font-size: 2.4rem; }
