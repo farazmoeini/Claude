@@ -13,8 +13,11 @@ const timerEl = $("#timer");
 let tab = "heute";
 let fortschrittUebung = null;
 let fortschrittBlock = "alle";
+// Läuft ein Training, kann man mit „Zurück“ zu „Heute“ wechseln; das Training läuft weiter.
+let trainingSichtbar = true;
+const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -45,9 +48,9 @@ async function pruefePlanUpdates() {
       } else if (haupt && neuer) planUpdates.push({ ...e, altId: haupt.id });
     }
     if (automatisch.length) {
-      if (!store.aktiv) render();
+      if (!imTrainingAnsicht()) render();
       toast(automatisch.join(" · ") + ".", 5000);
-    } else if (planUpdates.length && !store.aktiv && tab === "heute") render();
+    } else if (planUpdates.length && !imTrainingAnsicht() && tab === "heute") render();
   } catch { /* offline: später erneut */ } finally { updatePruefungLaeuft = false; }
 }
 let editorEntwurf = null;
@@ -125,7 +128,7 @@ dialog.addEventListener("close", () => { editorEntwurf = null; editorStart = nul
 // Eintrag im Verlauf. Die Zurück-Taste landet dann hier, statt die App zu schließen.
 let ignorierePop = 0;
 function historieSync() {
-  const tief = !!store.aktiv || tab !== "heute" || dialog.open;
+  const tief = imTrainingAnsicht() || tab !== "heute" || dialog.open;
   const istTief = history.state?.overload === "tief";
   if (tief && !istTief) history.pushState({ overload: "tief" }, "");
   else if (!tief && istTief) { ignorierePop++; history.back(); }
@@ -134,8 +137,12 @@ window.addEventListener("popstate", () => {
   if (ignorierePop) { ignorierePop--; return; }
   if (dialog.open) {
     if (dialogDarfSchliessen()) schliesseDialog();
-  } else if (store.aktiv) {
-    toast("Training läuft – zum Verlassen „Beenden“ oder „Verwerfen“ tippen.");
+  } else if (imTrainingAnsicht()) {
+    // Zurück im Training: zu „Heute“, das Training läuft weiter
+    trainingSichtbar = false;
+    tab = "heute";
+    render();
+    window.scrollTo(0, 0);
   } else if (tab !== "heute") {
     tab = "heute";
     render();
@@ -256,9 +263,14 @@ async function schonBenachrichtigt(endetUm) {
   } catch { return false; }
 }
 
+function saetzeText(aktiv) {
+  const n = aktiv.eintraege.reduce((summe, e) => summe + e.saetze.filter((x) => x.erledigtUm).length, 0);
+  return n === 1 ? "1 Satz" : `${n} Sätze`;
+}
+
 // ---------- Ansichten ----------
 function render() {
-  const imTraining = !!store.aktiv;
+  const imTraining = imTrainingAnsicht();
   document.body.classList.toggle("im-training", imTraining);
   $("#titel").textContent = imTraining ? store.aktiv.tagName : { heute: "Overload", verlauf: "Verlauf", fortschritt: "Fortschritt", plaene: "Pläne" }[tab];
   for (const b of document.querySelectorAll(".leiste button")) {
@@ -267,7 +279,7 @@ function render() {
   }
   ansicht.innerHTML = imTraining ? viewTraining() : { heute: viewHeute, verlauf: viewVerlauf, fortschritt: viewFortschritt, plaene: viewPlaene }[tab]();
   if (!imTraining && tab === "fortschritt") chartInteraktion();
-  bildschirmAn(imTraining);
+  bildschirmAn(!!store.aktiv); // Bildschirm an, solange ein Training läuft (auch auf „Heute“)
   historieSync();
   tick();
 }
@@ -317,6 +329,9 @@ function viewHeute() {
       <div class="kachel"><div class="wert">${S.trainingsDieseWoche(tr)}</div><div class="bez">Trainings diese Woche</div></div>
       <div class="kachel"><div class="wert">${letztes ? esc(tageHer(letztes.start)) : "–"}</div><div class="bez">Letztes Training</div></div>
     </div>
+    ${store.aktiv ? `<div class="karte akzent laufend"><div class="zeile zwischen"><div><strong>Training läuft: ${esc(store.aktiv.tagName)}</strong>
+      <div class="dezent">seit <span id="dauer">0:00</span> · ${saetzeText(store.aktiv)}</div></div></div>
+      <div class="btn-reihe"><button class="btn primaer voll" data-a="fortsetzen">Fortsetzen</button></div></div>` : ""}
     ${sicherungsHinweis()}
     ${planUpdates.map((e) => `<div class="karte akzent"><strong>Neue Version von „${esc(store.plan(e.altId)?.name || e.name)}“</strong>
       <div class="dezent">Deine Trainings und dein Fortschritt bleiben erhalten.</div>
@@ -327,7 +342,7 @@ function viewHeute() {
 function viewTraining() {
   const a = store.aktiv;
   return `
-    <div class="tr-kopf"><div class="dezent">${a.woche ? `Woche ${a.woche} · ` : ""}Seit <span id="dauer">0:00</span> · ${a.eintraege.reduce((n, e) => n + e.saetze.filter((s) => s.erledigtUm).length, 0)} Sätze</div>
+    <div class="tr-kopf"><div class="dezent">${a.woche ? `Woche ${a.woche} · ` : ""}Seit <span id="dauer">0:00</span> · ${saetzeText(a)}</div>
       <div class="zeile"><button class="btn klein-btn" data-a="abbrechen">Verwerfen</button><button class="btn primaer klein-btn" data-a="beenden">Beenden</button></div></div>
     ${a.eintraege.map((e, ei) => {
       const letzteBlock = store.letzteSaetze(e.uebungName, a.planId);
@@ -549,9 +564,20 @@ const aktionen = {
   start: (d) => {
     audioBereit();
     benachrichtigungErlauben();
+    const a = store.aktiv;
+    if (a && a.planId === d.plan && a.tagId === d.tag) { aktionen.fortsetzen(); return; }
+    if (a && !confirm(`Es läuft noch „${a.tagName}“. Dieses Training verwerfen und „${store.plan(d.plan)?.tage.find((t) => t.id === d.tag)?.name || "neues Training"}“ starten?`)) return;
+    if (a) store.abbrechenTraining();
     store.state.aktiverPlanId = d.plan;
     store.starteTraining(d.plan, d.tag);
     timerGemeldet = false;
+    trainingSichtbar = true;
+    render();
+    window.scrollTo(0, 0);
+  },
+  fortsetzen: () => {
+    audioBereit();
+    trainingSichtbar = true;
     render();
     window.scrollTo(0, 0);
   },
@@ -583,12 +609,13 @@ const aktionen = {
   "timer-minus": () => { store.verschiebeTimer(-15); tick(); },
   "timer-stopp": () => { store.stoppeTimer(); tick(); },
   abbrechen: () => {
-    if (confirm("Training verwerfen? Nichts davon wird gespeichert.")) { store.abbrechenTraining(); render(); }
+    if (confirm("Training verwerfen? Nichts davon wird gespeichert.")) { store.abbrechenTraining(); trainingSichtbar = true; render(); }
   },
   beenden: () => {
     const offen = store.aktiv.eintraege.some((e) => e.saetze.some((s) => !s.erledigtUm));
     if (offen && !confirm("Noch nicht alle Sätze abgehakt. Trotzdem beenden? Nicht abgehakte Sätze werden nicht gespeichert.")) return;
     const fertig = store.beendeTraining();
+    trainingSichtbar = true;
     tab = "heute";
     render();
     if (!fertig) { toast("Kein Satz abgehakt, Training nicht gespeichert."); return; }
@@ -808,7 +835,7 @@ const aktionen = {
     const name = `overload-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
     herunterladen(name, store.exportJSON());
     toast("Sicherung gespeichert (Downloads).");
-    if (!store.aktiv && !dialog.open) render();
+    if (!imTrainingAnsicht() && !dialog.open) render();
   },
   "import-sicherung": async () => {
     const file = await dateiWaehlen("application/json,.json");
