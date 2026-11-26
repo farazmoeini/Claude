@@ -13,6 +13,8 @@ const timerEl = $("#timer");
 let tab = "heute";
 let fortschrittUebung = null;
 let fortschrittBlock = "alle";
+// Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
+const APP_VERSION = 14;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -800,7 +802,7 @@ const aktionen = {
       <p class="klein">Bleibt nur auf diesem Handy und wird nur an api.anthropic.com geschickt. Nicht Teil der Sicherung.</p>
       <p class="abschnitt">Daten</p>
       <button class="btn gefahr voll" data-a="alles-loeschen">Alle Daten löschen</button>
-      <p class="klein" style="margin-top:16px">Overload · Version 1</p>`);
+      <p class="klein" style="margin-top:16px">Overload · Version ${APP_VERSION}</p>`);
   },
   export: () => {
     const name = `overload-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
