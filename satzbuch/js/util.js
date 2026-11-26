@@ -28,3 +28,15 @@ export function verschiebe(liste, i, richtung) {
   [neu[i], neu[j]] = [neu[j], neu[i]];
   return neu;
 }
+
+/** Übungshinweis in Zeilen zerlegen: getrennt an " · ", Stichwort vor einem Doppelpunkt, "3 x 5" → "3 × 5". */
+export function hinweisTeile(notiz) {
+  return String(notiz ?? "")
+    .split(/\s+·\s+/)
+    .map((t) => t.trim().replace(/(\d(?:\s*kg)?)\s*x\s*(\d)/gi, "$1 × $2"))
+    .filter(Boolean)
+    .map((t) => {
+      const m = t.match(/^([^:]{2,40}):\s+(.+)$/);
+      return m ? { stichwort: m[1].trim(), text: m[2].trim() } : { stichwort: "", text: t };
+    });
+}
