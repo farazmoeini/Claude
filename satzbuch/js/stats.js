@@ -132,3 +132,39 @@ export function pausenText(aktiv) {
   const werte = [n.kg != null ? `${String(n.kg).replace(".", ",")} kg` : "", n.wdh != null ? `${n.wdh}` : ""].filter(Boolean).join(" × ");
   return `Weiter: ${n.uebung}, Satz ${n.satz}${werte ? " – " + werte : ""}`;
 }
+
+// ---------- Langhantel: Scheiben pro Seite ----------
+export const SCHEIBEN = [20, 15, 10, 5, 2.5, 1.25];
+
+/** Scheiben je Seite für ein Gesamtgewicht (Stange 20 kg); null, wenn nicht genau ladbar. */
+export function scheibenProSeite(kg, stange = 20, verfuegbar = SCHEIBEN) {
+  if (kg == null || kg < stange) return null;
+  let rest = Math.round(((kg - stange) / 2) * 100) / 100;
+  const out = [];
+  for (const s of verfuegbar) {
+    while (rest >= s - 1e-9) { out.push(s); rest = Math.round((rest - s) * 100) / 100; }
+  }
+  return rest < 1e-9 ? out : null;
+}
+
+export function istLanghantel(name) {
+  const n = String(name ?? "");
+  if (/\bdb\b|kurzhantel|kabel|maschine|smith|hammer|einbeinig/i.test(n)) return false;
+  return /kniebeuge|deadlift|kreuzheben|bench|bankdr|close-grip|romanian|military|langhantel/i.test(n);
+}
+
+// ---------- Wochenleiste ----------
+export function wochenTage(trainings, jetzt = Date.now()) {
+  const ab = wochenStart(jetzt);
+  const heute = new Date(jetzt); heute.setHours(0, 0, 0, 0);
+  return ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((kurz, i) => {
+    const tag = new Date(ab); tag.setDate(tag.getDate() + i);
+    const bis = new Date(tag); bis.setDate(bis.getDate() + 1);
+    return {
+      kurz,
+      trainiert: trainings.some((t) => t.start >= tag.getTime() && t.start < bis.getTime()),
+      heute: tag.getTime() === heute.getTime(),
+      vorbei: tag.getTime() < heute.getTime(),
+    };
+  });
+}
