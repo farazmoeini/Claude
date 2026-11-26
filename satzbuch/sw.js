@@ -1,6 +1,6 @@
 // Offline-Cache. App-Dateien und Pläne: Netz zuerst (immer neueste Version), ohne Netz aus dem Cache.
 // pdf.js (cdnjs): einmal laden, dann aus dem Cache.
-const VERSION = "satzbuch-v20";
+const VERSION = "satzbuch-v21";
 const STATUS = "overload-status";
 const TEILEN = "overload-teilen"; // per „Teilen → Overload“ angekommene Datei, bis die App sie abholt // merkt sich, für welches Pausenende schon benachrichtigt wurde
 const APP = [

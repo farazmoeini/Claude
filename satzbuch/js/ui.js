@@ -18,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -332,6 +332,7 @@ async function geteilteDateiImportieren() {
 function render() {
   const imTraining = imTrainingAnsicht();
   document.body.classList.toggle("im-training", imTraining);
+  document.body.classList.toggle("alles-erledigt", imTraining && !S.naechsterSatz(store.aktiv));
   $("#titel").textContent = imTraining ? store.aktiv.tagName : { heute: "Overload", verlauf: "Verlauf", fortschritt: "Fortschritt", plaene: "Pläne" }[tab];
   for (const b of document.querySelectorAll(".leiste button")) {
     if (b.dataset.tab === tab) b.setAttribute("aria-current", "page");
@@ -448,7 +449,9 @@ function viewTraining() {
         </ol>
       </section>`;
     }).join("")}
-    <button class="btn-leise voll" data-a="uebung-plus">+ Übung hinzufügen</button>`;
+    <button class="btn-leise voll" data-a="uebung-plus">+ Übung hinzufügen</button>
+    <button class="btn voll tr-ende" data-a="beenden">Training beenden</button>
+    ${S.naechsterSatz(a) ? "" : `<div class="fertig-leiste" role="status"><span>Alle Sätze erledigt</span><button class="btn primaer" data-a="beenden">Training beenden</button></div>`}`;
 }
 
 function viewVerlauf() {
@@ -685,8 +688,10 @@ const aktionen = {
     if (satz.erledigtUm) { store.satzZuruecksetzen(e, s); render(); return; }
     store.satzAbhaken(e, s);
     const eintrag = store.aktiv.eintraege[e];
-    store.starteTimer(eintrag.saetze[s].pause || eintrag.pause || store.state.einstellungen.pause);
-    timerGemeldet = false;
+    if (S.naechsterSatz(store.aktiv)) {
+      store.starteTimer(eintrag.saetze[s].pause || eintrag.pause || store.state.einstellungen.pause);
+      timerGemeldet = false;
+    } else store.stoppeTimer(); // letzter Satz: keine Pause mehr, Training beenden anbieten
     render();
   },
   "satz-plus": (d) => { store.satzHinzufuegen(+d.e); render(); },
