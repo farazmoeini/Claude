@@ -18,7 +18,7 @@ let fortschrittBlock = "alle";
 let trainingSichtbar = true;
 const imTrainingAnsicht = () => !!store.aktiv && trainingSichtbar;
 // Bei jeder Veröffentlichung erhöhen (gleich wie VERSION in sw.js), damit man auf dem Handy sieht, welche Version läuft.
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 let planUpdates = []; // mitgelieferte Pläne, die neuer sind als die gespeicherte Version
 
 let updatePruefungLaeuft = false;
@@ -57,6 +57,8 @@ async function pruefePlanUpdates() {
 let editorEntwurf = null;
 let editorStart = null; // Stand beim Öffnen des Editors (für „ungespeicherte Änderungen?“)
 let timerGemeldet = false;
+let timerZu = null; // { endetUm, um }: wann der abgelaufene Timer sich schließt (nach dem Ton)
+const TON_DAUER_MS = 3000;
 let verstecktSeit = null; // seit wann die App nicht sichtbar ist (null = sichtbar)
 let gemeldeterTimer = ""; // zuletzt an den Hintergrund-Dienst gemeldeter Timer
 
@@ -1016,14 +1018,19 @@ function tick() {
       } else signal();
     }
   }
-  const ueber = Math.floor((Date.now() - t.endetUm) / 1000);
-  const html = `<div class="zeit">${vorbei ? "+" + S.formatDauer(ueber) : S.formatDauer(rest)}</div>
+  // Abgelaufen: nicht weiterzählen, nach dem Ton schließen. Nur bei sichtbarer App,
+  // sonst würde der Hintergrund-Dienst seine Benachrichtigung verwerfen.
+  if (vorbei && !document.hidden) {
+    if (timerZu?.endetUm !== t.endetUm) timerZu = { endetUm: t.endetUm, um: Date.now() + TON_DAUER_MS };
+    if (Date.now() >= timerZu.um) { timerZu = null; store.stoppeTimer(); tick(); return; }
+  }
+  const html = `<div class="zeit">${S.formatDauer(rest)}</div>
     <div class="info">${vorbei ? "Pause vorbei – nächster Satz!" : "Pause"}<div class="balken"><i style="width:${vorbei ? 100 : Math.round((1 - rest / gesamt) * 100)}%"></i></div></div>
     <button data-a="timer-minus" aria-label="15 Sekunden weniger">−15</button><button data-a="timer-plus" aria-label="15 Sekunden mehr">+15</button><button data-a="timer-stopp" aria-label="Timer schließen">✕</button>`;
   timerEl.classList.toggle("vorbei", vorbei);
   if (timerEl.hidden || timerEl.dataset.zustand !== String(vorbei)) { timerEl.innerHTML = html; timerEl.dataset.zustand = String(vorbei); }
   else {
-    timerEl.querySelector(".zeit").textContent = vorbei ? "+" + S.formatDauer(ueber) : S.formatDauer(rest);
+    timerEl.querySelector(".zeit").textContent = S.formatDauer(rest);
     timerEl.querySelector(".balken i").style.width = (vorbei ? 100 : Math.round((1 - rest / gesamt) * 100)) + "%";
   }
   timerEl.hidden = false;
